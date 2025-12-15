@@ -33,7 +33,9 @@ app.post('/build', async (req, reply) => {
   });
 
   const entry = typeof body.entry === 'string' ? body.entry : 'src/index.tsx';
-  const externals = Array.isArray(body.externals) ? body.externals.map(String) : DEFAULT_EXTERNALS;
+  const externals = Array.isArray(body.externals) && body.externals.length > 0
+    ? body.externals.map(String)
+    : DEFAULT_EXTERNALS;
   const tailwind = body.tailwind && typeof body.tailwind === 'object'
     ? {
         enabled: Boolean(body.tailwind.enabled),
