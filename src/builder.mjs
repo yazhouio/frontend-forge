@@ -131,7 +131,15 @@ export async function buildOnce({ files, entry, externals, tailwind }) {
       timeoutMs: BUILD_TIMEOUT_MS,
     });
 
-    const jsCode = fs.readFileSync(outJs, "utf8");
+    let jsCode = fs.readFileSync(outJs, "utf8");
+
+    // Final minify to a single line
+    const minified = await esbuild.transform(jsCode, {
+      loader: "js",
+      minify: true,
+      legalComments: "none",
+    });
+    jsCode = minified.code.replace(/\n+/g, "").trim();
 
     let cssCode = null;
     if (tailwind?.enabled) {
