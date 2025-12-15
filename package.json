@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "KubeSphere plugin build service (SystemJS) powered by Fastify + esbuild + Babel + Tailwind.",
+  "description": "KubeSphere plugin build service (SystemJS) powered by Fastify + esbuild + SWC + Tailwind.",
   "scripts": {
     "start": "node src/server.mjs",
     "dev": "node --watch src/server.mjs"
@@ -15,9 +15,7 @@
     "p-queue": "^8.0.1"
   },
   "devDependencies": {
-    "@babel/cli": "^7.26.0",
-    "@babel/core": "^7.26.0",
-    "@babel/plugin-transform-modules-systemjs": "^7.26.0",
+    "@swc/core": "^1.9.2",
     "@tailwindcss/cli": "^4.1.18",
     "esbuild": "^0.25.0"
   }

@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import esbuild from "esbuild";
 import { execa } from "execa";
+import { transformFile } from "@swc/core";
 import { BUILD_TIMEOUT_MS, CHILD_MAX_OLD_SPACE_MB } from "./config.mjs";
 import { safeJoin, mkWorkDir, rmWorkDir, binPath, nowMs } from "./utils.mjs";
 
@@ -116,22 +117,26 @@ export async function buildOnce({ files, entry, externals, tailwind }) {
     );
 
     const outJs = path.join(distDir, "index.js");
-    const babelArgs = [
-      esbuildOut,
-      "--out-file",
-      outJs,
-      "--plugins",
-      "@babel/plugin-transform-modules-systemjs",
-      "--no-babelrc",
-      "--no-comments",
-    ];
+    const swcResult = await withTimeout(
+      transformFile(esbuildOut, {
+        filename: esbuildOut,
+        sourceMaps: false,
+        minify: false,
+        jsc: {
+          target: "es2020",
+          parser: { syntax: "ecmascript" },
+        },
+        module: {
+          type: "systemjs",
+          ignoreDynamic: true,
+        },
+      }),
+      BUILD_TIMEOUT_MS,
+      "swc transform"
+    );
 
-    await runCmd(binPath("babel"), babelArgs, {
-      cwd: workDir,
-      timeoutMs: BUILD_TIMEOUT_MS,
-    });
-
-    let jsCode = fs.readFileSync(outJs, "utf8");
+    fs.writeFileSync(outJs, swcResult.code, "utf8");
+    let jsCode = swcResult.code;
 
     // Final minify to a single line
     const minified = await esbuild.transform(jsCode, {
