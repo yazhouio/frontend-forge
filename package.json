@@ -1,0 +1,24 @@
+{
+  "name": "frontend-forge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "KubeSphere plugin build service (SystemJS) powered by Fastify + esbuild + Babel + Tailwind.",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "node --watch src/server.mjs"
+  },
+  "dependencies": {
+    "execa": "^9.5.1",
+    "fastify": "^4.29.0",
+    "lru-cache": "^11.0.2",
+    "p-queue": "^8.0.1"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.26.0",
+    "@babel/core": "^7.26.0",
+    "@babel/plugin-transform-modules-systemjs": "^7.26.0",
+    "@tailwindcss/cli": "^4.1.18",
+    "esbuild": "^0.25.0"
+  }
+}
