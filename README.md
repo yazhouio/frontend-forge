@@ -1,6 +1,6 @@
 # FrontendForge
 
-KubeSphere v4 插件构建服务：接收 TS/TSX/CSS 源码，通过 esbuild + Babel 生成 **SystemJS** 单文件 JS，支持可选 Tailwind CSS，同时具备缓存、并发队列与超时控制。
+KubeSphere v4 插件构建服务：接收 TS/TSX/CSS 源码，通过 esbuild + SWC 生成 **SystemJS** 单文件 JS，支持可选 Tailwind CSS，同时具备缓存、并发队列与超时控制。
 
 ## 功能特性
 - POST `/build` 接收文件数组并返回 SystemJS 产物（必含 `System.register`）
