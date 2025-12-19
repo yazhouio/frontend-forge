@@ -16,11 +16,18 @@ import swc from "@swc/core";
 // console.log(JSON.stringify(result.imports, null, 2));
 // console.log(manager.toString());
 
-const DUMMY = { start: 0, end: 0, ctxt: 0 };
+const ast1 = swc.parseSync(`function Page() {
+  return <div>1</div>}`, {
+  syntax: "typescript",
+  tsx: true,
+});
+
+let DUMMY = { start: 0, end: 0 }
+
 
 const ast = swc.printSync(
   {
-    type: "Script",
+    type: "Module",
     span: DUMMY,
     body: [
       {
@@ -28,6 +35,7 @@ const ast = swc.printSync(
         identifier: {
           type: "Identifier",
           span: DUMMY,
+          ctxt: 1,
           value: "Page",
           optional: false,
         },
@@ -40,6 +48,7 @@ const ast = swc.printSync(
             pat: {
               type: "Identifier",
               span: DUMMY,
+              ctxt: 1,
               value: "props",
               optional: false,
             },
@@ -47,16 +56,17 @@ const ast = swc.printSync(
         ],
         decorators: [],
         span: DUMMY,
+        ctxt: 1,
         body: {
           type: "BlockStatement",
           span: DUMMY,
+          ctxt: 1,
           stmts: [],
         },
         generator: false,
         async: false,
       },
     ],
-    interpreter: "xx",
   },
   {
     jsc: {

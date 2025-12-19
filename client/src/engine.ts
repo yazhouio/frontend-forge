@@ -1,4 +1,4 @@
-import type { Statement, Expression, Module, Script } from "@swc/core";
+import type { Statement, Expression, Module, Script, ExpressionStatement } from "@swc/core";
 import swc from "@swc/core";
 
 export type StatementKind =
@@ -118,49 +118,49 @@ class Page implements NodeDefinition {
  * }; // scope: function
  */
 
-const StatementScope = {
+enum StatementScope {
   /** import / export，仅 module 顶层 */
-  ModuleImport: "module.import",
+  ModuleImport = "module.import",
 
   /** 模块初始化（有副作用，顺序敏感） */
-  ModuleInit: "module.init",
+  ModuleInit = "module.init",
 
   /** 模块级声明（const / function / class，无立即副作用） */
-  ModuleDecl: "module.decl",
+  ModuleDecl = "module.decl",
 
   /** 函数声明本身（不含 body） */
-  FunctionDecl: "function.decl",
+  FunctionDecl = "function.decl",
 
   /** 函数体内部语句 */
-  FunctionBody: "function.body",
+  FunctionBody = "function.body",
 
   /** block 内（if / for / try 等） */
-  Block: "block",
+  Block = "block",
 
   /** return / throw */
-  ControlFlow: "control",
+  ControlFlow = "control",
 
   /** JSX（通常绑定 return） */
-  JSX: "jsx",
+  JSX = "jsx",
 };
 
-const HookSemantic = {
-  None: "none",
+enum HookSemantic {
+  None = "none",
 
   /** useContext */
-  Context: "context",
+  Context = "context",
 
   /** useState / useReducer / useRef */
-  State: "state",
+  State = "state",
 
   /** useMemo / useCallback */
-  Memo: "memo",
+  Memo = "memo",
 
   /** 自定义 hook（useXxx，包括 DataSource hook） */
-  Custom: "custom",
+  Custom = "custom",
 
   /** useEffect / useLayoutEffect */
-  Effect: "effect",
+  Effect = "effect",
 };
 
 export interface StatementWithMeta {
@@ -168,10 +168,10 @@ export interface StatementWithMeta {
   stmt: any;
 
   /** 语句作用域 */
-  scope: keyof typeof StatementScope;
+  scope: StatementScope;
 
   /** Hook 语义（仅 FunctionBody 有意义） */
-  hook: keyof typeof HookSemantic;
+  hook: HookSemantic;
 
   /** hook 排序优先级（仅 hook 有意义） */
   hookOrder?: number;
@@ -216,6 +216,15 @@ export interface FunctionIR {
   body: FunctionBodyIR;
 }
 
+function identifier(name: string) {
+  return {
+    type: "Identifier",
+    value: name,
+    span: DUMMY,
+    ctxt: 1,
+  };
+}
+
 class FunctionIRBuilder {
   decl?: StatementWithMeta; // FunctionDecl
   body?: FunctionBodyIR;
@@ -228,18 +237,22 @@ class FunctionIRBuilder {
     this.decl = {
       stmt: {
         type: "FunctionDeclaration",
-        identifier: {
-          value: name,
-        },
+        identifier: identifier(name),
         params: [
           {
             type: "Parameter",
-            value: "props",
+            pat: {
+              ...identifier("props"),
+            },
+            span: DUMMY,
+            ctxt: 1,
           },
         ],
+        span: DUMMY,
+        ctxt: 1,
       },
-      scope: StatementScope.FunctionDecl as "FunctionDecl",
-      hook: HookSemantic.None as "None",
+      scope: StatementScope.FunctionDecl,
+      hook: HookSemantic.None,
       reorderable: true,
       owner: "FunctionIRBuilder",
     };
@@ -275,19 +288,19 @@ class FunctionIRBuilder {
     };
   };
 }
-const DUMMY = { start: 0, end: 0, ctxt: 0 };
+const DUMMY = { start: 0, end: 0, ctxt: 1 };
 
 function transformFunctionIR(functionIR: FunctionIR): Statement {
   return {
     ...functionIR.decl.stmt,
-    span: DUMMY,
     body: {
       type: "BlockStatement",
       span: DUMMY,
+      ctxt: 1,
       stmts: [
-        // ...(functionIR.body.hooks?.map((hook) => hook.stmt) || []),
-        // ...(functionIR.body.body?.map((stmt) => stmt.stmt) || []),
-        // ...(functionIR.body.returns?.map((stmt) => stmt.stmt) || []),
+        ...(functionIR.body.hooks?.map((hook) => hook.stmt) || []),
+        ...(functionIR.body.body?.map((stmt) => stmt.stmt) || []),
+        ...(functionIR.body.returns?.map((stmt) => stmt.stmt) || []),
       ],
     },
   };
@@ -297,45 +310,37 @@ class Engine {
   nodes = new Map();
   compile(schema: PageSchema): string {
     const jsx = this.compileNodeJSX(schema.root);
+    console.log(
+      'jsx', jsx
+    )
     const builder = new FunctionIRBuilder();
     builder.setDecl("App");
     builder.addReturn({
       stmt: {
         span: DUMMY,
         type: "ReturnStatement",
-        argument: {
-          type: "JSXElement",
-          span: DUMMY,
-          children: [],
-        },
+        argument: (swc.parseSync(jsx, {
+          syntax: "typescript",
+          tsx: true,
+        }).body[0] as ExpressionStatement).expression,
       },
-      scope: StatementScope.FunctionBody as "FunctionBody",
-      hook: HookSemantic.None as "None",
+      scope: StatementScope.FunctionBody,
+      hook: HookSemantic.None,
       reorderable: true,
       owner: "Engine",
     });
-    // builder.addBody({
-    //   stmt: {
-    //     span: DUMMY,
-    //     type: "ReturnStatement",
-    //     argument: {
-    //       type: "JSXElement",
-    //       span: DUMMY,
-    //       children: [],
-    //     },
-    //   },
-    //   scope: StatementScope.FunctionBody as "FunctionBody",
-    //   hook: HookSemantic.None as "None",
-    //   reorderable: true,
-    //   owner: "Engine",
-    // });
 
     const functionIR = builder.build();
-    return swc.printSync({
-      type: "Script",
+    console.log(JSON.stringify({
+      type: "Module",
       span: DUMMY,
       body: [transformFunctionIR(functionIR)],
-    } as Script).code;
+    }, null, 2));
+    return swc.printSync({
+      type: "Module",
+      span: DUMMY,
+      body: [transformFunctionIR(functionIR)],
+    } as Module).code;
   }
 
   registerNode(node: NodeDefinition): Engine {
