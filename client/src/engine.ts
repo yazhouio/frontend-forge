@@ -1,4 +1,10 @@
-import type { Statement, Expression, Module, Script, ExpressionStatement } from "@swc/core";
+import type {
+  Statement,
+  Expression,
+  Module,
+  Script,
+  ExpressionStatement,
+} from "@swc/core";
 import swc, { version } from "@swc/core";
 import { ImportManager } from "./import";
 
@@ -54,8 +60,6 @@ const schema = {
   },
 };
 
-
-
 type DataSourceSchema = any;
 type NodeSchema = {
   id: string;
@@ -95,7 +99,7 @@ interface LooseCodeFragmentIR {
     depends?: string[];
     renderBoundary?: boolean;
     nodeName: string;
-  }
+  };
 }
 
 class Page implements NodeDefinition {
@@ -109,9 +113,7 @@ class Page implements NodeDefinition {
     </div>`;
     return {
       jsx: code,
-      imports: [
-        `import * as React from 'react';`,
-      ],
+      imports: [`import * as React from 'react';`],
       statements: [],
       meta: {
         depends: [],
@@ -134,9 +136,7 @@ class Create implements NodeDefinition {
     </div>`;
     return {
       jsx: code,
-      imports: [
-        `import * as React from 'react';`,
-      ],
+      imports: [`import * as React from 'react';`],
       statements: [
         {
           hook: HookSemantic.State,
@@ -154,7 +154,7 @@ class Create implements NodeDefinition {
           hook: HookSemantic.None,
           scope: StatementScope.FunctionBody,
           code: `const onSubmit = () => {
-            console.log(value);
+            // console.log(value);
             setValue('');
           };`,
         },
@@ -178,9 +178,7 @@ class Text implements NodeDefinition {
     const code = `<span>${props.text}</span>`;
     return {
       jsx: code,
-      imports: [
-        `import * as React from 'react';`,
-      ],
+      imports: [`import * as React from 'react';`],
       statements: [],
       meta: {
         depends: [],
@@ -237,7 +235,7 @@ enum StatementScope {
 
   /** JSX（通常绑定 return） */
   JSX = "jsx",
-};
+}
 
 enum HookSemantic {
   None = "none",
@@ -256,7 +254,7 @@ enum HookSemantic {
 
   /** useEffect / useLayoutEffect */
   Effect = "effect",
-};
+}
 
 export interface StatementWithMeta {
   /** AST 节点（建议 swc::Stmt） */
@@ -308,8 +306,6 @@ export interface FunctionBodyIR {
   /** return / JSX */
   returns: StatementWithMeta[];
 }
-
-
 
 function identifier(name: string) {
   return {
@@ -373,7 +369,6 @@ class FunctionIRBuilder {
     this.body?.returns?.push(stmt);
   };
 
-
   build = (): FunctionIR => {
     if (!this.decl || !this.body) {
       throw new Error("FunctionIRBuilder: decl or body is not set");
@@ -423,43 +418,47 @@ class CodeFragment implements CodeFragmentIR {
 
   moduleInits: StatementWithMeta[] = [];
 
-  functions: FunctionIR[] = []
+  functions: FunctionIR[] = [];
 
   static toAst(codeFragment: CodeFragmentIR): Statement[] {
     return [
       ...(codeFragment.moduleDecls?.map((stmt) => stmt.stmt) || []),
       ...(codeFragment.moduleInits?.map((stmt) => stmt.stmt) || []),
-      ...(codeFragment.functions?.flatMap((stmt) => transformFunctionIR(stmt)) || []),
-    ]
+      ...(codeFragment.functions?.flatMap((stmt) =>
+        transformFunctionIR(stmt)
+      ) || []),
+    ];
   }
   static generateCode(codeFragment: CodeFragmentIR): string {
     const imports = codeFragment.imports.parse().visitor().toString();
     const body = swc.printSync(
       {
-        type: "Script",
+        type: "Module",
         span: DUMMY,
         body: CodeFragment.toAst(codeFragment),
-      } as Script, {
-      jsc: {
-        parser: {
-          syntax: "typescript",
-          tsx: true,
-          dynamicImport: true,
-        }
+      } as Module,
+      {
+        jsc: {
+          parser: {
+            syntax: "typescript",
+            tsx: true,
+            dynamicImport: true,
+          },
+        },
       }
-    },
     ).code;
     return imports + "\n\n" + body;
   }
 
-  static fromLooseCodeFragmentGroup(looseCodeFragment: LooseCodeFragmentIR): CodeFragmentIR {
+  static fromLooseCodeFragmentGroup(
+    looseCodeFragment: LooseCodeFragmentIR
+  ): CodeFragmentIR {
     const imports = new ImportManager(looseCodeFragment.imports);
     const moduleDecls: StatementWithMeta[] = [];
     const moduleInits: StatementWithMeta[] = [];
     const functions: FunctionIR[] = [];
     const functionBodyIRs: StatementWithMeta[] = [];
 
-    console.log('statementsWithMeta', looseCodeFragment.statementsWithMeta)
     looseCodeFragment.statementsWithMeta?.forEach((stmt) => {
       switch (stmt.scope) {
         case StatementScope.ModuleDecl:
@@ -472,24 +471,29 @@ class CodeFragment implements CodeFragmentIR {
           functionBodyIRs.push(stmt);
           break;
       }
-    })
+    });
 
     if (functionBodyIRs.length) {
       let functionIRBuilder = new FunctionIRBuilder();
       functionIRBuilder.setDecl(looseCodeFragment.meta.nodeName);
       functionBodyIRs.forEach((stmt) => {
         functionIRBuilder.addBody(stmt);
-      })
+      });
       if (looseCodeFragment.jsx) {
         functionIRBuilder.addReturn({
-          stmt: typeof looseCodeFragment.jsx === "string" ? {
-            span: DUMMY,
-            type: "ReturnStatement",
-            argument: (swc.parseSync(looseCodeFragment.jsx, {
-              syntax: "typescript",
-              tsx: true,
-            }).body[0] as ExpressionStatement).expression,
-          } : looseCodeFragment.jsx,
+          stmt:
+            typeof looseCodeFragment.jsx === "string"
+              ? {
+                  span: DUMMY,
+                  type: "ReturnStatement",
+                  argument: (
+                    swc.parseSync(looseCodeFragment.jsx, {
+                      syntax: "typescript",
+                      tsx: true,
+                    }).body[0] as ExpressionStatement
+                  ).expression,
+                }
+              : looseCodeFragment.jsx,
           scope: StatementScope.FunctionBody,
           hook: HookSemantic.None,
           reorderable: true,
@@ -503,19 +507,20 @@ class CodeFragment implements CodeFragmentIR {
       imports,
       moduleDecls,
       moduleInits,
-      functions
-    }
+      functions,
+    };
   }
-
-
 }
 
-const getSimpleNodeDefinition = ({ isRoot, id, type }: {
-  isRoot: boolean,
-  id: string,
-  type: string
+const getSimpleNodeDefinition = ({
+  isRoot,
+  id,
+  type,
+}: {
+  isRoot: boolean;
+  id: string;
+  type: string;
 }): NodeDefinition => {
-
   return {
     id,
     generateCode: (props: any, ctx: any) => {
@@ -527,17 +532,15 @@ const getSimpleNodeDefinition = ({ isRoot, id, type }: {
         statements: [],
         meta: {
           nodeName: id,
-          ...(isRoot && ({
+          ...(isRoot && {
             main: true,
-            renderBoundary: true
-          }))
-        }
-      }
-    }
-  }
-}
-
-
+            renderBoundary: true,
+          }),
+        },
+      };
+    },
+  };
+};
 
 class Engine {
   nodes = new Map();
@@ -550,77 +553,93 @@ class Engine {
     return this.nodes.get(id);
   }
 
-  compileNode = (node: NodeSchema, looseCodeFragmentMap: Map<string, LooseCodeFragmentIR>, isRoot = false): LooseCodeFragmentIR => {
+  compileNode = (
+    node: NodeSchema,
+    looseCodeFragmentMap: Map<string, LooseCodeFragmentIR>,
+    isRoot = false
+  ): LooseCodeFragmentIR => {
     let nodeIR = this.getNode(node.type);
     if (!nodeIR) {
       nodeIR = getSimpleNodeDefinition({
         isRoot,
         id: node.id,
-        type: node.type
+        type: node.type,
       });
     }
     let looseCodeFragment = nodeIR.generateCode(node.props, {
-      children: node.children?.map((child) => {
-        let item = this.compileNode(child, looseCodeFragmentMap);
-        if (item.meta?.renderBoundary) {
-          return `<${item.meta?.nodeName} ${Object.keys(child.props)
-            .map((key) => `${key}=${child.props[key]}`)
-            .join(" ")} />`
-        }
-        return item.jsx
-      }).join("\n") || "",
-    })
+      children:
+        node.children
+          ?.map((child) => {
+            let item = this.compileNode(child, looseCodeFragmentMap);
+            if (item.meta?.renderBoundary) {
+              return `<${item.meta?.nodeName} ${Object.keys(child.props)
+                .map((key) => `${key}=${child.props[key]}`)
+                .join(" ")} />`;
+            }
+            return item.jsx;
+          })
+          .join("\n") || "",
+    });
     looseCodeFragmentMap.set(nodeIR.id, looseCodeFragment);
     return looseCodeFragment;
-  }
+  };
 
-
-  bindLooseCodeFragmentGroup = (node: NodeSchema, looseCodeFragment: LooseCodeFragmentIR) => {
+  bindLooseCodeFragmentGroup = (
+    node: NodeSchema,
+    looseCodeFragment: LooseCodeFragmentIR
+  ) => {
     // todo
-  }
+  };
 
-  mergeLooseCodeFragmentGroup = (looseCodeFragmentGroupA: LooseCodeFragmentIR, looseCodeFragmentGroupB: LooseCodeFragmentIR): LooseCodeFragmentIR => {
+  mergeLooseCodeFragmentGroup = (
+    looseCodeFragmentGroupA: LooseCodeFragmentIR,
+    looseCodeFragmentGroupB: LooseCodeFragmentIR
+  ): LooseCodeFragmentIR => {
     return {
       imports: [
-        ...looseCodeFragmentGroupA?.imports, ...looseCodeFragmentGroupB?.imports,
+        ...looseCodeFragmentGroupA?.imports,
+        ...looseCodeFragmentGroupB?.imports,
       ],
       statements: [
-        ...looseCodeFragmentGroupA?.statements, ...looseCodeFragmentGroupB?.statements
+        ...looseCodeFragmentGroupA?.statements,
+        ...looseCodeFragmentGroupB?.statements,
       ],
       statementsWithMeta: [
-        ...looseCodeFragmentGroupA?.statementsWithMeta ?? [], ...looseCodeFragmentGroupB?.statements.flatMap(
-          stat => ({
-            stmt: swc.parseSync(stat.code, {
-              syntax: "typescript",
-              tsx: true,
-              decorators: true,
-              dynamicImport: true,
-            }).body,
-            owner: looseCodeFragmentGroupB.meta?.nodeName,
-            scope: stat.scope,
-            hook: stat.hook,
-            reorderable: stat.hook === HookSemantic.None,
-          })
-        )
+        ...(looseCodeFragmentGroupA?.statementsWithMeta ?? []),
+        ...looseCodeFragmentGroupB?.statements.flatMap((stat) => ({
+          stmt: swc.parseSync(stat.code, {
+            syntax: "typescript",
+            tsx: true,
+            decorators: true,
+            dynamicImport: true,
+          }).body,
+          owner: looseCodeFragmentGroupB.meta?.nodeName,
+          scope: stat.scope,
+          hook: stat.hook,
+          reorderable: stat.hook === HookSemantic.None,
+        })),
       ],
       jsx: looseCodeFragmentGroupA?.jsx,
       meta: {
         ...looseCodeFragmentGroupA?.meta,
         depends: [
-          ...looseCodeFragmentGroupA?.meta?.depends ?? [],
-          ...looseCodeFragmentGroupB?.meta?.depends ?? [],
+          ...(looseCodeFragmentGroupA?.meta?.depends ?? []),
+          ...(looseCodeFragmentGroupB?.meta?.depends ?? []),
         ],
       },
-    }
-  }
+    };
+  };
 
   // 广度遍历，获取所有的 LooseCodeFragmentIR
-  getCodeFragmentGroup = (node: NodeSchema, looseCodeFragmentMap: Map<string, LooseCodeFragmentIR>, group: Map<string, CodeFragmentIR>
+  getCodeFragmentGroup = (
+    node: NodeSchema,
+    looseCodeFragmentMap: Map<string, LooseCodeFragmentIR>,
+    group: Map<string, CodeFragmentIR>
   ) => {
     if (!looseCodeFragmentMap.has(node.id)) {
       throw new Error(`${node.id} 对应的 LooseCodeFragmentIR 不存在`);
     }
-    let nodeIR = looseCodeFragmentMap.get(node.id)!
+    let nodeIR = looseCodeFragmentMap.get(node.id)!;
     let mainIR: LooseCodeFragmentIR = {
       imports: [],
       statements: [],
@@ -631,78 +650,48 @@ class Engine {
         renderBoundary: true,
         nodeName: node.id,
       },
-    }
+    };
     mainIR = this.mergeLooseCodeFragmentGroup(mainIR, nodeIR);
     this.bindLooseCodeFragmentGroup(node, mainIR);
 
-    let children = [...node.children ?? []]
+    let children = [...(node.children ?? [])];
     while (children?.length) {
       let child = children.shift()!;
       if (!looseCodeFragmentMap.has(child.id)) {
         throw new Error(`${node.id} 对应的 LooseCodeFragmentIR 不存在`);
       }
-      let childNodeIR = looseCodeFragmentMap.get(child.id)!
-      console.log(childNodeIR.meta)
+      let childNodeIR = looseCodeFragmentMap.get(child.id)!;
       if (childNodeIR?.meta?.renderBoundary) {
-        nodeIR.meta.depends = [...nodeIR.meta?.depends ?? [], childNodeIR.meta.nodeName]
-        this.getCodeFragmentGroup(child, looseCodeFragmentMap, group)
+        nodeIR.meta.depends = [
+          ...(nodeIR.meta?.depends ?? []),
+          childNodeIR.meta.nodeName,
+        ];
+        this.getCodeFragmentGroup(child, looseCodeFragmentMap, group);
       } else {
         if (child.children?.length) {
           children = children.concat(child.children);
         }
       }
-      mainIR = this.mergeLooseCodeFragmentGroup(mainIR, childNodeIR)
+      mainIR = this.mergeLooseCodeFragmentGroup(mainIR, childNodeIR);
     }
     let codeFragment = CodeFragment.fromLooseCodeFragmentGroup(mainIR);
     group.set(nodeIR?.meta.nodeName, codeFragment);
-  }
+  };
 
-
-  compile(schema: PageSchema): string {
-    // 1. schema to loose code fragment
+  compile(schema: PageSchema): { path: string; code: string }[] {
     let looseCodeFragmentMap = new Map();
     this.compileNode(schema.root, looseCodeFragmentMap, true);
-    console.log(looseCodeFragmentMap)
 
-    // 2. schema to code fragment
     let group: Map<string, CodeFragmentIR> = new Map();
     this.getCodeFragmentGroup(schema.root, looseCodeFragmentMap, group);
 
-    group.forEach((codeFragment, key) => {
-      // console.log('codeFragment', codeFragment)
-      console.log(key, CodeFragment.generateCode(codeFragment))
-    })
-
-    return ''
-
-
-    // const jsx = this.compileNodeJSX(schema.root);
-    // const builder = new FunctionIRBuilder();
-    // builder.setDecl(schema.title);
-    // builder.addReturn({
-    //   stmt: {
-    //     span: DUMMY,
-    //     type: "ReturnStatement",
-    //     argument: (swc.parseSync(jsx, {
-    //       syntax: "typescript",
-    //       tsx: true,
-    //     }).body[0] as ExpressionStatement).expression,
-    //   },
-    //   scope: StatementScope.FunctionBody,
-    //   hook: HookSemantic.None,
-    //   reorderable: true,
-    //   owner: "Engine",
-    // });
-
-    // const functionIR = builder.build();
-
-    // return swc.printSync({
-    //   type: "Module",
-    //   span: DUMMY,
-    //   body: [transformFunctionIR(functionIR)],
-    // } as Module).code;
+    return Array.from(group.entries()).map(([key, codeFragment]) => {
+      return {
+        path: key,
+        code: CodeFragment.generateCode(codeFragment),
+      };
+    });
   }
-
 
   compileSimpleNodeJSX(node: NodeSchema): string {
     let nodeJSX = "";
@@ -735,7 +724,7 @@ class Engine {
     const codeFragment = nodeDefinition.generateCode(node.props, {
       children: childrenCtx.join(""),
     });
-    return codeFragment.jsx as string || "";
+    return (codeFragment.jsx as string) || "";
   }
 
   compileNodeJSX(node: NodeSchema): string {
@@ -750,4 +739,10 @@ class Engine {
   }
 }
 
-console.log(new Engine().registerNode(new Page()).registerNode(new Button()).registerNode(new Text()).registerNode(new Create()).compile(schema));
+const code = new Engine()
+  .registerNode(new Page())
+  .registerNode(new Button())
+  .registerNode(new Text())
+  .registerNode(new Create())
+  .compile(schema);
+console.log(code);
