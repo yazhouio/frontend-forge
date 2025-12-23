@@ -16,14 +16,16 @@ import swc from "@swc/core";
 // console.log(JSON.stringify(result.imports, null, 2));
 // console.log(manager.toString());
 
-const ast1 = swc.parseSync(`function Page() {
-  return <div>1</div>}`, {
-  syntax: "typescript",
-  tsx: true,
-});
+const ast1 = swc.parseSync(
+  `function Page() {
+  return <div>1</div>}`,
+  {
+    syntax: "typescript",
+    tsx: true,
+  }
+);
 
-let DUMMY = { start: 0, end: 0 }
-
+let DUMMY = { start: 0, end: 0 };
 
 const ast = swc.printSync(
   {
@@ -67,7 +69,7 @@ const ast = swc.printSync(
         async: false,
       },
     ],
-    interpreter: '// src/index.ts',
+    interpreter: "// src/index.ts",
   },
   {
     jsc: {
