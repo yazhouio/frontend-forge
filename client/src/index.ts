@@ -27,7 +27,7 @@ let DUMMY = { start: 0, end: 0 }
 
 const ast = swc.printSync(
   {
-    type: "Module",
+    type: "Script",
     span: DUMMY,
     body: [
       {
@@ -67,6 +67,7 @@ const ast = swc.printSync(
         async: false,
       },
     ],
+    interpreter: '// src/index.ts',
   },
   {
     jsc: {
