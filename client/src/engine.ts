@@ -446,8 +446,8 @@ class CodeFragment implements CodeFragmentIR {
           },
         },
       }
-    ).code;
-    return imports + "\n\n" + body;
+    );
+    return imports + "\n\n" + body.code;
   }
 
   static fromLooseCodeFragmentGroup(
@@ -691,51 +691,6 @@ class Engine {
         code: CodeFragment.generateCode(codeFragment),
       };
     });
-  }
-
-  compileSimpleNodeJSX(node: NodeSchema): string {
-    let nodeJSX = "";
-    if (!node.children?.length) {
-      nodeJSX = `<${node.type} ${Object.keys(node.props)
-        .map((key) => `${key}="${node.props[key]}"`)
-        .join(" ")}/>`;
-    } else {
-      const nodeJSXPrev = `<${node.type} ${Object.keys(node.props)
-        .map((key) => `${key}="${node.props[key]}"`)
-        .join(" ")}>`;
-      const nodeJSXChildren = node.children
-        ? node.children.map((child) => this.compileNodeJSX(child)).join("")
-        : "";
-      const nodeJSXNext = `</${node.type}>`;
-      nodeJSX = nodeJSXPrev + nodeJSXChildren + nodeJSXNext;
-    }
-    return nodeJSX;
-  }
-
-  generateCode(node: NodeSchema): string {
-    let nodeDefinition = this.getNode(node.type);
-    if (!nodeDefinition) {
-      throw new Error(`Node ${node.type} not found`);
-    }
-    let childrenCtx: string[] = [];
-    if (node.children?.length) {
-      childrenCtx = node.children.map((child) => this.compileNodeJSX(child));
-    }
-    const codeFragment = nodeDefinition.generateCode(node.props, {
-      children: childrenCtx.join(""),
-    });
-    return (codeFragment.jsx as string) || "";
-  }
-
-  compileNodeJSX(node: NodeSchema): string {
-    if (node.type === "text") {
-      return node.props.text;
-    }
-    if (!this.nodes.has(node.type)) {
-      return this.compileSimpleNodeJSX(node);
-    }
-
-    return this.generateCode(node);
   }
 }
 
