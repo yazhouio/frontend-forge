@@ -1,188 +1,167 @@
-import {
-  Engine,
-  PageSchema,
-  CodeFragment,
-  CompileContext,
-  CodeFragmentMeta,
-  StatementWithMeta,
+import swc from "@swc/core";
+import type { CodeFragmentIR } from "./interfaces";
+import { HookSemantic } from "./interfaces";
+import type {
+  LooseCodeFragmentIR,
+  NodeDefinition,
   NodeSchema,
-  DataSourceSchema,
-} from "../interfaces";
-import { ImportManager } from "./codeFragment/import";
+  PageSchema,
+} from "../nodes/interfaces";
+import { CodeFragment } from "./codeFragment";
+import { getSimpleNodeDefinition } from "../tools/getSimpleNodeDefinition";
+import { DEFAULT_SWC_PARSE_OPTIONS } from "../tools/swcParseOptions";
 
-import swc, { Statement } from "@swc/core";
-export type StatementKind =
-  | "definition"
-  | "state"
-  | "derived"
-  | "handler"
-  | "effect"
-  | "logic"
-  | "other";
-
-interface LooseCodeFragment {
-  dependencies: string[];
-  statements: {
-    kind: StatementKind;
-    code: string;
-  }[];
-  jsx?: string;
-  meta?: CodeFragmentMeta;
-}
-
-class Page {
-  id = "Page";
-  renderBoundary = true;
-  generateCode(
-    props: Record<string, any>,
-    ctx: CompileContext
-  ): LooseCodeFragment {
-    return {
-      dependencies: [],
-      statements: [],
-      jsx: `<div className='page'>${ctx.children}</div>`,
-    };
-  }
-}
-
-class Button {
-  id = "Button";
-  renderBoundary = false;
-
-  generateCode(
-    props: Record<string, any>,
-    ctx: CompileContext
-  ): LooseCodeFragment {
-    return {
-      dependencies: ['import { useState } from "react";'],
-      statements: [
-        {
-          kind: "state",
-          code: "const [count, setCount] = useState(0);",
-        },
-        {
-          kind: "handler",
-          code: "const handleClick = (c) => c + 1",
-        },
-      ],
-      jsx: "<button onClick={handleClick}>button {count}</button>",
-    };
-  }
-}
-
-type Definition = {
-  id: string;
-  renderBoundary?: boolean;
-  generateCode: (config: any) => LooseCodeFragment;
-};
-
-class SwrDataSource implements Definition {
-  id = "swr";
-  generateCode(config: Record<string, any>): LooseCodeFragment {
-    return {
-      dependencies: ['import swr from "swr"'],
-      statements: [
-        {
-          kind: "other",
-          code: `
-          const useUsers = () => {
-            return useSWR(${config.url}, () => ([
-            {name: 'xx', id:1},
-            {name: 'yy', id:2},
-            ]));
-          }
-        `,
-        },
-      ],
-      meta: {
-        scope: "module",
-        source: config.schemaId,
-      },
-    };
-  }
-}
-
-type NodeDefinition = {
-  readonly id: string;
-  renderBoundary: boolean;
-  generateCode: (props: Record<string, any>) => CodeFragment;
-};
-
-export class FrontendForgeEngine {
-  nodes: Map<string, Definition> = new Map();
-  dataSources: Map<string, Definition> = new Map();
-
-  registerNode(node: NodeDefinition) {
-    const item = {};
+export class Engine {
+  nodes = new Map();
+  registerNode(node: NodeDefinition): Engine {
+    this.nodes.set(node.id, node);
+    return this;
   }
 
-  getNode(id: string) {
+  getNode(id: string): NodeDefinition {
     return this.nodes.get(id);
   }
 
-  registerDataSource(dataSource: Definition): void {
-    this.dataSources.set(dataSource.id, dataSource);
-  }
-
-  getDataSource(id: string) {
-    return this.dataSources.get(id);
-  }
-
-  render(schema: PageSchema): void {
-    // todo
-  }
-
-  compile(schema: PageSchema): string {
-    return "";
-  }
-
-  bindComponentProps(node: NodeSchema) {
-    const { type, props, dataSourceId } = node;
-    if (!this.getNode(type)) {
-      return `<${type} ${Object.keys(props)
-        .map((key) => `${key}="[${dataSourceId}.${key}]"`)
-        .join(" ")}/>`;
+  compileNode = (
+    node: NodeSchema,
+    looseCodeFragmentMap: Map<string, LooseCodeFragmentIR>,
+    isRoot = false
+  ): LooseCodeFragmentIR => {
+    let nodeIR = this.getNode(node.type);
+    if (!nodeIR) {
+      nodeIR = getSimpleNodeDefinition({
+        isRoot,
+        id: node.id,
+        type: node.type,
+      });
     }
-  }
+    const looseCodeFragment = nodeIR.generateCode(node.props, {
+      children:
+        node.children
+          ?.map((child) => {
+            const item = this.compileNode(child, looseCodeFragmentMap);
+            if (item.meta?.renderBoundary) {
+              return `<${item.meta?.nodeName} ${Object.keys(child.props)
+                .map((key) => `${key}=${child.props[key]}`)
+                .join(" ")} />`;
+            }
+            return item.jsx;
+          })
+          .join("\n") || "",
+    });
+    looseCodeFragmentMap.set(nodeIR.id, looseCodeFragment);
+    return looseCodeFragment;
+  };
 
-  looseCodeFragmentBuilder = (node: Definition, ctx: CompileContext) => {
-    return (config: Record<string, any>): CodeFragment => {
-      const nodeCodeFragment = node.generateCode(config);
-      return {
-        imports: new ImportManager(
-          nodeCodeFragment.dependencies.join("\n")
-        ).visitor().imports,
-        statements: nodeCodeFragment.statements.map((stat) => {
-          return {
-            kind: stat.kind,
-            node: swc.parseSync(stat.code).body,
-          } as StatementWithMeta;
-        }),
-        jsx: nodeCodeFragment.jsx,
-        meta: nodeCodeFragment.meta,
-      };
+  bindLooseCodeFragmentGroup = (
+    node: NodeSchema,
+    looseCodeFragment: LooseCodeFragmentIR
+  ) => {
+    // todo
+  };
+
+  mergeLooseCodeFragmentGroup = (
+    looseCodeFragmentGroupA: LooseCodeFragmentIR,
+    looseCodeFragmentGroupB: LooseCodeFragmentIR
+  ): LooseCodeFragmentIR => {
+    return {
+      imports: [
+        ...looseCodeFragmentGroupA?.imports,
+        ...looseCodeFragmentGroupB?.imports,
+      ],
+      statements: [
+        ...looseCodeFragmentGroupA?.statements,
+        ...looseCodeFragmentGroupB?.statements,
+      ],
+      statementsWithMeta: [
+        ...(looseCodeFragmentGroupA?.statementsWithMeta ?? []),
+        ...looseCodeFragmentGroupB?.statements.flatMap((stat) => ({
+          stmt: swc.parseSync(stat.code, DEFAULT_SWC_PARSE_OPTIONS).body,
+          owner: looseCodeFragmentGroupB.meta?.nodeName,
+          scope: stat.scope,
+          hook: stat.hook,
+          reorderable: stat.hook === HookSemantic.None,
+        })),
+      ],
+      jsx: looseCodeFragmentGroupA?.jsx,
+      meta: {
+        ...looseCodeFragmentGroupA?.meta,
+        depends: [
+          ...(looseCodeFragmentGroupA?.meta?.depends ?? []),
+          ...(looseCodeFragmentGroupB?.meta?.depends ?? []),
+        ],
+      },
     };
   };
 
-  generateCodeFragment(schema: NodeSchema): CodeFragment[] {
-    const walk = (
-      root: NodeSchema,
-      codeFragments: CodeFragment[],
-      ctx: CompileContext
-    ) => {
-      const node = this.getNode(root.type);
-      if (!node) {
-        throw new Error(`Node ${schema.type} not found`);
-      }
-      codeFragments.push(this.looseCodeFragmentBuilder(node, ctx)(root.props));
-      root.children.forEach((child) => {
-        walk(child, codeFragments, ctx);
-      });
+  // 广度遍历，获取所有的 LooseCodeFragmentIR
+  getCodeFragmentGroup = (
+    node: NodeSchema,
+    looseCodeFragmentMap: Map<string, LooseCodeFragmentIR>,
+    group: Map<string, CodeFragmentIR>
+  ) => {
+    if (!looseCodeFragmentMap.has(node.id)) {
+      throw new Error(`${node.id} 对应的 LooseCodeFragmentIR 不存在`);
+    }
+    const nodeIR = looseCodeFragmentMap.get(node.id)!;
+    let mainIR: LooseCodeFragmentIR = {
+      imports: [],
+      statements: [],
+      jsx: nodeIR.jsx,
+      meta: {
+        main: true,
+        depends: [],
+        renderBoundary: true,
+        nodeName: node.id,
+      },
     };
-    const codeFragments: CodeFragment[] = [];
-    walk(schema, codeFragments, {});
-    return codeFragments;
-  }
+    mainIR = this.mergeLooseCodeFragmentGroup(mainIR, nodeIR);
+    this.bindLooseCodeFragmentGroup(node, mainIR);
 
-  // generateDataSourceCodeFragment(schema: DataSourceSchema[]): CodeFragment[] {}
+    let children = [...(node.children ?? [])];
+    while (children?.length) {
+      const child = children.shift()!;
+      if (!looseCodeFragmentMap.has(child.id)) {
+        throw new Error(`${node.id} 对应的 LooseCodeFragmentIR 不存在`);
+      }
+      const childNodeIR = looseCodeFragmentMap.get(child.id)!;
+      if (childNodeIR?.meta?.renderBoundary) {
+        nodeIR.meta.depends = [
+          ...(nodeIR.meta?.depends ?? []),
+          childNodeIR.meta.nodeName,
+        ];
+        this.getCodeFragmentGroup(child, looseCodeFragmentMap, group);
+      } else {
+        if (child.children?.length) {
+          children = children.concat(child.children);
+        }
+      }
+      mainIR = this.mergeLooseCodeFragmentGroup(mainIR, childNodeIR);
+    }
+    const codeFragment = CodeFragment.fromLooseCodeFragmentGroup(mainIR);
+    group.set(nodeIR?.meta.nodeName, codeFragment);
+  };
+
+  compile(schema: PageSchema): { path: string; code: string }[] {
+    const looseCodeFragmentMap = new Map();
+    this.compileNode(schema.root, looseCodeFragmentMap, true);
+
+    const group: Map<string, CodeFragmentIR> = new Map();
+    this.getCodeFragmentGroup(schema.root, looseCodeFragmentMap, group);
+
+    return Array.from(group.entries()).map(([key, codeFragment]) => {
+      return {
+        path: key,
+        code: CodeFragment.generateCode(codeFragment),
+      };
+    });
+  }
 }
+
+export { CodeFragment } from "./codeFragment";
+export type {
+  CodeFragmentIR,
+  FunctionBodyIR,
+  FunctionIR,
+  StatementWithMeta,
+} from "./interfaces";

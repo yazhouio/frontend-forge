@@ -1,5 +1,5 @@
-// import { ImportManager } from "./engine/codeFragment/import";
 import swc from "@swc/core";
+import { DEFAULT_SWC_PARSE_OPTIONS } from "./tools/swcParseOptions";
 
 // const code = `
 //     import 'reflect-metadata';
@@ -19,10 +19,7 @@ import swc from "@swc/core";
 const ast1 = swc.parseSync(
   `function Page() {
   return <div>1</div>}`,
-  {
-    syntax: "typescript",
-    tsx: true,
-  }
+  DEFAULT_SWC_PARSE_OPTIONS
 );
 
 let DUMMY = { start: 0, end: 0 };

@@ -1,13 +1,7 @@
 import swc from "@swc/core";
-import type { Module, ParseOptions } from "@swc/core";
+import type { Module } from "@swc/core";
 import { ImportSpecIR } from "./interfaces";
-
-const DEFAULT_SWC_PARSE_OPTIONS: ParseOptions = {
-  syntax: "typescript",
-  tsx: true,
-  decorators: true,
-  dynamicImport: true,
-};
+import { DEFAULT_SWC_PARSE_OPTIONS } from "./tools/swcParseOptions";
 
 export class ImportManager {
   code: string[] = [];
