@@ -94,7 +94,6 @@ export class Engine {
     };
   };
 
-  // 广度遍历，获取所有的 LooseCodeFragmentIR
   getCodeFragmentGroup = (
     node: NodeSchema,
     looseCodeFragmentMap: Map<string, LooseCodeFragmentIR>,
