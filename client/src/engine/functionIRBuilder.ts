@@ -4,7 +4,7 @@ import { createIdentifier } from "../tools/createIdentifier";
 import { DUMMY_SPAN } from "./constants";
 
 export class FunctionIRBuilder {
-  decl?: StatementWithMeta; // FunctionDecl
+  decl?: StatementWithMeta;
   body?: FunctionBodyIR;
 
   constructor() {

@@ -1,21 +1,6 @@
 import swc from "@swc/core";
 import { DEFAULT_SWC_PARSE_OPTIONS } from "./tools/swcParseOptions";
 
-// const code = `
-//     import 'reflect-metadata';
-//     import React, { useState as useS, useEffect } from 'react';
-//     import * as utils from './utils';
-//     import { a, b as c } from 'lib';
-//     import type { Foo, Bar as Baz } from './types';
-//     import type * as TypeNs from './types';
-//   `;
-
-// const manager = new ImportManager(code);
-// const result = manager.visitor();
-
-// console.log(JSON.stringify(result.imports, null, 2));
-// console.log(manager.toString());
-
 const ast1 = swc.parseSync(
   `function Page() {
   return <div>1</div>}`,

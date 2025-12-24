@@ -57,7 +57,6 @@ export class Create implements NodeDefinition {
           hook: HookSemantic.None,
           scope: StatementScope.FunctionBody,
           code: `const onSubmit = () => {
-            // console.log(value);
             setValue('');
           };`,
         },
