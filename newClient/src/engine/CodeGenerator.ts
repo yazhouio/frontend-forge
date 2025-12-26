@@ -1,0 +1,78 @@
+import { CodeFragment } from "./interfaces";
+import generate from "@babel/generator";
+import * as t from "@babel/types";
+import traverse from "@babel/traverse";
+
+function injectJsxChildren(
+  expr: t.Expression,
+  anchorName: string,
+  children: t.JSXElement[]
+) {
+  traverse(t.file(t.program([t.expressionStatement(expr)])), {
+    JSXElement(path) {
+      const opening = path.node.openingElement;
+      if (t.isJSXIdentifier(opening.name) && opening.name.name === anchorName) {
+        path.replaceWithMultiple(children);
+        path.stop();
+      }
+    },
+  });
+}
+
+export class CodeGenerator {
+  generate(fragments: Map<string, CodeFragment>): string {
+    let files: string[] = [];
+    fragments.forEach((f) => {
+      if (!f.meta.renderBoundary) {
+        return;
+      }
+      files.push(generate(this.generateProgram(f, fragments)).code);
+    });
+    return files.join("\n");
+  }
+
+  traverse(
+    fragment: CodeFragment,
+    fragments: Map<string, CodeFragment>
+  ): CodeFragment {
+    if (!fragment.meta.renderBoundary) {
+      return fragment;
+    }
+    const children = (fragment.children ?? []).map((childId) => {
+      return this.traverse(fragments.get(childId)!, fragments);
+    });
+    console.log("children", children);
+
+    injectJsxChildren(
+      fragment.jsx!,
+      "__ENGINE_CHILDREN__",
+      children.map((c) => c.jsx!)
+    );
+    return fragment;
+  }
+
+  private generateProgram(
+    fragment: CodeFragment,
+    fragments: Map<string, CodeFragment>
+  ): t.File {
+    const f = this.traverse(fragment, fragments);
+    console.log(f.imports);
+
+    const ast = t.file(
+      t.program([
+        ...f.imports,
+        t.functionDeclaration(
+          t.identifier(f.meta.title! ?? "Xxxx"),
+          [t.identifier("props")],
+          t.blockStatement([
+            ...f.stats.flatMap((stat) => {
+              return stat.stat;
+            }),
+            t.returnStatement(f.jsx),
+          ])
+        ),
+      ])
+    );
+    return ast;
+  }
+}
