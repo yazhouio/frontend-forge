@@ -1,6 +1,6 @@
 #### todo
 
-- [ ] import 合并
+- [x] import 合并
 - [ ] stat 收集、提升、排序
 - [ ] dataSource 支持
 - [ ] binding 支持

@@ -63,3 +63,125 @@ export const TextNode: NodeDefinition = {
     },
   },
 };
+
+export const ButtonNode: NodeDefinition = {
+  id: "Button",
+  schema: {
+    inputs: {
+      TEXT: {
+        type: "string",
+        description: "Button label",
+      },
+      VARIANT: {
+        type: "string",
+        description: "Button className",
+      },
+      DISABLED: {
+        type: "boolean",
+        description: "Disable state",
+      },
+    },
+  },
+  generateCode: {
+    imports: ['import * as React from "react"'],
+    jsx: "<button className={%%VARIANT%%} disabled={%%DISABLED%%}>{%%TEXT%%}</button>",
+    stats: [],
+    meta: {
+      inputPaths: {
+        $jsx: ["TEXT", "VARIANT", "DISABLED"],
+      },
+    },
+  },
+};
+
+export const ImageNode: NodeDefinition = {
+  id: "Image",
+  schema: {
+    inputs: {
+      SRC: {
+        type: "string",
+        description: "Image source",
+      },
+      ALT: {
+        type: "string",
+        description: "Alt text",
+      },
+      WIDTH: {
+        type: "number",
+        description: "Width",
+      },
+      HEIGHT: {
+        type: "number",
+        description: "Height",
+      },
+    },
+  },
+  generateCode: {
+    imports: ['import * as React from "react"'],
+    jsx: "<img src={%%SRC%%} alt={%%ALT%%} width={%%WIDTH%%} height={%%HEIGHT%%} />",
+    stats: [],
+    meta: {
+      inputPaths: {
+        $jsx: ["SRC", "ALT", "WIDTH", "HEIGHT"],
+      },
+    },
+  },
+};
+
+export const CardNode: NodeDefinition = {
+  id: "Card",
+  schema: {
+    inputs: {
+      TITLE: {
+        type: "string",
+        description: "Card title",
+      },
+      SUBTITLE: {
+        type: "string",
+        description: "Card subtitle",
+      },
+    },
+  },
+  generateCode: {
+    imports: ['import * as React from "react"'],
+    jsx: `<section className='card'>
+  <header>
+    <h3>{%%TITLE%%}</h3>
+    <p>{%%SUBTITLE%%}</p>
+  </header>
+  <div className='card-body'><__ENGINE_CHILDREN__ /></div>
+</section>`,
+    stats: [],
+    meta: {
+      inputPaths: {
+        $jsx: ["TITLE", "SUBTITLE"],
+      },
+    },
+  },
+};
+
+export const SectionNode: NodeDefinition = {
+  id: "Section",
+  schema: {
+    inputs: {
+      TITLE: {
+        type: "string",
+        description: "Section title",
+      },
+      CLASSNAME: {
+        type: "string",
+        description: "Section className",
+      },
+    },
+  },
+  generateCode: {
+    imports: ['import * as React from "react"'],
+    jsx: "<section className={%%CLASSNAME%%}><h2>{%%TITLE%%}</h2><__ENGINE_CHILDREN__ /></section>",
+    stats: [],
+    meta: {
+      inputPaths: {
+        $jsx: ["TITLE", "CLASSNAME"],
+      },
+    },
+  },
+};
