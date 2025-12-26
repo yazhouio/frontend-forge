@@ -106,12 +106,13 @@ export class Engine {
       const inputPaths = nodeDef.generateCode.meta?.inputPaths?.[stat?.id];
       const itemProps = inputPaths ? pick(props, inputPaths) : {};
       return {
+        id: `${node.id}:${stat.id}`,
         source: stat.code,
         scope: stat.scope,
         stat: stat.template(itemProps),
         meta: {
           output: stat.output,
-          depends: stat.depends,
+          depends: stat.depends.map((depId) => `${node.id}:${depId}`),
         },
       };
     });

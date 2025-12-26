@@ -44,6 +44,7 @@ export interface NodeDefinitionWithParseTemplate extends NodeDefinition {
 }
 
 export type Stat = {
+  id: string;
   scope: StatementScope;
   hook?: HookPriority;
   stat: Statement | Statement[];

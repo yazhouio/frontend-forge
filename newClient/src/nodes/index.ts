@@ -64,6 +64,98 @@ export const TextNode: NodeDefinition = {
   },
 };
 
+export const CounterNode: NodeDefinition = {
+  id: "Counter",
+  schema: {
+    inputs: {
+      LABEL: {
+        type: "string",
+        description: "Counter label",
+      },
+      DEFAULT_VALUE: {
+        type: "number",
+        description: "Default count",
+      },
+    },
+  },
+  generateCode: {
+    imports: [
+      'import * as React from "react"',
+      'import { useState, useMemo, useEffect } from "react"',
+    ],
+    jsx: "<div className='counter'><span>{%%LABEL%%}</span><strong>{countLabel}</strong></div>",
+    stats: [
+      {
+        id: "countState",
+        scope: StatementScope.FunctionBody,
+        code: "const [count, setCount] = useState(%%DEFAULT_VALUE%%);",
+        output: ["count", "setCount"],
+        depends: [],
+      },
+      {
+        id: "countLabelMemo",
+        scope: StatementScope.FunctionBody,
+        code: "const countLabel = useMemo(() => String(count), [count]);",
+        output: ["countLabel"],
+        depends: ["countState"],
+      },
+      {
+        id: "logEffect",
+        scope: StatementScope.FunctionBody,
+        code: "useEffect(() => { console.log(countLabel); }, [countLabel]);",
+        output: [],
+        depends: ["countLabelMemo"],
+      },
+    ],
+    meta: {
+      inputPaths: {
+        $jsx: ["LABEL"],
+        countState: ["DEFAULT_VALUE"],
+      },
+    },
+  },
+};
+
+export const ToggleNode: NodeDefinition = {
+  id: "Toggle",
+  schema: {
+    inputs: {
+      LABEL: {
+        type: "string",
+        description: "Toggle label",
+      },
+    },
+  },
+  generateCode: {
+    imports: [
+      'import * as React from "react"',
+      'import { useState, useCallback } from "react"',
+    ],
+    jsx: "<button className='toggle' onClick={toggle}>{%%LABEL%%}: {on ? 'On' : 'Off'}</button>",
+    stats: [
+      {
+        id: "toggleState",
+        scope: StatementScope.FunctionBody,
+        code: "const [on, setOn] = useState(false);",
+        output: ["on", "setOn"],
+        depends: [],
+      },
+      {
+        id: "toggleCallback",
+        scope: StatementScope.FunctionBody,
+        code: "const toggle = useCallback(() => setOn((prev) => !prev), []);",
+        output: ["toggle"],
+        depends: ["toggleState"],
+      },
+    ],
+    meta: {
+      inputPaths: {
+        $jsx: ["LABEL"],
+      },
+    },
+  },
+};
+
 export const ButtonNode: NodeDefinition = {
   id: "Button",
   schema: {

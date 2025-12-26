@@ -1,9 +1,11 @@
 import {
   ButtonNode,
+  CounterNode,
   CardNode,
   ImageNode,
   LayoutNode,
   SectionNode,
+  ToggleNode,
   TextNode,
 } from "../nodes";
 import { Engine } from "./Engine";
@@ -213,9 +215,93 @@ const pageSchemaMixed: PageConfig = {
     ],
   },
 };
+
+const pageSchemaHooks: PageConfig = {
+  meta: {
+    id: "page-hooks",
+    name: "Page Hooks",
+    title: "Page Hooks",
+    path: "/page-hooks",
+  },
+  context: {},
+  root: {
+    id: "layout-hooks",
+    type: "Layout",
+    props: {
+      TEXT: "Hook Layout",
+    },
+    meta: {
+      title: "Layout",
+      scope: true,
+    },
+    children: [
+      {
+        id: "counter-1",
+        type: "Counter",
+        props: {
+          LABEL: "Count A",
+          DEFAULT_VALUE: 1,
+        },
+        meta: {
+          title: "Counter",
+          scope: false,
+        },
+      },
+      {
+        id: "counter-2",
+        type: "Counter",
+        props: {
+          LABEL: "Count B",
+          DEFAULT_VALUE: 10,
+        },
+        meta: {
+          title: "Counter",
+          scope: false,
+        },
+      },
+      {
+        id: "toggle-1",
+        type: "Toggle",
+        props: {
+          LABEL: "Active",
+        },
+        meta: {
+          title: "Toggle",
+          scope: false,
+        },
+      },
+      {
+        id: "text-4",
+        type: "Text",
+        props: {
+          TEXT: "Hooked text",
+          DEFAULT_VALUE: 4,
+        },
+        meta: {
+          title: "Text",
+          scope: false,
+        },
+      },
+      {
+        id: "text-5",
+        type: "Text",
+        props: {
+          TEXT: "Another text",
+          DEFAULT_VALUE: 5,
+        },
+        meta: {
+          title: "Text",
+          scope: false,
+        },
+      },
+    ],
+  },
+};
 const nodeRegistry = new NodeRegistry();
 nodeRegistry.registerNode(TextNode);
 nodeRegistry.registerNode(LayoutNode);
+nodeRegistry.registerNode(CounterNode);
+nodeRegistry.registerNode(ToggleNode);
 nodeRegistry.registerNode(ButtonNode);
 nodeRegistry.registerNode(ImageNode);
 nodeRegistry.registerNode(CardNode);
@@ -224,7 +310,12 @@ const schemaValidator = new SchemaValidator();
 const engine = new Engine(nodeRegistry, schemaValidator);
 const codeGenerator = new CodeGenerator();
 
-const pageSchemas = [pageSchemaLayout, pageSchemaSection, pageSchemaMixed];
+const pageSchemas = [
+  pageSchemaLayout,
+  pageSchemaSection,
+  pageSchemaMixed,
+  pageSchemaHooks,
+];
 pageSchemas.forEach((schema) => {
   const codeFragments = engine.transform(schema);
   console.log("codeFragments", schema.meta.id, codeFragments);

@@ -1,26 +1,12 @@
-import { CodeFragment } from "./interfaces";
+import { CodeFragment, Stat } from "./interfaces";
 import generate from "@babel/generator";
 import * as t from "@babel/types";
-import traverse from "@babel/traverse";
 import { ImportManager } from "./imports";
-
-function injectJsxChildren(
-  expr: t.Expression,
-  anchorName: string,
-  children: t.JSXElement[]
-) {
-  traverse(t.file(t.program([t.expressionStatement(expr)])), {
-    JSXElement(path) {
-      const opening = path.node.openingElement;
-      if (t.isJSXIdentifier(opening.name) && opening.name.name === anchorName) {
-        path.replaceWithMultiple(children);
-        path.stop();
-      }
-    },
-  });
-}
+import { HookCollector, PreparedFragment } from "./hookCollector";
 
 export class CodeGenerator {
+  private hookCollector = new HookCollector();
+
   generate(fragments: Map<string, CodeFragment>): string {
     const renderFragments = Array.from(fragments.values()).filter(
       (fragment) => fragment.meta.renderBoundary
@@ -29,51 +15,39 @@ export class CodeGenerator {
       this.collectImports(fragment, fragments)
     );
     const mergedImports = ImportManager.merge(allImports);
-    const functions = renderFragments.map((fragment) =>
-      this.buildFunctionDeclaration(fragment, fragments)
-    );
+    const prepared = new Map<string, PreparedFragment>();
+    const functions = renderFragments.map((fragment) => {
+      const preparedFragment = this.hookCollector.prepare(
+        fragment,
+        fragments,
+        prepared
+      );
+      const orderedStats = this.hookCollector.sortStats(preparedFragment.stats);
+      return this.buildFunctionDeclaration(
+        preparedFragment.fragment,
+        orderedStats
+      );
+    });
 
     const ast = t.file(t.program([...mergedImports, ...functions]));
     return generate(ast).code;
   }
 
-  traverse(
-    fragment: CodeFragment,
-    fragments: Map<string, CodeFragment>
-  ): CodeFragment {
-    if (!fragment.meta.renderBoundary) {
-      return fragment;
-    }
-    const children = (fragment.children ?? []).map((childId) => {
-      return this.traverse(fragments.get(childId)!, fragments);
-    });
-    console.log("children", children);
-
-    injectJsxChildren(
-      fragment.jsx!,
-      "__ENGINE_CHILDREN__",
-      children.map((c) => c.jsx!)
-    );
-    return fragment;
-  }
-
   private buildFunctionDeclaration(
     fragment: CodeFragment,
-    fragments: Map<string, CodeFragment>
+    stats: Stat[]
   ): t.FunctionDeclaration {
-    const f = this.traverse(fragment, fragments);
     return t.functionDeclaration(
-      t.identifier(f.meta.title!),
+      t.identifier(fragment.meta.title!),
       [t.identifier("props")],
       t.blockStatement([
-        ...f.stats.flatMap((stat) => {
-          return stat.stat;
-        }),
-        t.returnStatement(f.jsx),
+        ...stats.flatMap((stat) =>
+          Array.isArray(stat.stat) ? stat.stat : [stat.stat]
+        ),
+        t.returnStatement(fragment.jsx),
       ])
     );
   }
-
   private collectImports(
     fragment: CodeFragment,
     fragments: Map<string, CodeFragment>,
