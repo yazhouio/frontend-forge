@@ -22,14 +22,19 @@ function injectJsxChildren(
 
 export class CodeGenerator {
   generate(fragments: Map<string, CodeFragment>): string {
-    let files: string[] = [];
-    fragments.forEach((f) => {
-      if (!f.meta.renderBoundary) {
-        return;
-      }
-      files.push(generate(this.generateProgram(f, fragments)).code);
-    });
-    return files.join("\n");
+    const renderFragments = Array.from(fragments.values()).filter(
+      (fragment) => fragment.meta.renderBoundary
+    );
+    const allImports = renderFragments.flatMap((fragment) =>
+      this.collectImports(fragment, fragments)
+    );
+    const mergedImports = ImportManager.merge(allImports);
+    const functions = renderFragments.map((fragment) =>
+      this.buildFunctionDeclaration(fragment, fragments)
+    );
+
+    const ast = t.file(t.program([...mergedImports, ...functions]));
+    return generate(ast).code;
   }
 
   traverse(
@@ -52,31 +57,21 @@ export class CodeGenerator {
     return fragment;
   }
 
-  private generateProgram(
+  private buildFunctionDeclaration(
     fragment: CodeFragment,
     fragments: Map<string, CodeFragment>
-  ): t.File {
+  ): t.FunctionDeclaration {
     const f = this.traverse(fragment, fragments);
-    const mergedImports = ImportManager.merge(
-      this.collectImports(f, fragments)
-    );
-
-    const ast = t.file(
-      t.program([
-        ...mergedImports,
-        t.functionDeclaration(
-          t.identifier(f.meta.title! ?? "Xxxx"),
-          [t.identifier("props")],
-          t.blockStatement([
-            ...f.stats.flatMap((stat) => {
-              return stat.stat;
-            }),
-            t.returnStatement(f.jsx),
-          ])
-        ),
+    return t.functionDeclaration(
+      t.identifier(f.meta.title!),
+      [t.identifier("props")],
+      t.blockStatement([
+        ...f.stats.flatMap((stat) => {
+          return stat.stat;
+        }),
+        t.returnStatement(f.jsx),
       ])
     );
-    return ast;
   }
 
   private collectImports(

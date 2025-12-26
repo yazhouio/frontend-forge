@@ -4,7 +4,7 @@ interface BaseSchema {
 }
 
 interface DataSchema extends BaseSchema {
-  type: "object" | "array" | "string" | "number";
+  type: "object" | "array" | "string" | "number" | "boolean";
   properties?: Record<string, DataSchema>;
   items?: DataSchema;
   required?: string[];
