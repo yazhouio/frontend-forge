@@ -4,6 +4,7 @@ import {
   CardNode,
   ImageNode,
   LayoutNode,
+  ScopedNode,
   SectionNode,
   ToggleNode,
   TextNode,
@@ -297,11 +298,57 @@ const pageSchemaHooks: PageConfig = {
     ],
   },
 };
+
+const pageSchemaScoped: PageConfig = {
+  meta: {
+    id: "page-scoped",
+    name: "Page Scoped",
+    title: "Page Scoped",
+    path: "/page-scoped",
+  },
+  context: {},
+  root: {
+    id: "layout-scoped",
+    type: "Layout",
+    props: {
+      TEXT: "Scoped Layout",
+    },
+    meta: {
+      title: "Layout",
+      scope: true,
+    },
+    children: [
+      {
+        id: "scoped-1",
+        type: "Scoped",
+        props: {
+          LABEL: "Alpha",
+        },
+        meta: {
+          title: "Scoped",
+          scope: false,
+        },
+      },
+      {
+        id: "scoped-2",
+        type: "Scoped",
+        props: {
+          LABEL: "Beta",
+        },
+        meta: {
+          title: "Scoped",
+          scope: false,
+        },
+      },
+    ],
+  },
+};
 const nodeRegistry = new NodeRegistry();
 nodeRegistry.registerNode(TextNode);
 nodeRegistry.registerNode(LayoutNode);
 nodeRegistry.registerNode(CounterNode);
 nodeRegistry.registerNode(ToggleNode);
+nodeRegistry.registerNode(ScopedNode);
 nodeRegistry.registerNode(ButtonNode);
 nodeRegistry.registerNode(ImageNode);
 nodeRegistry.registerNode(CardNode);
@@ -315,6 +362,7 @@ const pageSchemas = [
   pageSchemaSection,
   pageSchemaMixed,
   pageSchemaHooks,
+  pageSchemaScoped,
 ];
 pageSchemas.forEach((schema) => {
   const codeFragments = engine.transform(schema);
