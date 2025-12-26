@@ -1,0 +1,82 @@
+import type {
+  Expression,
+  ImportDeclaration,
+  JSXElement,
+  Statement,
+} from "@babel/types";
+import { HookPriority, StatementScope } from "../constants";
+import template, { PublicReplacements } from "@babel/template";
+import { NodeDefinitionSchema } from "./JSONSchema";
+
+export type NodeDefinition = {
+  id: string;
+  schema: NodeDefinitionSchema;
+  generateCode: {
+    imports: string[];
+    stats: {
+      id: string;
+      scope: StatementScope;
+      code: string;
+      output: string[];
+      depends: string[];
+    }[];
+    jsx?: string;
+    meta?: {
+      // depends: string[];
+      inputPaths: Record<string, string[]>;
+    };
+  };
+};
+
+export interface NodeDefinitionWithParseTemplate extends NodeDefinition {
+  templates: {
+    imports: ParseTemplateImport[];
+    stats: {
+      id: string;
+      scope: StatementScope;
+      code: string;
+      template: ParseTemplate;
+      output: string[];
+      depends: string[];
+    }[];
+    jsx?: ParseTemplateExpression;
+  };
+}
+
+export type Stat = {
+  scope: StatementScope;
+  hook?: HookPriority;
+  stat: Statement | Statement[];
+  source: string;
+  meta: {
+    output: string[];
+    depends: string[];
+  };
+};
+
+export type CodeFragment = {
+  jsx?: JSXElement;
+  imports: ImportDeclaration[];
+  stats: Stat[];
+  slot?: Record<string, string[]>;
+  children?: string[];
+  meta: {
+    id: string;
+    title?: string;
+    __config: Record<string, any>;
+    // depends: string[];
+    renderBoundary: boolean;
+  };
+};
+
+export type ParseTemplateImport = (
+  arg?: PublicReplacements | undefined
+) => ImportDeclaration | ImportDeclaration[];
+
+export type ParseTemplate = (
+  arg?: PublicReplacements | undefined
+) => Statement | Statement[];
+
+export type ParseTemplateExpression = (
+  arg?: PublicReplacements | undefined
+) => JSXElement;
