@@ -2,6 +2,7 @@ import { CodeFragment } from "./interfaces";
 import generate from "@babel/generator";
 import * as t from "@babel/types";
 import traverse from "@babel/traverse";
+import { ImportManager } from "./imports";
 
 function injectJsxChildren(
   expr: t.Expression,
@@ -56,11 +57,13 @@ export class CodeGenerator {
     fragments: Map<string, CodeFragment>
   ): t.File {
     const f = this.traverse(fragment, fragments);
-    console.log(f.imports);
+    const mergedImports = ImportManager.merge(
+      this.collectImports(f, fragments)
+    );
 
     const ast = t.file(
       t.program([
-        ...f.imports,
+        ...mergedImports,
         t.functionDeclaration(
           t.identifier(f.meta.title! ?? "Xxxx"),
           [t.identifier("props")],
@@ -74,5 +77,21 @@ export class CodeGenerator {
       ])
     );
     return ast;
+  }
+
+  private collectImports(
+    fragment: CodeFragment,
+    fragments: Map<string, CodeFragment>,
+    acc: t.ImportDeclaration[] = []
+  ) {
+    acc.push(...fragment.imports);
+    (fragment.children ?? []).forEach((childId) => {
+      const child = fragments.get(childId);
+      if (!child) {
+        return;
+      }
+      this.collectImports(child, fragments, acc);
+    });
+    return acc;
   }
 }

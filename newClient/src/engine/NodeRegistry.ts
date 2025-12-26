@@ -19,7 +19,7 @@ export class NodeRegistry {
     node: NodeDefinition
   ): NodeDefinitionWithParseTemplate {
     const imports = node.generateCode.imports.map(
-      (importPath) => template`${importPath}`
+      (importPath) => template.statement(importPath, JSX_TEMPLATE_OPTIONS)
     ) as ParseTemplateImport[];
     const stats = node.generateCode.stats.map((stat) => ({
       ...stat,

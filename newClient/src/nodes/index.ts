@@ -41,7 +41,10 @@ export const TextNode: NodeDefinition = {
     },
   },
   generateCode: {
-    imports: [],
+    imports: [
+      'import * as React from "react"',
+      'import { useState } from "react"',
+    ],
     jsx: "<div>{%%TEXT%%}</div>",
     stats: [
       {
