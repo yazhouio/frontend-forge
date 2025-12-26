@@ -156,6 +156,86 @@ export const ToggleNode: NodeDefinition = {
   },
 };
 
+export const ScopedNode: NodeDefinition = {
+  id: "Scoped",
+  schema: {
+    inputs: {
+      LABEL: {
+        type: "string",
+        description: "Scoped label",
+      },
+    },
+  },
+  generateCode: {
+    imports: ['import * as React from "react"'],
+    jsx: "<div className='scoped' data-id={scopedId}>{jsxSuffix}</div>",
+    stats: [
+      {
+        id: "moduleImport",
+        scope: StatementScope.ModuleImport,
+        code: 'import { useRef, useMemo, useEffect } from "react";',
+        output: [],
+        depends: [],
+      },
+      {
+        id: "moduleDecl",
+        scope: StatementScope.ModuleDecl,
+        code: 'const moduleTag = "scoped";',
+        output: ["moduleTag"],
+        depends: [],
+      },
+      {
+        id: "moduleInit",
+        scope: StatementScope.ModuleInit,
+        code: 'const moduleValue = moduleTag + "-init";',
+        output: ["moduleValue"],
+        depends: ["moduleDecl"],
+      },
+      {
+        id: "helperDecl",
+        scope: StatementScope.FunctionDecl,
+        code: "function formatLabel(value) { return String(value).toUpperCase(); }",
+        output: ["formatLabel"],
+        depends: [],
+      },
+      {
+        id: "idHook",
+        scope: StatementScope.FunctionBody,
+        code: 'const scopedId = useRef("scope").current;',
+        output: ["scopedId"],
+        depends: [],
+      },
+      {
+        id: "memoLabel",
+        scope: StatementScope.FunctionBody,
+        code: "const memoLabel = useMemo(() => formatLabel(%%LABEL%%), [%%LABEL%%]);",
+        output: ["memoLabel"],
+        depends: [],
+      },
+      {
+        id: "logEffect",
+        scope: StatementScope.FunctionBody,
+        code: "useEffect(() => { console.log(moduleValue, memoLabel); }, [moduleValue, memoLabel]);",
+        output: [],
+        depends: ["memoLabel"],
+      },
+      {
+        id: "jsxSuffix",
+        scope: StatementScope.JSX,
+        code: 'const jsxSuffix = `${memoLabel}-${scopedId}`;',
+        output: ["jsxSuffix"],
+        depends: ["memoLabel", "idHook"],
+      },
+    ],
+    meta: {
+      inputPaths: {
+        $jsx: [],
+        memoLabel: ["LABEL"],
+      },
+    },
+  },
+};
+
 export const ButtonNode: NodeDefinition = {
   id: "Button",
   schema: {
