@@ -45,6 +45,14 @@ export const RestDataSource: DataSourceDefinition = {
         type: "string",
         description: "Request URL",
       },
+      METHOD: {
+        type: "string",
+        description: "Request method",
+      },
+      HEADERS: {
+        type: "object",
+        description: "Request headers",
+      },
       DEFAULT_VALUE: {
         type: "object",
         description: "Default response value",

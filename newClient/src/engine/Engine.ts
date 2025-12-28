@@ -1,6 +1,5 @@
 import template from "@babel/template";
 import * as t from "@babel/types";
-import { pick } from "es-toolkit";
 import {
   CodeFragment,
   DataSourceDefinitionWithParseTemplate,
@@ -18,18 +17,20 @@ import {
   PageConfig,
 } from "./JSONSchema";
 import { SchemaValidator } from "./SchemaValidator";
+import {
+  ActionGraphEventMap,
+  ActionGraphInfo,
+  applyActionGraphDataSourceDependencies,
+  applyActionGraphStats,
+  buildActionGraphEventHandlers,
+  buildActionGraphEventMap,
+  buildActionGraphInfoMap,
+} from "./actionGraph";
+import { BindingOutputKind, DataSourceBindingInfo } from "./bindingTypes";
 
-type BindingOutputKind = "data" | "error" | "isLoading" | "mutate";
-
-type DataSourceBindingInfo = {
-  id: string;
-  hookName: string;
-  fetcherName: string;
-  baseName: string;
-  dataName: string;
-  errorName: string;
-  loadingName: string;
-  mutateName: string;
+type BindingTargets = {
+  dataSources: Map<string, Map<string, Set<BindingOutputKind>>>;
+  actionGraphs: Map<string, Set<string>>;
 };
 
 export class Engine {
@@ -38,6 +39,7 @@ export class Engine {
   schemaValidator: SchemaValidator;
   private bindingContext?: {
     dataSourceInfo: Map<string, DataSourceBindingInfo>;
+    actionGraphInfo: Map<string, ActionGraphInfo>;
   };
 
   constructor(
@@ -54,15 +56,46 @@ export class Engine {
     const root = schema.root;
     const nodeFragments: Map<string, CodeFragment> = new Map();
     const dataSourceInfo = this.buildDataSourceInfoMap(schema.dataSources);
-    this.bindingContext = { dataSourceInfo };
-    this.generateNodeFragments(root, nodeFragments);
+    const actionGraphInfo = buildActionGraphInfoMap(
+      schema.actionGraphs,
+      this.toCamelCase.bind(this)
+    );
+    const actionGraphEvents = buildActionGraphEventMap(schema.actionGraphs);
+    const actionGraphHandlers = buildActionGraphEventHandlers(
+      actionGraphEvents,
+      actionGraphInfo
+    );
+    this.bindingContext = { dataSourceInfo, actionGraphInfo };
+    this.generateNodeFragments(root, nodeFragments, actionGraphHandlers);
     const bindingTargets = this.collectBindingTargets(
       root,
       nodeFragments,
+      dataSourceInfo,
+      actionGraphInfo,
+      actionGraphEvents
+    );
+    applyActionGraphDataSourceDependencies(
+      bindingTargets.dataSources,
+      bindingTargets.actionGraphs,
+      schema.actionGraphs
+    );
+    this.applyBindingStats(
+      nodeFragments,
+      bindingTargets.dataSources,
       dataSourceInfo
     );
-    this.applyBindingStats(nodeFragments, bindingTargets, dataSourceInfo);
-    const usedDataSources = this.collectUsedDataSources(bindingTargets);
+    applyActionGraphStats(
+      nodeFragments,
+      bindingTargets.actionGraphs,
+      actionGraphInfo,
+      schema.actionGraphs,
+      dataSourceInfo,
+      schema.dataSources,
+      this.toAstValue.bind(this)
+    );
+    const usedDataSources = this.collectUsedDataSources(
+      bindingTargets.dataSources
+    );
     if (schema.dataSources?.length && usedDataSources.size) {
       this.generateDataSourceFragments(
         schema,
@@ -76,16 +109,21 @@ export class Engine {
 
   private generateNodeFragments(
     node: ComponentNode,
-    nodeFragments: Map<string, CodeFragment>
+    nodeFragments: Map<string, CodeFragment>,
+    actionGraphHandlers?: Map<string, Record<string, ExpressionValue>>
   ) {
     const nodeDef = this.nodeRegistry.getNode(node.type);
     if (!nodeDef) {
       throw new Error(`Node ${node.type} not found`);
     }
-    const codeFragment = this.node2codeFragment(nodeDef, node);
+    const mergedProps = this.mergeNodeProps(
+      node.props,
+      actionGraphHandlers?.get(node.id)
+    );
+    const codeFragment = this.node2codeFragment(nodeDef, node, mergedProps);
     codeFragment.children = [];
     node.children?.forEach((child) => {
-      this.generateNodeFragments(child, nodeFragments);
+      this.generateNodeFragments(child, nodeFragments, actionGraphHandlers);
       codeFragment.children!.push(child.id);
     });
     nodeFragments.set(node.id, codeFragment);
@@ -104,6 +142,37 @@ export class Engine {
     props?: ComponentNode["props"]
   ): Record<string, any> {
     return this.wrapReplacements(props);
+  }
+
+  private mergeNodeProps(
+    baseProps?: ComponentNode["props"],
+    handlerProps?: Record<string, ExpressionValue>
+  ): ComponentNode["props"] {
+    if (!handlerProps || !Object.keys(handlerProps).length) {
+      return baseProps;
+    }
+    const merged = { ...(baseProps ?? {}) } as Record<string, any>;
+    Object.entries(handlerProps).forEach(([key, value]) => {
+      if (merged[key] === undefined) {
+        merged[key] = value;
+      }
+    });
+    return merged;
+  }
+
+  private selectInputProps(
+    props: Record<string, any>,
+    inputPaths: string[]
+  ): Record<string, any> {
+    const selected: Record<string, any> = {};
+    inputPaths.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(props, key)) {
+        selected[key] = props[key];
+      } else {
+        selected[key] = this.toAstValue(undefined);
+      }
+    });
+    return selected;
   }
 
   private wrapDataSourceProps(node: DataSourceNode): Record<string, any> {
@@ -262,9 +331,44 @@ export class Engine {
     return map;
   }
 
+
   private bindingToAst(binding: BindingValue): t.Expression {
-    const info = this.bindingContext?.dataSourceInfo.get(binding.source);
-    if (!info) {
+    const dataSourceInfo = this.bindingContext?.dataSourceInfo.get(
+      binding.source
+    );
+    const actionGraphInfo = this.bindingContext?.actionGraphInfo.get(
+      binding.source
+    );
+    if (dataSourceInfo && actionGraphInfo) {
+      throw new Error(
+        `Binding source ${binding.source} is ambiguous (dataSource and actionGraph)`
+      );
+    }
+    if (actionGraphInfo) {
+      const pathParts = (binding.path ?? "")
+        .split(".")
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (pathParts[0] === "context") {
+        pathParts.shift();
+      }
+      let expr: t.Expression = t.identifier(actionGraphInfo.contextName);
+      pathParts.forEach((segment) => {
+        const key = t.isValidIdentifier(segment)
+          ? t.identifier(segment)
+          : t.stringLiteral(segment);
+        expr = t.memberExpression(expr, key, !t.isIdentifier(key));
+      });
+      if (binding.defaultValue !== undefined) {
+        return t.logicalExpression(
+          "??",
+          expr,
+          this.toAstValue(binding.defaultValue)
+        );
+      }
+      return expr;
+    }
+    if (!dataSourceInfo) {
       throw new Error(`Binding source ${binding.source} not found`);
     }
     const pathParts = (binding.path ?? "")
@@ -278,17 +382,17 @@ export class Engine {
     let expr: t.Expression;
     switch (baseKind) {
       case "error":
-        expr = t.identifier(info.errorName);
+        expr = t.identifier(dataSourceInfo.errorName);
         break;
       case "isLoading":
-        expr = t.identifier(info.loadingName);
+        expr = t.identifier(dataSourceInfo.loadingName);
         break;
       case "mutate":
-        expr = t.identifier(info.mutateName);
+        expr = t.identifier(dataSourceInfo.mutateName);
         break;
       case "data":
       default:
-        expr = t.identifier(info.dataName);
+        expr = t.identifier(dataSourceInfo.dataName);
         break;
     }
     pathParts.forEach((segment) => {
@@ -322,15 +426,18 @@ export class Engine {
 
   private node2codeFragment(
     nodeDef: NodeDefinitionWithParseTemplate,
-    node: ComponentNode
+    node: ComponentNode,
+    overrideProps?: ComponentNode["props"]
   ): CodeFragment {
-    const props = this.wrapperNodeProps(node.props);
+    const props = this.wrapperNodeProps(overrideProps ?? node.props);
     const imports = nodeDef.templates.imports.flatMap((importDecl) => {
       return importDecl();
     });
     const stats: Stat[] = nodeDef.templates.stats.flatMap((stat) => {
       const inputPaths = nodeDef.generateCode.meta?.inputPaths?.[stat?.id];
-      const itemProps = inputPaths ? pick(props, inputPaths) : {};
+      const itemProps = inputPaths
+        ? this.selectInputProps(props, inputPaths)
+        : {};
       return {
         id: `${node.id}:${stat.id}`,
         source: stat.code,
@@ -345,7 +452,7 @@ export class Engine {
     const jsxInputPaths = nodeDef.generateCode.meta?.inputPaths?.["$jsx"] ?? [];
     let jsxProps = {};
     if (jsxInputPaths.length) {
-      jsxProps = pick(props, jsxInputPaths);
+      jsxProps = this.selectInputProps(props, jsxInputPaths);
     }
     const jsx = nodeDef.templates.jsx?.(jsxProps);
     return {
@@ -446,7 +553,9 @@ export class Engine {
     const stats: Stat[] = dataSourceDef.templates.stats.flatMap((stat) => {
       const inputPaths =
         dataSourceDef.generateCode.meta?.inputPaths?.[stat?.id];
-      const itemProps = inputPaths ? pick(props, inputPaths) : {};
+      const itemProps = inputPaths
+        ? this.selectInputProps(props, inputPaths)
+        : {};
       const outputNames = stat.output.map((name) => {
         const replacement = (itemProps as Record<string, any>)[name];
         return t.isIdentifier(replacement) ? replacement.name : name;
@@ -477,9 +586,15 @@ export class Engine {
   private collectBindingTargets(
     node: ComponentNode,
     nodeFragments: Map<string, CodeFragment>,
-    dataSourceInfo: Map<string, DataSourceBindingInfo>
-  ): Map<string, Map<string, Set<BindingOutputKind>>> {
-    const targets = new Map<string, Map<string, Set<BindingOutputKind>>>();
+    dataSourceInfo: Map<string, DataSourceBindingInfo>,
+    actionGraphInfo: Map<string, ActionGraphInfo>,
+    actionGraphEvents: ActionGraphEventMap
+  ): BindingTargets {
+    const dataSourceTargets = new Map<
+      string,
+      Map<string, Set<BindingOutputKind>>
+    >();
+    const actionGraphTargets = new Map<string, Set<string>>();
     const visit = (
       current: ComponentNode,
       currentBoundaryId: string | null
@@ -497,26 +612,52 @@ export class Engine {
           );
         }
         bindings.forEach((binding) => {
-          if (!dataSourceInfo.has(binding.source)) {
+          const isDataSource = dataSourceInfo.has(binding.source);
+          const isActionGraph = actionGraphInfo.has(binding.source);
+          if (isDataSource && isActionGraph) {
+            throw new Error(
+              `Binding source ${binding.source} is ambiguous (dataSource and actionGraph)`
+            );
+          }
+          if (!isDataSource && !isActionGraph) {
             throw new Error(`Binding source ${binding.source} not found`);
           }
-          const outputKind = this.resolveBindingOutputKind(
-            (binding.path ?? "")
-              .split(".")
-              .map((part) => part.trim())
-              .filter(Boolean)
-          );
-          const bySource = targets.get(boundaryId) ?? new Map();
-          const outputSet = bySource.get(binding.source) ?? new Set();
-          outputSet.add(outputKind);
-          bySource.set(binding.source, outputSet);
-          targets.set(boundaryId, bySource);
+          if (isDataSource) {
+            const outputKind = this.resolveBindingOutputKind(
+              (binding.path ?? "")
+                .split(".")
+                .map((part) => part.trim())
+                .filter(Boolean)
+            );
+            const bySource = dataSourceTargets.get(boundaryId) ?? new Map();
+            const outputSet = bySource.get(binding.source) ?? new Set();
+            outputSet.add(outputKind);
+            bySource.set(binding.source, outputSet);
+            dataSourceTargets.set(boundaryId, bySource);
+            return;
+          }
+          const graphSet = actionGraphTargets.get(boundaryId) ?? new Set();
+          graphSet.add(binding.source);
+          actionGraphTargets.set(boundaryId, graphSet);
         });
+      }
+      const eventTargets = actionGraphEvents.get(current.id);
+      if (eventTargets) {
+        if (!boundaryId) {
+          throw new Error(
+            "ActionGraph events require a render boundary. Add meta.scope to the root or a parent node."
+          );
+        }
+        const graphSet = actionGraphTargets.get(boundaryId) ?? new Set();
+        eventTargets.forEach((entries) => {
+          entries.forEach((entry) => graphSet.add(entry.graphId));
+        });
+        actionGraphTargets.set(boundaryId, graphSet);
       }
       current.children?.forEach((child) => visit(child, boundaryId));
     };
     visit(node, null);
-    return targets;
+    return { dataSources: dataSourceTargets, actionGraphs: actionGraphTargets };
   }
 
   private collectBindingsFromProps(props?: ComponentNode["props"]): BindingValue[] {
@@ -567,6 +708,7 @@ export class Engine {
       });
     });
   }
+
 
   private collectUsedDataSources(
     bindingTargets: Map<string, Map<string, Set<BindingOutputKind>>>

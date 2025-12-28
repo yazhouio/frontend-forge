@@ -3,6 +3,7 @@ import {
   CounterNode,
   CardNode,
   ImageNode,
+  InputNode,
   LayoutNode,
   ScopedNode,
   SectionNode,
@@ -465,6 +466,105 @@ const pageSchemaScoped: PageConfig = {
     ],
   },
 };
+
+const pageSchemaActionGraph: PageConfig = {
+  meta: {
+    id: "page-action-graph",
+    name: "Page Action Graph",
+    title: "Page Action Graph",
+    path: "/page-action-graph",
+  },
+  context: {},
+  dataSources: [
+    {
+      id: "create-user",
+      type: "rest",
+      config: {
+        URL: "/api/users",
+        METHOD: "POST",
+        DEFAULT_VALUE: null,
+      },
+      autoLoad: false,
+    },
+  ],
+  actionGraphs: [
+    {
+      id: "createUserGraph",
+      context: {
+        name: "",
+      },
+      actions: {
+        INPUT_CHANGE: {
+          on: "input-name.change",
+          do: [
+            {
+              type: "assign",
+              to: "context.name",
+              value: "$event.value",
+            },
+          ],
+        },
+        SUBMIT: {
+          on: "button-submit.click",
+          do: [
+            {
+              type: "callDataSource",
+              id: "create-user",
+              args: ["context.name"],
+            },
+            {
+              type: "reset",
+              path: "context.name",
+            },
+          ],
+        },
+      },
+    },
+  ],
+  root: {
+    id: "layout-action",
+    type: "Layout",
+    props: {
+      TEXT: "Action Graph",
+    },
+    meta: {
+      title: "Layout",
+      scope: true,
+    },
+    children: [
+      {
+        id: "input-name",
+        type: "Input",
+        props: {
+          VALUE: {
+            type: "binding",
+            source: "createUserGraph",
+            path: "context.name",
+            defaultValue: "",
+          },
+          PLACEHOLDER: "Enter name",
+        },
+        meta: {
+          title: "Input",
+          scope: false,
+        },
+      },
+      {
+        id: "button-submit",
+        type: "Button",
+        props: {
+          TEXT: "Add User",
+          VARIANT: "btn-primary",
+          DISABLED: false,
+        },
+        meta: {
+          title: "Button",
+          scope: false,
+        },
+      },
+    ],
+  },
+};
 const nodeRegistry = new NodeRegistry();
 nodeRegistry.registerNode(TextNode);
 nodeRegistry.registerNode(LayoutNode);
@@ -472,6 +572,7 @@ nodeRegistry.registerNode(CounterNode);
 nodeRegistry.registerNode(ToggleNode);
 nodeRegistry.registerNode(ScopedNode);
 nodeRegistry.registerNode(ButtonNode);
+nodeRegistry.registerNode(InputNode);
 nodeRegistry.registerNode(ImageNode);
 nodeRegistry.registerNode(CardNode);
 nodeRegistry.registerNode(SectionNode);
@@ -489,6 +590,7 @@ const pageSchemas = [
   pageSchemaMixed,
   pageSchemaHooks,
   pageSchemaScoped,
+  pageSchemaActionGraph,
 ];
 pageSchemas.forEach((schema) => {
   const codeFragments = engine.transform(schema);

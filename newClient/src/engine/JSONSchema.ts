@@ -20,6 +20,7 @@ export type NodeDefinitionSchema = {
 export interface PageConfig {
   meta: PageMeta;
   dataSources?: DataSourceNode[];
+  actionGraphs?: ActionGraphSchema[];
   root: ComponentNode;
   context: Record<string, any>; // action, event
 }
@@ -81,6 +82,22 @@ export interface ExpressionValue {
   type: "expression";
   code: string;
 }
+
+export type ActionGraphSchema = {
+  id: string;
+  context: Record<string, any>;
+  actions: Record<string, ActionNode>;
+};
+
+export type ActionNode = {
+  on: string;
+  do: ActionStep[];
+};
+
+export type ActionStep =
+  | { type: "assign"; to: string; value: string }
+  | { type: "callDataSource"; id: string; args?: string[] }
+  | { type: "reset"; path: string };
 
 // type ActionConfig = SingleAction | SingleAction[];
 
