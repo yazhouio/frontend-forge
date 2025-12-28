@@ -6,6 +6,7 @@ import {
   LayoutNode,
   ScopedNode,
   SectionNode,
+  TableNode,
   ToggleNode,
   TextNode,
 } from "../nodes";
@@ -27,14 +28,18 @@ const pageSchemaLayout: PageConfig = {
   context: {},
   dataSources: [
     {
-      id: "static-users",
-      type: "static",
+      id: "user-list",
+      type: "rest",
       config: {
-        DATA: ["Ada", "Linus", "Grace"],
+        URL: "/api/users",
+        DEFAULT_VALUE: [],
+        HOOK_NAME: "useUsers",
+        FETCHER_NAME: "fetchUsers",
       },
+      autoLoad: true,
     },
     {
-      id: "rest-posts",
+      id: "posts",
       type: "rest",
       config: {
         URL: "/api/posts",
@@ -63,15 +68,54 @@ const pageSchemaLayout: PageConfig = {
         },
         meta: {
           title: "Card",
-          scope: true,
+          scope: false,
         },
         children: [
           {
             id: "text-1",
             type: "Text",
             props: {
-              TEXT: "Card body text",
+              TEXT: {
+                type: "binding",
+                source: "user-list",
+                path: "data.0",
+                defaultValue: "No users yet",
+              },
               DEFAULT_VALUE: 1,
+            },
+            meta: {
+              title: "Text",
+              scope: false,
+            },
+          },
+          {
+            id: "text-6",
+            type: "Text",
+            props: {
+              TEXT: {
+                type: "binding",
+                source: "posts",
+                path: "data.0.title",
+                defaultValue: "No posts yet",
+              },
+              DEFAULT_VALUE: 6,
+            },
+            meta: {
+              title: "Text",
+              scope: false,
+            },
+          },
+          {
+            id: "text-7",
+            type: "Text",
+            props: {
+              TEXT: {
+                type: "binding",
+                source: "posts",
+                path: "isLoading",
+                defaultValue: false,
+              },
+              DEFAULT_VALUE: 7,
             },
             meta: {
               title: "Text",
@@ -102,6 +146,64 @@ const pageSchemaLayout: PageConfig = {
             },
             meta: {
               title: "Image",
+              scope: false,
+            },
+          },
+          {
+            id: "table-1",
+            type: "Table",
+            props: {
+              URL: "/api/users",
+              PAGE_SIZE: 10,
+              QUERY_PLACEHOLDER: "Search users",
+              DATA: {
+                type: "binding",
+                source: "user-list",
+                path: "data",
+                defaultValue: [],
+              },
+              IS_LOADING: {
+                type: "binding",
+                source: "user-list",
+                path: "isLoading",
+                defaultValue: false,
+              },
+              ERROR: {
+                type: "binding",
+                source: "user-list",
+                path: "error",
+                defaultValue: null,
+              },
+              MUTATE: {
+                type: "binding",
+                source: "user-list",
+                path: "mutate",
+              },
+              COLUMNS: [
+                {
+                  key: "name",
+                  title: "Name",
+                  mapper: {
+                    type: "expression",
+                    code: "(value) => (value ? String(value).toUpperCase() : \"-\")",
+                  },
+                },
+                {
+                  key: "email",
+                  title: "Email",
+                },
+                {
+                  key: "role",
+                  title: "Role",
+                  mapper: {
+                    type: "expression",
+                    code: "(value, row) => (row.active ? `${value} (active)` : value)",
+                  },
+                },
+              ],
+            },
+            meta: {
+              title: "Table",
               scope: false,
             },
           },
@@ -373,6 +475,7 @@ nodeRegistry.registerNode(ButtonNode);
 nodeRegistry.registerNode(ImageNode);
 nodeRegistry.registerNode(CardNode);
 nodeRegistry.registerNode(SectionNode);
+nodeRegistry.registerNode(TableNode);
 const dataSourceRegistry = new DataSourceRegistry();
 dataSourceRegistry.registerDataSource(StaticDataSource);
 dataSourceRegistry.registerDataSource(RestDataSource);
@@ -389,7 +492,7 @@ const pageSchemas = [
 ];
 pageSchemas.forEach((schema) => {
   const codeFragments = engine.transform(schema);
-  console.log("codeFragments", schema.meta.id, codeFragments);
+  // console.log("codeFragments", schema.meta.id, codeFragments);
   const code = codeGenerator.generate(codeFragments);
   console.log(`\n--- ${schema.meta.name} ---`);
   console.log(code);

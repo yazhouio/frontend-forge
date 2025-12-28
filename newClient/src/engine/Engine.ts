@@ -1,3 +1,4 @@
+import template from "@babel/template";
 import * as t from "@babel/types";
 import { pick } from "es-toolkit";
 import {
@@ -8,6 +9,7 @@ import {
 } from "./interfaces";
 import { DataSourceRegistry } from "./DataSourceRegistry";
 import { NodeRegistry } from "./NodeRegistry";
+import { JSX_TEMPLATE_OPTIONS, StatementScope } from "../constants";
 import {
   BindingValue,
   ComponentNode,
@@ -17,10 +19,26 @@ import {
 } from "./JSONSchema";
 import { SchemaValidator } from "./SchemaValidator";
 
+type BindingOutputKind = "data" | "error" | "isLoading" | "mutate";
+
+type DataSourceBindingInfo = {
+  id: string;
+  hookName: string;
+  fetcherName: string;
+  baseName: string;
+  dataName: string;
+  errorName: string;
+  loadingName: string;
+  mutateName: string;
+};
+
 export class Engine {
   nodeRegistry: NodeRegistry;
   dataSourceRegistry?: DataSourceRegistry;
   schemaValidator: SchemaValidator;
+  private bindingContext?: {
+    dataSourceInfo: Map<string, DataSourceBindingInfo>;
+  };
 
   constructor(
     nodeRegistry: NodeRegistry,
@@ -35,10 +53,24 @@ export class Engine {
   transform(schema: PageConfig): Map<string, CodeFragment> {
     const root = schema.root;
     const nodeFragments: Map<string, CodeFragment> = new Map();
+    const dataSourceInfo = this.buildDataSourceInfoMap(schema.dataSources);
+    this.bindingContext = { dataSourceInfo };
     this.generateNodeFragments(root, nodeFragments);
-    if (schema.dataSources?.length) {
-      this.generateDataSourceFragments(schema, nodeFragments);
+    const bindingTargets = this.collectBindingTargets(
+      root,
+      nodeFragments,
+      dataSourceInfo
+    );
+    this.applyBindingStats(nodeFragments, bindingTargets, dataSourceInfo);
+    const usedDataSources = this.collectUsedDataSources(bindingTargets);
+    if (schema.dataSources?.length && usedDataSources.size) {
+      this.generateDataSourceFragments(
+        schema,
+        nodeFragments,
+        usedDataSources
+      );
     }
+    this.bindingContext = undefined;
     return nodeFragments;
   }
 
@@ -76,16 +108,17 @@ export class Engine {
 
   private wrapDataSourceProps(node: DataSourceNode): Record<string, any> {
     const config = { ...node.config };
-    const nameBase = this.toPascalCase(node.id);
-    if (config.HOOK_NAME === undefined) {
-      config.HOOK_NAME = t.identifier(`use${nameBase}`);
-    } else if (typeof config.HOOK_NAME === "string") {
-      config.HOOK_NAME = t.identifier(config.HOOK_NAME);
+    const info =
+      this.bindingContext?.dataSourceInfo.get(node.id) ??
+      this.getDataSourceBindingInfo(node);
+    if (config.HOOK_NAME === undefined || typeof config.HOOK_NAME === "string") {
+      config.HOOK_NAME = t.identifier(info.hookName);
     }
-    if (config.FETCHER_NAME === undefined) {
-      config.FETCHER_NAME = t.identifier(`fetch${nameBase}`);
-    } else if (typeof config.FETCHER_NAME === "string") {
-      config.FETCHER_NAME = t.identifier(config.FETCHER_NAME);
+    if (
+      config.FETCHER_NAME === undefined ||
+      typeof config.FETCHER_NAME === "string"
+    ) {
+      config.FETCHER_NAME = t.identifier(info.fetcherName);
     }
     if (config.DEFAULT_VALUE === undefined) {
       config.DEFAULT_VALUE = null;
@@ -113,11 +146,13 @@ export class Engine {
       }
       if (typeof value === "object" && value !== null) {
         if ((value as BindingValue)?.type === "binding") {
-          replacements[key] = value;
+          replacements[key] = this.bindingToAst(value as BindingValue);
           return;
         }
         if ((value as ExpressionValue)?.type === "expression") {
-          replacements[key] = value;
+          replacements[key] = this.parseExpression(
+            (value as ExpressionValue).code
+          );
           return;
         }
       }
@@ -132,6 +167,14 @@ export class Engine {
     }
     if (value === null) {
       return t.nullLiteral();
+    }
+    if (typeof value === "object") {
+      if ((value as BindingValue)?.type === "binding") {
+        return this.bindingToAst(value as BindingValue);
+      }
+      if ((value as ExpressionValue)?.type === "expression") {
+        return this.parseExpression((value as ExpressionValue).code);
+      }
     }
     if (Array.isArray(value)) {
       return t.arrayExpression(value.map((item) => this.toAstValue(item)));
@@ -165,6 +208,116 @@ export class Engine {
     return parts
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join("");
+  }
+
+  private parseExpression(code: string): t.Expression {
+    try {
+      return template.expression(code, JSX_TEMPLATE_OPTIONS)() as t.Expression;
+    } catch (error) {
+      throw new Error(`Failed to parse expression: ${code}`);
+    }
+  }
+
+  private toCamelCase(value: string): string {
+    const pascal = this.toPascalCase(value);
+    const camel = pascal.charAt(0).toLowerCase() + pascal.slice(1);
+    if (t.isValidIdentifier(camel)) {
+      return camel;
+    }
+    return `_${camel.replace(/[^a-zA-Z0-9_]/g, "_")}`;
+  }
+
+  private getDataSourceBindingInfo(
+    dataSource: DataSourceNode
+  ): DataSourceBindingInfo {
+    const baseName = this.toCamelCase(dataSource.id);
+    const pascalName = this.toPascalCase(dataSource.id);
+    const hookName =
+      typeof dataSource.config?.HOOK_NAME === "string"
+        ? dataSource.config.HOOK_NAME
+        : `use${pascalName}`;
+    const fetcherName =
+      typeof dataSource.config?.FETCHER_NAME === "string"
+        ? dataSource.config.FETCHER_NAME
+        : `fetch${pascalName}`;
+    return {
+      id: dataSource.id,
+      hookName,
+      fetcherName,
+      baseName,
+      dataName: `${baseName}Data`,
+      errorName: `${baseName}Error`,
+      loadingName: `${baseName}Loading`,
+      mutateName: `${baseName}Mutate`,
+    };
+  }
+
+  private buildDataSourceInfoMap(
+    dataSources?: DataSourceNode[]
+  ): Map<string, DataSourceBindingInfo> {
+    const map = new Map<string, DataSourceBindingInfo>();
+    (dataSources ?? []).forEach((dataSource) => {
+      map.set(dataSource.id, this.getDataSourceBindingInfo(dataSource));
+    });
+    return map;
+  }
+
+  private bindingToAst(binding: BindingValue): t.Expression {
+    const info = this.bindingContext?.dataSourceInfo.get(binding.source);
+    if (!info) {
+      throw new Error(`Binding source ${binding.source} not found`);
+    }
+    const pathParts = (binding.path ?? "")
+      .split(".")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const baseKind = this.resolveBindingOutputKind(pathParts);
+    if (pathParts[0] === baseKind) {
+      pathParts.shift();
+    }
+    let expr: t.Expression;
+    switch (baseKind) {
+      case "error":
+        expr = t.identifier(info.errorName);
+        break;
+      case "isLoading":
+        expr = t.identifier(info.loadingName);
+        break;
+      case "mutate":
+        expr = t.identifier(info.mutateName);
+        break;
+      case "data":
+      default:
+        expr = t.identifier(info.dataName);
+        break;
+    }
+    pathParts.forEach((segment) => {
+      const key = t.isValidIdentifier(segment)
+        ? t.identifier(segment)
+        : t.stringLiteral(segment);
+      expr = t.memberExpression(expr, key, !t.isIdentifier(key));
+    });
+    if (binding.defaultValue !== undefined) {
+      return t.logicalExpression(
+        "??",
+        expr,
+        this.toAstValue(binding.defaultValue)
+      );
+    }
+    return expr;
+  }
+
+  private resolveBindingOutputKind(pathParts: string[]): BindingOutputKind {
+    const head = pathParts[0];
+    if (
+      head === "data" ||
+      head === "error" ||
+      head === "isLoading" ||
+      head === "mutate"
+    ) {
+      return head;
+    }
+    return "data";
   }
 
   private node2codeFragment(
@@ -210,7 +363,8 @@ export class Engine {
 
   private generateDataSourceFragments(
     schema: PageConfig,
-    nodeFragments: Map<string, CodeFragment>
+    nodeFragments: Map<string, CodeFragment>,
+    usedDataSources: Set<string>
   ) {
     if (!this.dataSourceRegistry) {
       throw new Error("DataSourceRegistry is required to process dataSources.");
@@ -231,6 +385,9 @@ export class Engine {
     target.children = target.children ?? [];
 
     schema.dataSources?.forEach((dataSource) => {
+      if (!usedDataSources.has(dataSource.id)) {
+        return;
+      }
       const dataSourceDef = this.dataSourceRegistry!.getDataSource(
         dataSource.type
       );
@@ -313,6 +470,163 @@ export class Engine {
         title: dataSource.id,
         __config: dataSource,
         renderBoundary: false,
+      },
+    };
+  }
+
+  private collectBindingTargets(
+    node: ComponentNode,
+    nodeFragments: Map<string, CodeFragment>,
+    dataSourceInfo: Map<string, DataSourceBindingInfo>
+  ): Map<string, Map<string, Set<BindingOutputKind>>> {
+    const targets = new Map<string, Map<string, Set<BindingOutputKind>>>();
+    const visit = (
+      current: ComponentNode,
+      currentBoundaryId: string | null
+    ) => {
+      const fragment = nodeFragments.get(current.id);
+      const boundaryId =
+        current.meta?.scope || (fragment?.meta.renderBoundary ?? false)
+          ? current.id
+          : currentBoundaryId;
+      const bindings = this.collectBindingsFromProps(current.props);
+      if (bindings.length) {
+        if (!boundaryId) {
+          throw new Error(
+            "Binding requires a render boundary. Add meta.scope to the root or a parent node."
+          );
+        }
+        bindings.forEach((binding) => {
+          if (!dataSourceInfo.has(binding.source)) {
+            throw new Error(`Binding source ${binding.source} not found`);
+          }
+          const outputKind = this.resolveBindingOutputKind(
+            (binding.path ?? "")
+              .split(".")
+              .map((part) => part.trim())
+              .filter(Boolean)
+          );
+          const bySource = targets.get(boundaryId) ?? new Map();
+          const outputSet = bySource.get(binding.source) ?? new Set();
+          outputSet.add(outputKind);
+          bySource.set(binding.source, outputSet);
+          targets.set(boundaryId, bySource);
+        });
+      }
+      current.children?.forEach((child) => visit(child, boundaryId));
+    };
+    visit(node, null);
+    return targets;
+  }
+
+  private collectBindingsFromProps(props?: ComponentNode["props"]): BindingValue[] {
+    if (!props) {
+      return [];
+    }
+    const bindings: BindingValue[] = [];
+    const walk = (value: any) => {
+      if (value === null || value === undefined) {
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach((item) => walk(item));
+        return;
+      }
+      if (typeof value === "object") {
+        if ((value as BindingValue)?.type === "binding") {
+          bindings.push(value as BindingValue);
+          return;
+        }
+        if ((value as ExpressionValue)?.type === "expression") {
+          return;
+        }
+        Object.values(value).forEach((item) => walk(item));
+      }
+    };
+    Object.values(props).forEach((value) => walk(value));
+    return bindings;
+  }
+
+  private applyBindingStats(
+    nodeFragments: Map<string, CodeFragment>,
+    bindingTargets: Map<string, Map<string, Set<BindingOutputKind>>>,
+    dataSourceInfo: Map<string, DataSourceBindingInfo>
+  ) {
+    bindingTargets.forEach((sources, boundaryId) => {
+      const fragment = nodeFragments.get(boundaryId);
+      if (!fragment) {
+        return;
+      }
+      fragment.stats = fragment.stats ?? [];
+      sources.forEach((outputs, sourceId) => {
+        const info = dataSourceInfo.get(sourceId);
+        if (!info) {
+          return;
+        }
+        fragment.stats.push(this.buildHookBindingStat(boundaryId, info, outputs));
+      });
+    });
+  }
+
+  private collectUsedDataSources(
+    bindingTargets: Map<string, Map<string, Set<BindingOutputKind>>>
+  ): Set<string> {
+    const used = new Set<string>();
+    bindingTargets.forEach((sources) => {
+      sources.forEach((_, sourceId) => {
+        used.add(sourceId);
+      });
+    });
+    return used;
+  }
+
+  private buildHookBindingStat(
+    boundaryId: string,
+    info: DataSourceBindingInfo,
+    outputs: Set<BindingOutputKind>
+  ): Stat {
+    const properties: t.ObjectProperty[] = [];
+    const outputNames: string[] = [];
+    const addProperty = (key: string, name: string) => {
+      const keyId = t.identifier(key);
+      const valueId = t.identifier(name);
+      properties.push(
+        t.objectProperty(keyId, valueId, false, keyId.name === valueId.name)
+      );
+      outputNames.push(name);
+    };
+
+    if (outputs.has("data")) {
+      addProperty("data", info.dataName);
+    }
+    if (outputs.has("error")) {
+      addProperty("error", info.errorName);
+    }
+    if (outputs.has("isLoading")) {
+      addProperty("isLoading", info.loadingName);
+    }
+    if (outputs.has("mutate")) {
+      addProperty("mutate", info.mutateName);
+    }
+
+    if (!properties.length) {
+      addProperty("data", info.dataName);
+    }
+
+    const pattern = t.objectPattern(properties);
+    const init = t.callExpression(t.identifier(info.hookName), []);
+    const declaration = t.variableDeclaration("const", [
+      t.variableDeclarator(pattern, init),
+    ]);
+
+    return {
+      id: `${boundaryId}:binding:${info.id}`,
+      source: `const { ${outputNames.join(", ")} } = ${info.hookName}();`,
+      scope: StatementScope.FunctionBody,
+      stat: declaration,
+      meta: {
+        output: outputNames,
+        depends: [],
       },
     };
   }

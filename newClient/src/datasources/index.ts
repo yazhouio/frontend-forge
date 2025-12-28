@@ -9,22 +9,29 @@ export const StaticDataSource: DataSourceDefinition = {
         type: "object",
         description: "Static payload",
       },
+      HOOK_NAME: {
+        type: "string",
+        description: "Hook name",
+      },
     },
   },
   generateCode: {
     imports: ['import { useState } from "react"'],
     stats: [
       {
-        id: "dataState",
-        scope: StatementScope.FunctionBody,
-        code: "const [data, setData] = useState(%%DATA%%);",
-        output: ["data", "setData"],
+        id: "hookDecl",
+        scope: StatementScope.ModuleDecl,
+        code: `const %%HOOK_NAME%% = () => {
+  const [data, setData] = useState(%%DATA%%);
+  return { data, error: null, isLoading: false, mutate: setData };
+};`,
+        output: ["HOOK_NAME"],
         depends: [],
       },
     ],
     meta: {
       inputPaths: {
-        dataState: ["DATA"],
+        hookDecl: ["DATA", "HOOK_NAME"],
       },
     },
   },
@@ -78,19 +85,11 @@ export const RestDataSource: DataSourceDefinition = {
         output: ["HOOK_NAME"],
         depends: ["fetcherDecl"],
       },
-      {
-        id: "hookBind",
-        scope: StatementScope.FunctionBody,
-        code: "const { data, error, isLoading, mutate } = %%HOOK_NAME%%();",
-        output: ["data", "error", "isLoading", "mutate"],
-        depends: ["hookDecl"],
-      },
     ],
     meta: {
       inputPaths: {
         fetcherDecl: ["FETCHER_NAME"],
         hookDecl: ["AUTO_LOAD", "URL", "DEFAULT_VALUE", "HOOK_NAME", "FETCHER_NAME"],
-        hookBind: ["HOOK_NAME"],
       },
     },
   },
