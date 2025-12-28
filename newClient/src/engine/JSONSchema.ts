@@ -34,7 +34,7 @@ interface PageMeta {
   // permissions?: string[];
 }
 
-interface DataSourceNode {
+export interface DataSourceNode {
   id: string;
   type: "rest" | "static";
   config: Record<string, any>; // todo: 根据 type 不同，config 的类型不同
