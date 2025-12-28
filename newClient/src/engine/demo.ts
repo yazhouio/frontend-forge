@@ -10,10 +10,12 @@ import {
   TextNode,
 } from "../nodes";
 import { Engine } from "./Engine";
+import { DataSourceRegistry } from "./DataSourceRegistry";
 import { NodeRegistry } from "./NodeRegistry";
 import { PageConfig } from "./JSONSchema";
 import { SchemaValidator } from "./SchemaValidator";
 import { CodeGenerator } from "./CodeGenerator";
+import { RestDataSource, StaticDataSource } from "../datasources";
 
 const pageSchemaLayout: PageConfig = {
   meta: {
@@ -23,6 +25,24 @@ const pageSchemaLayout: PageConfig = {
     path: "/page-layout",
   },
   context: {},
+  dataSources: [
+    {
+      id: "static-users",
+      type: "static",
+      config: {
+        DATA: ["Ada", "Linus", "Grace"],
+      },
+    },
+    {
+      id: "rest-posts",
+      type: "rest",
+      config: {
+        URL: "/api/posts",
+        DEFAULT_VALUE: [],
+      },
+      autoLoad: true,
+    },
+  ],
   root: {
     id: "layout-1",
     type: "Layout",
@@ -353,8 +373,11 @@ nodeRegistry.registerNode(ButtonNode);
 nodeRegistry.registerNode(ImageNode);
 nodeRegistry.registerNode(CardNode);
 nodeRegistry.registerNode(SectionNode);
+const dataSourceRegistry = new DataSourceRegistry();
+dataSourceRegistry.registerDataSource(StaticDataSource);
+dataSourceRegistry.registerDataSource(RestDataSource);
 const schemaValidator = new SchemaValidator();
-const engine = new Engine(nodeRegistry, schemaValidator);
+const engine = new Engine(nodeRegistry, schemaValidator, dataSourceRegistry);
 const codeGenerator = new CodeGenerator();
 
 const pageSchemas = [

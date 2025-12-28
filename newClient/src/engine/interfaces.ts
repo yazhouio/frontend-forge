@@ -28,6 +28,24 @@ export type NodeDefinition = {
   };
 };
 
+export type DataSourceDefinition = {
+  id: string;
+  schema: NodeDefinitionSchema;
+  generateCode: {
+    imports: string[];
+    stats: {
+      id: string;
+      scope: StatementScope;
+      code: string;
+      output: string[];
+      depends: string[];
+    }[];
+    meta?: {
+      inputPaths: Record<string, string[]>;
+    };
+  };
+};
+
 export interface NodeDefinitionWithParseTemplate extends NodeDefinition {
   templates: {
     imports: ParseTemplateImport[];
@@ -40,6 +58,21 @@ export interface NodeDefinitionWithParseTemplate extends NodeDefinition {
       depends: string[];
     }[];
     jsx?: ParseTemplateExpression;
+  };
+}
+
+export interface DataSourceDefinitionWithParseTemplate
+  extends DataSourceDefinition {
+  templates: {
+    imports: ParseTemplateImport[];
+    stats: {
+      id: string;
+      scope: StatementScope;
+      code: string;
+      template: ParseTemplate;
+      output: string[];
+      depends: string[];
+    }[];
   };
 }
 
