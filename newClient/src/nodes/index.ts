@@ -252,15 +252,49 @@ export const ButtonNode: NodeDefinition = {
         type: "boolean",
         description: "Disable state",
       },
+      ON_CLICK: {
+        type: "object",
+        description: "Click handler",
+      },
     },
   },
   generateCode: {
     imports: ['import * as React from "react"'],
-    jsx: "<button className={%%VARIANT%%} disabled={%%DISABLED%%}>{%%TEXT%%}</button>",
+    jsx: "<button className={%%VARIANT%%} disabled={%%DISABLED%%} onClick={%%ON_CLICK%%}>{%%TEXT%%}</button>",
     stats: [],
     meta: {
       inputPaths: {
-        $jsx: ["TEXT", "VARIANT", "DISABLED"],
+        $jsx: ["TEXT", "VARIANT", "DISABLED", "ON_CLICK"],
+      },
+    },
+  },
+};
+
+export const InputNode: NodeDefinition = {
+  id: "Input",
+  schema: {
+    inputs: {
+      VALUE: {
+        type: "string",
+        description: "Input value",
+      },
+      PLACEHOLDER: {
+        type: "string",
+        description: "Input placeholder",
+      },
+      ON_CHANGE: {
+        type: "object",
+        description: "Change handler",
+      },
+    },
+  },
+  generateCode: {
+    imports: ['import * as React from "react"'],
+    jsx: "<input value={%%VALUE%%} placeholder={%%PLACEHOLDER%%} onChange={%%ON_CHANGE%%} />",
+    stats: [],
+    meta: {
+      inputPaths: {
+        $jsx: ["VALUE", "PLACEHOLDER", "ON_CHANGE"],
       },
     },
   },
