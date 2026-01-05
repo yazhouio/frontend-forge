@@ -20,6 +20,7 @@ export type ActionGraphInfo = {
   resolveName: string;
   getPathName: string;
   setPathName: string;
+  dataSourceMapName: string;
   callDataSourceName: string;
 };
 
@@ -60,6 +61,7 @@ export const buildActionGraphInfoMap = (
       resolveName: `resolveAction${pascalName}`,
       getPathName: `getAction${pascalName}Path`,
       setPathName: `setAction${pascalName}Path`,
+      dataSourceMapName: `action${pascalName}DataSources`,
       callDataSourceName: `callAction${pascalName}DataSource`,
     });
   });
@@ -419,7 +421,7 @@ const buildActionGraphStats = (
     },
   });
 
-  const callDataSourceStat = buildActionGraphCallDataSourceStat(
+  const callDataSourceStats = buildActionGraphCallDataSourceStats(
     prefix,
     info,
     graph,
@@ -427,8 +429,8 @@ const buildActionGraphStats = (
     dataSourceById,
     toAstValue
   );
-  if (callDataSourceStat) {
-    stats.push(callDataSourceStat);
+  if (callDataSourceStats.length) {
+    stats.push(...callDataSourceStats);
   }
 
   stats.push(
@@ -436,7 +438,7 @@ const buildActionGraphStats = (
       prefix,
       info,
       graph,
-      !!callDataSourceStat,
+      callDataSourceStats.length > 0,
       toAstValue
     )
   );
@@ -444,14 +446,14 @@ const buildActionGraphStats = (
   return stats;
 };
 
-const buildActionGraphCallDataSourceStat = (
+const buildActionGraphCallDataSourceStats = (
   prefix: string,
   info: ActionGraphInfo,
   graph: ActionGraphSchema,
   dataSourceInfo: Map<string, DataSourceBindingInfo>,
   dataSourceById: Map<string, DataSourceNode>,
   toAstValue: ActionGraphDeps["toAstValue"]
-): Stat | null => {
+): Stat[] => {
   const dataSourceIds = new Set<string>();
   Object.values(graph.actions ?? {}).forEach((action) => {
     action.do.forEach((step) => {
@@ -461,33 +463,54 @@ const buildActionGraphCallDataSourceStat = (
     });
   });
   if (!dataSourceIds.size) {
-    return null;
+    return [];
   }
 
-  const cases: t.SwitchCase[] = [];
+  const envId = t.identifier("env");
+  const payloadId = t.identifier("payload");
+  const dataSourceProps: t.ObjectProperty[] = [];
+  const modeEntries: t.ObjectProperty[] = [];
+  const mutateEntries: t.ObjectProperty[] = [];
   dataSourceIds.forEach((dataSourceId) => {
     const dataSource = dataSourceById.get(dataSourceId);
     const bindingInfo = dataSourceInfo.get(dataSourceId);
     if (!dataSource || !bindingInfo) {
       throw new Error(`DataSource ${dataSourceId} not found`);
     }
+    mutateEntries.push(
+      t.objectProperty(
+        t.stringLiteral(dataSourceId),
+        t.identifier(bindingInfo.mutateName)
+      )
+    );
     if (dataSource.type === "static") {
+      modeEntries.push(
+        t.objectProperty(t.stringLiteral(dataSourceId), t.stringLiteral("set"))
+      );
       const staticBody = template.statements(
-        "return %%MUTATE%%(payload);",
+        "return payload;",
         JSX_TEMPLATE_OPTIONS
-      )({
-        MUTATE: t.identifier(bindingInfo.mutateName),
-      });
-      cases.push(
-        t.switchCase(t.stringLiteral(dataSourceId), [
-          t.blockStatement(staticBody as t.Statement[]),
-        ])
+      )();
+      dataSourceProps.push(
+        t.objectProperty(
+          t.stringLiteral(dataSourceId),
+          t.arrowFunctionExpression(
+            [payloadId, envId],
+            t.blockStatement(staticBody as t.Statement[])
+          )
+        )
       );
       return;
     }
     if (dataSource.type !== "rest") {
       throw new Error(`Unsupported dataSource type ${dataSource.type}`);
     }
+    modeEntries.push(
+      t.objectProperty(
+        t.stringLiteral(dataSourceId),
+        t.stringLiteral("request")
+      )
+    );
     const urlValue = dataSource.config?.URL;
     if (urlValue === undefined) {
       throw new Error(`DataSource ${dataSourceId} requires URL`);
@@ -498,37 +521,52 @@ const buildActionGraphCallDataSourceStat = (
       `const url = %%URL%%;
 const method = (%%METHOD%% || "GET").toUpperCase();
 const headers = %%HEADERS%%;
-if (method !== "GET") {
-  return %%MUTATE%%(
-    () =>
-      fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json", ...(headers || {}) },
-        body: JSON.stringify(payload),
-      }).then((res) => res.json()),
-    { revalidate: false }
+const fetcher = %%FETCH%%;
+const request = () => {
+  if (method !== "GET") {
+    return fetcher(url, {
+      method,
+      headers: { "Content-Type": "application/json", ...(headers || {}) },
+      body: JSON.stringify(payload),
+    }).then((res) => res.json());
+  }
+  return fetcher(url, { method, headers: headers || undefined }).then((res) =>
+    res.json()
   );
-}
-return %%MUTATE%%(
-  () =>
-    fetch(url, { method, headers: headers || undefined }).then((res) =>
-      res.json()
-    ),
-  { revalidate: false }
-);`,
+};
+return request();`,
       JSX_TEMPLATE_OPTIONS
     )({
       URL: toAstValue(urlValue),
       METHOD: toAstValue(methodValue),
       HEADERS: toAstValue(headersValue),
-      MUTATE: t.identifier(bindingInfo.mutateName),
+      FETCH: t.logicalExpression(
+        "||",
+        t.memberExpression(envId, t.identifier("fetch")),
+        t.identifier("fetch")
+      ),
     });
-    cases.push(
-      t.switchCase(t.stringLiteral(dataSourceId), [
-        t.blockStatement(restBody as t.Statement[]),
-      ])
+    dataSourceProps.push(
+      t.objectProperty(
+        t.stringLiteral(dataSourceId),
+        t.arrowFunctionExpression(
+          [payloadId, envId],
+          t.blockStatement(restBody as t.Statement[])
+        )
+      )
     );
   });
+
+  const dataSourcesDecl = t.variableDeclaration("const", [
+    t.variableDeclarator(
+      t.identifier(info.dataSourceMapName),
+      t.objectExpression(dataSourceProps)
+    ),
+  ]);
+  const modeMapId = t.identifier(`${info.baseName}DataSourceMode`);
+  const modeMapDecl = t.variableDeclaration("const", [
+    t.variableDeclarator(modeMapId, t.objectExpression(modeEntries)),
+  ]);
 
   const callId = t.identifier(info.callDataSourceName);
   const dataSourceIdId = t.identifier("dataSourceId");
@@ -557,7 +595,7 @@ return %%MUTATE%%(
   ]);
   const payloadDecl = t.variableDeclaration("const", [
     t.variableDeclarator(
-      t.identifier("payload"),
+      payloadId,
       t.conditionalExpression(
         t.binaryExpression(
           "<=",
@@ -569,7 +607,47 @@ return %%MUTATE%%(
       )
     ),
   ]);
-  const switchStmt = t.switchStatement(dataSourceIdId, cases);
+  const mutateMapId = t.identifier(`${info.baseName}DataSourceMutate`);
+  const mutateMapDecl = t.variableDeclaration("const", [
+    t.variableDeclarator(mutateMapId, t.objectExpression(mutateEntries)),
+  ]);
+  const handlerId = t.identifier("handler");
+  const handlerDecl = t.variableDeclaration("const", [
+    t.variableDeclarator(
+      handlerId,
+      t.memberExpression(t.identifier(info.dataSourceMapName), dataSourceIdId, true)
+    ),
+  ]);
+  const modeId = t.identifier("mode");
+  const modeDecl = t.variableDeclaration("const", [
+    t.variableDeclarator(
+      modeId,
+      t.memberExpression(modeMapId, dataSourceIdId, true)
+    ),
+  ]);
+  const envDecl = t.variableDeclaration("const", [
+    t.variableDeclarator(
+      envId,
+      t.objectExpression([
+        t.objectProperty(t.identifier("fetch"), t.identifier("fetch"), false, true),
+        t.objectProperty(
+          t.identifier("mutate"),
+          t.memberExpression(mutateMapId, dataSourceIdId, true)
+        ),
+      ])
+    ),
+  ]);
+  const effectId = t.identifier("effect");
+  const effectDecl = t.variableDeclaration("const", [
+    t.variableDeclarator(
+      effectId,
+      t.arrowFunctionExpression(
+        [],
+        t.callExpression(handlerId, [payloadId, envId])
+      )
+    ),
+  ]);
+  const mutateCheck = t.memberExpression(envId, t.identifier("mutate"));
   const callDecl = t.variableDeclaration("const", [
     t.variableDeclarator(
       callId,
@@ -578,23 +656,71 @@ return %%MUTATE%%(
         t.blockStatement([
           resolvedArgsDecl,
           payloadDecl,
-          switchStmt,
-          t.returnStatement(t.identifier("undefined")),
+          handlerDecl,
+          t.ifStatement(
+            t.unaryExpression("!", handlerId),
+            t.blockStatement([t.returnStatement(t.identifier("undefined"))])
+          ),
+          mutateMapDecl,
+          modeDecl,
+          envDecl,
+          effectDecl,
+          t.ifStatement(
+            mutateCheck,
+            t.blockStatement([
+              t.ifStatement(
+                t.binaryExpression(
+                  "===",
+                  modeId,
+                  t.stringLiteral("set")
+                ),
+                t.blockStatement([
+                  t.returnStatement(
+                    t.callExpression(mutateCheck, [payloadId])
+                  ),
+                ])
+              ),
+              t.returnStatement(
+                t.callExpression(mutateCheck, [
+                  effectId,
+                  t.objectExpression([
+                    t.objectProperty(
+                      t.identifier("revalidate"),
+                      t.booleanLiteral(false)
+                    ),
+                  ]),
+                ])
+              ),
+            ])
+          ),
+          t.returnStatement(t.callExpression(effectId, [])),
         ])
       )
     ),
   ]);
 
-  return {
-    id: `${prefix}:callDataSource`,
-    source: `const ${info.callDataSourceName} = (dataSourceId, args, event, context) => {};`,
-    scope: StatementScope.FunctionBody,
-    stat: callDecl,
-    meta: {
-      output: [info.callDataSourceName],
-      depends: [],
+  return [
+    {
+      id: `${prefix}:dataSources`,
+      source: `const ${info.dataSourceMapName} = {};`,
+      scope: StatementScope.ModuleDecl,
+      stat: [dataSourcesDecl, modeMapDecl],
+      meta: {
+        output: [info.dataSourceMapName, modeMapId.name],
+        depends: [],
+      },
     },
-  };
+    {
+      id: `${prefix}:callDataSource`,
+      source: `const ${info.callDataSourceName} = (dataSourceId, args, event, context) => {};`,
+      scope: StatementScope.FunctionBody,
+      stat: callDecl,
+      meta: {
+        output: [info.callDataSourceName],
+        depends: [],
+      },
+    },
+  ];
 };
 
 const buildActionGraphDispatchStat = (
