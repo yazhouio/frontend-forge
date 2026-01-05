@@ -210,6 +210,51 @@ const eventNameToPropName = (eventName: string): string => {
   return `ON_${normalized}`;
 };
 
+const stripContextPrefix = (value: string): string => {
+  const trimmed = value.trim();
+  if (trimmed === "context") {
+    return "";
+  }
+  if (trimmed.startsWith("context.")) {
+    return trimmed.slice(8);
+  }
+  return trimmed;
+};
+
+const parseActionValue = (
+  value: string
+): { type: "event" | "context"; path: string } | null => {
+  if (value.startsWith("$event")) {
+    const eventPath = value.slice(6);
+    const normalized = eventPath.startsWith(".")
+      ? eventPath.slice(1)
+      : eventPath;
+    return { type: "event", path: normalized };
+  }
+  if (value === "context" || value.startsWith("context.")) {
+    const contextPath = value.slice(7);
+    const normalized = contextPath.startsWith(".")
+      ? contextPath.slice(1)
+      : contextPath;
+    return { type: "context", path: normalized };
+  }
+  return null;
+};
+
+const toActionValueExpr = (
+  value: string,
+  toAstValue: ActionGraphDeps["toAstValue"]
+): t.Expression => {
+  const parsed = parseActionValue(value);
+  if (!parsed) {
+    return toAstValue(value);
+  }
+  return t.objectExpression([
+    t.objectProperty(t.identifier("type"), t.stringLiteral(parsed.type)),
+    t.objectProperty(t.identifier("path"), t.stringLiteral(parsed.path)),
+  ]);
+};
+
 const buildActionHandlerExpression = (
   eventName: string,
   entries: ActionGraphEventEntry[],
@@ -239,7 +284,14 @@ const buildActionGraphStoreStat = (
   const storeTemplate = template.statement(
     `const %%STORE%% = create((set) => ({
   context: %%INITIAL_CONTEXT%%,
-  setContext: (next) => set({ context: next }),
+  setContext: (next) =>
+    set((prev) => ({
+      ...prev,
+      context: {
+        ...(prev.context || {}),
+        ...(next || {}),
+      },
+    })),
 }));`,
     JSX_TEMPLATE_OPTIONS
   );
@@ -315,18 +367,13 @@ const buildActionGraphStats = (
 
   const resolveTemplate = template.statement(
     `const %%RESOLVE%% = (value, event, context) => {
-  if (typeof value !== "string") {
-    return value;
-  }
-  if (value.startsWith("$event")) {
-    const eventPath = value.slice(6);
-    const normalized = eventPath.startsWith(".") ? eventPath.slice(1) : eventPath;
-    return %%GET_PATH%%(event, normalized);
-  }
-  if (value.startsWith("context")) {
-    const contextPath = value.slice(7);
-    const normalized = contextPath.startsWith(".") ? contextPath.slice(1) : contextPath;
-    return %%GET_PATH%%(context, normalized);
+  if (value && typeof value === "object") {
+    if (value.type === "event") {
+      return %%GET_PATH%%(event, value.path);
+    }
+    if (value.type === "context") {
+      return %%GET_PATH%%(context, value.path);
+    }
   }
   return value;
 };`,
@@ -349,12 +396,12 @@ const buildActionGraphStats = (
 
   const setPathTemplate = template.statement(
     `const %%SET_PATH%% = (target, path, value) => {
-  const cleaned = String(path || "").replace(/^context\\.?/, "");
+  const cleaned = String(path || "");
   if (!cleaned) {
     return value;
   }
-  // const result = cloneDeep(target || {});
-  return set(target || {}, cleaned, value);
+  const base = target ? { ...target } : {};
+  return set(base, cleaned, value);
 };`,
     JSX_TEMPLATE_OPTIONS
   );
@@ -385,7 +432,13 @@ const buildActionGraphStats = (
   }
 
   stats.push(
-    buildActionGraphDispatchStat(prefix, info, graph, !!callDataSourceStat)
+    buildActionGraphDispatchStat(
+      prefix,
+      info,
+      graph,
+      !!callDataSourceStat,
+      toAstValue
+    )
   );
 
   return stats;
@@ -548,7 +601,8 @@ const buildActionGraphDispatchStat = (
   prefix: string,
   info: ActionGraphInfo,
   graph: ActionGraphSchema,
-  hasCallDataSource: boolean
+  hasCallDataSource: boolean,
+  toAstValue: ActionGraphDeps["toAstValue"]
 ): Stat => {
   const actionIdId = t.identifier("actionId");
   const eventId = t.identifier("event");
@@ -564,13 +618,13 @@ const buildActionGraphDispatchStat = (
     action.do.forEach((step) => {
       if (step.type === "assign") {
         const resolvedExpr = t.callExpression(t.identifier(info.resolveName), [
-          t.stringLiteral(step.value),
+          toActionValueExpr(step.value, toAstValue),
           eventId,
           nextContextId,
         ]);
         const setExpr = t.callExpression(t.identifier(info.setPathName), [
           nextContextId,
-          t.stringLiteral(step.to),
+          t.stringLiteral(stripContextPrefix(step.to)),
           resolvedExpr,
         ]);
         statements.push(
@@ -588,7 +642,7 @@ const buildActionGraphDispatchStat = (
       if (step.type === "reset") {
         const setExpr = t.callExpression(t.identifier(info.setPathName), [
           nextContextId,
-          t.stringLiteral(step.path),
+          t.stringLiteral(stripContextPrefix(step.path)),
           t.stringLiteral(""),
         ]);
         statements.push(
@@ -609,7 +663,9 @@ const buildActionGraphDispatchStat = (
         }
         const argsExpr =
           step.args && step.args.length
-            ? t.arrayExpression(step.args.map((arg) => t.stringLiteral(arg)))
+            ? t.arrayExpression(
+                step.args.map((arg) => toActionValueExpr(arg, toAstValue))
+              )
             : t.identifier("undefined");
         const callExpr = t.callExpression(
           t.identifier(info.callDataSourceName),
