@@ -175,7 +175,12 @@ export const applyActionGraphStats = (
       'import { create } from "zustand"',
       JSX_TEMPLATE_OPTIONS
     )() as t.ImportDeclaration;
+    const toolkitImport = template.statement(
+      'import { get, set } from "es-toolkit/compat"',
+      JSX_TEMPLATE_OPTIONS
+    )() as t.ImportDeclaration;
     fragment.imports.push(createImport);
+    fragment.imports.push(toolkitImport);
     graphIds.forEach((graphId) => {
       const graph = graphById.get(graphId);
       const info = actionGraphInfo.get(graphId);
@@ -201,9 +206,7 @@ export const applyActionGraphStats = (
 };
 
 const eventNameToPropName = (eventName: string): string => {
-  const normalized = eventName
-    .replace(/[^a-zA-Z0-9]+/g, "_")
-    .toUpperCase();
+  const normalized = eventName.replace(/[^a-zA-Z0-9]+/g, "_").toUpperCase();
   return `ON_${normalized}`;
 };
 
@@ -292,8 +295,7 @@ const buildActionGraphStats = (
   if (!path) {
     return target;
   }
-  const parts = path.split(".").filter(Boolean);
-  return parts.reduce((acc, key) => (acc == null ? undefined : acc[key]), target);
+  return get(target, path);
 };`,
     JSX_TEMPLATE_OPTIONS
   );
@@ -351,23 +353,8 @@ const buildActionGraphStats = (
   if (!cleaned) {
     return value;
   }
-  const parts = cleaned.split(".").filter(Boolean);
-  const result = Array.isArray(target) ? [...target] : { ...(target || {}) };
-  let cursor = result;
-  for (let index = 0; index < parts.length - 1; index += 1) {
-    const key = parts[index];
-    const prev = cursor[key];
-    const next =
-      prev && typeof prev === "object"
-        ? Array.isArray(prev)
-          ? [...prev]
-          : { ...prev }
-        : {};
-    cursor[key] = next;
-    cursor = next;
-  }
-  cursor[parts[parts.length - 1]] = value;
-  return result;
+  // const result = cloneDeep(target || {});
+  return set(target || {}, cleaned, value);
 };`,
     JSX_TEMPLATE_OPTIONS
   );
