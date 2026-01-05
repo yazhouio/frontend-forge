@@ -13,6 +13,7 @@ export type ActionGraphInfo = {
   id: string;
   baseName: string;
   pascalName: string;
+  storeName: string;
   contextName: string;
   setContextName: string;
   dispatchName: string;
@@ -52,6 +53,7 @@ export const buildActionGraphInfoMap = (
       id: graph.id,
       baseName,
       pascalName,
+      storeName: `use${pascalName}Store`,
       contextName: `action${pascalName}Context`,
       setContextName: `setAction${pascalName}Context`,
       dispatchName: `dispatchAction${pascalName}`,
@@ -158,6 +160,7 @@ export const applyActionGraphStats = (
   (dataSources ?? []).forEach((dataSource) =>
     dataSourceById.set(dataSource.id, dataSource)
   );
+  const declaredStores = new Set<string>();
   actionGraphTargets.forEach((graphIds, boundaryId) => {
     if (!graphIds.size) {
       return;
@@ -168,16 +171,20 @@ export const applyActionGraphStats = (
     }
     fragment.imports = fragment.imports ?? [];
     fragment.stats = fragment.stats ?? [];
-    const useStateImport = template.statement(
-      'import { useState } from "react"',
+    const createImport = template.statement(
+      'import { create } from "zustand"',
       JSX_TEMPLATE_OPTIONS
     )() as t.ImportDeclaration;
-    fragment.imports.push(useStateImport);
+    fragment.imports.push(createImport);
     graphIds.forEach((graphId) => {
       const graph = graphById.get(graphId);
       const info = actionGraphInfo.get(graphId);
       if (!graph || !info) {
         throw new Error(`ActionGraph ${graphId} not found`);
+      }
+      if (!declaredStores.has(graphId)) {
+        fragment.stats.push(buildActionGraphStoreStat(graph, info, toAstValue));
+        declaredStores.add(graphId);
       }
       fragment.stats.push(
         ...buildActionGraphStats(
@@ -221,6 +228,35 @@ const buildActionHandlerExpression = (
   return `(event) => { ${calls} }`;
 };
 
+const buildActionGraphStoreStat = (
+  graph: ActionGraphSchema,
+  info: ActionGraphInfo,
+  toAstValue: ActionGraphDeps["toAstValue"]
+): Stat => {
+  const storeTemplate = template.statement(
+    `const %%STORE%% = create((set) => ({
+  context: %%INITIAL_CONTEXT%%,
+  setContext: (next) => set({ context: next }),
+}));`,
+    JSX_TEMPLATE_OPTIONS
+  );
+  const storeStat = storeTemplate({
+    STORE: t.identifier(info.storeName),
+    INITIAL_CONTEXT: toAstValue(graph.context ?? {}),
+  });
+
+  return {
+    id: `actionGraph:${graph.id}:store`,
+    source: `const ${info.storeName} = create(...);`,
+    scope: StatementScope.ModuleDecl,
+    stat: storeStat,
+    meta: {
+      output: [info.storeName],
+      depends: [],
+    },
+  };
+};
+
 const buildActionGraphStats = (
   boundaryId: string,
   graph: ActionGraphSchema,
@@ -231,20 +267,20 @@ const buildActionGraphStats = (
 ): Stat[] => {
   const prefix = `${boundaryId}:actionGraph:${graph.id}`;
   const stats: Stat[] = [];
-  const stateTemplate = template.statement(
-    "const [%%CONTEXT%%, %%SET_CONTEXT%%] = useState(%%INITIAL_CONTEXT%%);",
+  const storeHookTemplate = template.statement(
+    "const %%CONTEXT%% = %%STORE%%((state) => state.context), %%SET_CONTEXT%% = %%STORE%%((state) => state.setContext);",
     JSX_TEMPLATE_OPTIONS
   );
-  const stateStat = stateTemplate({
+  const storeHookStat = storeHookTemplate({
     CONTEXT: t.identifier(info.contextName),
     SET_CONTEXT: t.identifier(info.setContextName),
-    INITIAL_CONTEXT: toAstValue(graph.context ?? {}),
+    STORE: t.identifier(info.storeName),
   });
   stats.push({
-    id: `${prefix}:state`,
-    source: `const [${info.contextName}, ${info.setContextName}] = useState(...);`,
+    id: `${prefix}:storeHook`,
+    source: `const ${info.contextName} = ${info.storeName}(...);`,
     scope: StatementScope.FunctionBody,
-    stat: stateStat,
+    stat: storeHookStat,
     meta: {
       output: [info.contextName, info.setContextName],
       depends: [],
