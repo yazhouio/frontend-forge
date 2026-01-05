@@ -353,12 +353,12 @@ export class Engine {
         pathParts.shift();
       }
       let expr: t.Expression = t.identifier(actionGraphInfo.contextName);
-      pathParts.forEach((segment) => {
-        const key = t.isValidIdentifier(segment)
-          ? t.identifier(segment)
-          : t.stringLiteral(segment);
-        expr = t.memberExpression(expr, key, !t.isIdentifier(key));
-      });
+      if (pathParts.length) {
+        expr = t.callExpression(t.identifier("get"), [
+          expr,
+          this.toPathExpression(pathParts),
+        ]);
+      }
       if (binding.defaultValue !== undefined) {
         return t.logicalExpression(
           "??",
@@ -395,12 +395,12 @@ export class Engine {
         expr = t.identifier(dataSourceInfo.dataName);
         break;
     }
-    pathParts.forEach((segment) => {
-      const key = t.isValidIdentifier(segment)
-        ? t.identifier(segment)
-        : t.stringLiteral(segment);
-      expr = t.memberExpression(expr, key, !t.isIdentifier(key));
-    });
+    if (pathParts.length) {
+      expr = t.callExpression(t.identifier("get"), [
+        expr,
+        this.toPathExpression(pathParts),
+      ]);
+    }
     if (binding.defaultValue !== undefined) {
       return t.logicalExpression(
         "??",
@@ -409,6 +409,43 @@ export class Engine {
       );
     }
     return expr;
+  }
+
+  private propsUseBindingPathAccess(
+    props?: ComponentNode["props"]
+  ): boolean {
+    const bindings = this.collectBindingsFromProps(props);
+    return bindings.some((binding) => this.bindingUsesPathAccess(binding));
+  }
+
+  private bindingUsesPathAccess(binding: BindingValue): boolean {
+    const pathParts = (binding.path ?? "")
+      .split(".")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (!pathParts.length) {
+      return false;
+    }
+    const isActionGraph = this.bindingContext?.actionGraphInfo.has(
+      binding.source
+    );
+    if (isActionGraph) {
+      if (pathParts[0] === "context") {
+        pathParts.shift();
+      }
+      return pathParts.length > 0;
+    }
+    const baseKind = this.resolveBindingOutputKind(pathParts);
+    if (pathParts[0] === baseKind) {
+      pathParts.shift();
+    }
+    return pathParts.length > 0;
+  }
+
+  private toPathExpression(pathParts: string[]): t.Expression {
+    return t.arrayExpression(
+      pathParts.map((part) => t.stringLiteral(part))
+    );
   }
 
   private resolveBindingOutputKind(pathParts: string[]): BindingOutputKind {
@@ -429,10 +466,18 @@ export class Engine {
     node: ComponentNode,
     overrideProps?: ComponentNode["props"]
   ): CodeFragment {
-    const props = this.wrapperNodeProps(overrideProps ?? node.props);
+    const rawProps = overrideProps ?? node.props;
+    const props = this.wrapperNodeProps(rawProps);
     const imports = nodeDef.templates.imports.flatMap((importDecl) => {
       return importDecl();
     });
+    if (this.propsUseBindingPathAccess(rawProps)) {
+      const toolkitImport = template.statement(
+        'import { get } from "es-toolkit/compat"',
+        JSX_TEMPLATE_OPTIONS
+      )() as t.ImportDeclaration;
+      imports.push(toolkitImport);
+    }
     const stats: Stat[] = nodeDef.templates.stats.flatMap((stat) => {
       const inputPaths = nodeDef.generateCode.meta?.inputPaths?.[stat?.id];
       const itemProps = inputPaths
@@ -549,6 +594,13 @@ export class Engine {
     const imports = dataSourceDef.templates.imports.flatMap((importDecl) => {
       return importDecl();
     });
+    if (this.propsUseBindingPathAccess(dataSource.config)) {
+      const toolkitImport = template.statement(
+        'import { get } from "es-toolkit/compat"',
+        JSX_TEMPLATE_OPTIONS
+      )() as t.ImportDeclaration;
+      imports.push(toolkitImport);
+    }
     const fragmentId = `dataSource:${dataSource.id}`;
     const stats: Stat[] = dataSourceDef.templates.stats.flatMap((stat) => {
       const inputPaths =

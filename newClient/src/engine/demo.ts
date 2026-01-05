@@ -186,7 +186,7 @@ const pageSchemaLayout: PageConfig = {
                   title: "Name",
                   mapper: {
                     type: "expression",
-                    code: "(value) => (value ? String(value).toUpperCase() : \"-\")",
+                    code: '(value) => (value ? String(value).toUpperCase() : "-")',
                   },
                 },
                 {

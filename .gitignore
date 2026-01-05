@@ -4,3 +4,4 @@ spec
 dist
 /client/node_modules
 /newClient/node_modules
+newClient/src/test.jsx
