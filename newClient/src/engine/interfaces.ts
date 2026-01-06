@@ -100,6 +100,7 @@ export type CodeFragment = {
     __config: Record<string, any>;
     // depends: string[];
     renderBoundary: boolean;
+    exportDefault?: boolean;
   };
 };
 

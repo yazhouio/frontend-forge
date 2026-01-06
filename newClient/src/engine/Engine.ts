@@ -103,6 +103,7 @@ export class Engine {
         usedDataSources
       );
     }
+    this.markDefaultExport(schema.root.id, nodeFragments);
     this.bindingContext = undefined;
     return nodeFragments;
   }
@@ -633,6 +634,35 @@ export class Engine {
         renderBoundary: false,
       },
     };
+  }
+
+  private markDefaultExport(
+    rootId: string,
+    nodeFragments: Map<string, CodeFragment>
+  ) {
+    const targetId = this.resolveDefaultExportTarget(rootId, nodeFragments);
+    if (!targetId) {
+      return;
+    }
+    const target = nodeFragments.get(targetId);
+    if (!target) {
+      return;
+    }
+    target.meta.exportDefault = true;
+  }
+
+  private resolveDefaultExportTarget(
+    rootId: string,
+    nodeFragments: Map<string, CodeFragment>
+  ): string | null {
+    const rootFragment = nodeFragments.get(rootId);
+    if (!rootFragment) {
+      return null;
+    }
+    if (rootFragment.meta.renderBoundary) {
+      return rootFragment.meta.id;
+    }
+    return this.findFirstRenderBoundary(rootFragment, nodeFragments);
   }
 
   private collectBindingTargets(

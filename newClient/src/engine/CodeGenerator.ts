@@ -49,10 +49,27 @@ export class CodeGenerator {
       ...allImports,
       ...moduleImports,
     ]);
-    const ast = t.file(
-      t.program([...mergedImports, ...moduleDecls, ...moduleInits, ...functions])
-    );
+    const defaultExport = this.resolveDefaultExport(fragments);
+    const statements = [
+      ...mergedImports,
+      ...moduleDecls,
+      ...moduleInits,
+      ...functions,
+    ];
+    if (defaultExport) {
+      statements.push(
+        t.exportDefaultDeclaration(t.identifier(defaultExport))
+      );
+    }
+    const ast = t.file(t.program(statements));
     return generate(ast).code;
+  }
+
+  private resolveDefaultExport(fragments: Map<string, CodeFragment>): string | null {
+    const marked = Array.from(fragments.values()).find(
+      (fragment) => fragment.meta.exportDefault && fragment.meta.title
+    );
+    return marked?.meta.title ?? null;
   }
 
   private buildFunctionDeclaration(
