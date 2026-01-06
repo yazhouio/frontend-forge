@@ -1,7 +1,12 @@
 import { CodeFragment, Stat } from "./interfaces";
 import * as t from "@babel/types";
 import traverse from "@babel/traverse";
-import { HookPriority, HOOK_PRIORITY_MAP } from "../constants";
+import template from "@babel/template";
+import {
+  HookPriority,
+  HOOK_PRIORITY_MAP,
+  JSX_TEMPLATE_OPTIONS,
+} from "../constants";
 
 export type PreparedFragment = {
   fragment: CodeFragment;
@@ -333,13 +338,118 @@ export class HookCollector {
       if (!t.isValidIdentifier(child.meta.title)) {
         return child.jsx ?? null;
       }
-      return this.createComponentElement(child.meta.title);
+      const attributes = this.collectChildProps(child);
+      return this.createComponentElement(child.meta.title, attributes);
     }
     return child.jsx ?? null;
   }
 
-  private createComponentElement(name: string): t.JSXElement {
-    const opening = t.jsxOpeningElement(t.jsxIdentifier(name), [], true);
+  private collectChildProps(child: CodeFragment): t.JSXAttribute[] {
+    const props = child.meta.runtimeProps;
+    if (!props || typeof props !== "object") {
+      return [];
+    }
+    return Object.entries(props)
+      .map(([key, value]) => this.toJsxAttribute(key, value))
+      .filter(Boolean) as t.JSXAttribute[];
+  }
+
+  private toJsxAttribute(name: string, value: any): t.JSXAttribute | null {
+    if (!t.isValidIdentifier(name)) {
+      return null;
+    }
+    const attrValue = this.toJsxAttributeValue(value);
+    if (!attrValue) {
+      if (value === true) {
+        return t.jsxAttribute(t.jsxIdentifier(name), null);
+      }
+      return null;
+    }
+    return t.jsxAttribute(t.jsxIdentifier(name), attrValue);
+  }
+
+  private toJsxAttributeValue(
+    value: any
+  ): t.JSXAttribute["value"] | null {
+    if (value === undefined) {
+      return null;
+    }
+    if (value === null) {
+      return t.jsxExpressionContainer(t.nullLiteral());
+    }
+    if (t.isJSXExpressionContainer(value)) {
+      return value;
+    }
+    if (t.isNode(value)) {
+      return t.jsxExpressionContainer(value as t.Expression);
+    }
+    switch (typeof value) {
+      case "string":
+        return t.stringLiteral(value);
+      case "number":
+        return t.jsxExpressionContainer(t.numericLiteral(value));
+      case "boolean":
+        return t.jsxExpressionContainer(t.booleanLiteral(value));
+      case "object":
+        return t.jsxExpressionContainer(this.toAstValue(value));
+      default:
+        return t.jsxExpressionContainer(t.identifier("undefined"));
+    }
+  }
+
+  private toAstValue(value: any): t.Expression {
+    if (t.isNode(value)) {
+      return value as t.Expression;
+    }
+    if (value === null) {
+      return t.nullLiteral();
+    }
+    if (Array.isArray(value)) {
+      return t.arrayExpression(value.map((item) => this.toAstValue(item)));
+    }
+    if (typeof value === "object") {
+      if ((value as { type?: string }).type === "expression") {
+        const code = (value as { code?: unknown }).code;
+        if (typeof code === "string") {
+          return this.parseExpression(code);
+        }
+      }
+      if ((value as { type?: string }).type === "binding") {
+        return t.identifier("undefined");
+      }
+      const properties = Object.entries(value).map(([key, item]) => {
+        const keyNode = t.isValidIdentifier(key)
+          ? t.identifier(key)
+          : t.stringLiteral(key);
+        return t.objectProperty(keyNode, this.toAstValue(item));
+      });
+      return t.objectExpression(properties);
+    }
+    switch (typeof value) {
+      case "string":
+        return t.stringLiteral(value);
+      case "number":
+        return t.numericLiteral(value);
+      case "boolean":
+        return t.booleanLiteral(value);
+      default:
+        return t.identifier("undefined");
+    }
+  }
+
+  private parseExpression(code: string): t.Expression {
+    try {
+      return template.expression(code, JSX_TEMPLATE_OPTIONS)() as t.Expression;
+    } catch (error) {
+      throw new Error(`Failed to parse expression: ${code}`);
+    }
+  }
+
+  private createComponentElement(
+    name: string,
+    attributes: t.JSXAttribute[]
+  ): t.JSXElement {
+    const opening = t.jsxOpeningElement(t.jsxIdentifier(name), attributes, true);
     return t.jsxElement(opening, null, [], true);
   }
 }

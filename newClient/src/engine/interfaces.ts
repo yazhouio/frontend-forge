@@ -101,6 +101,8 @@ export type CodeFragment = {
     // depends: string[];
     renderBoundary: boolean;
     exportDefault?: boolean;
+    runtimeProps?: Record<string, any>;
+    runtimePropKeys?: string[];
   };
 };
 

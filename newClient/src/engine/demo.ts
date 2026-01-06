@@ -14,10 +14,40 @@ import {
 import { Engine } from "./Engine";
 import { DataSourceRegistry } from "./DataSourceRegistry";
 import { NodeRegistry } from "./NodeRegistry";
+import { NodeDefinition } from "./interfaces";
 import { PageConfig } from "./JSONSchema";
 import { SchemaValidator } from "./SchemaValidator";
 import { CodeGenerator } from "./CodeGenerator";
 import { RestDataSource, StaticDataSource } from "../datasources";
+
+const PropCardNode: NodeDefinition = {
+  id: "PropCard",
+  schema: {
+    runtimeProps: {
+      TITLE: {
+        type: "string",
+        description: "Card title",
+      },
+      SUBTITLE: {
+        type: "string",
+        description: "Card subtitle",
+      },
+      COUNT: {
+        type: "number",
+        description: "Card count",
+      },
+      NAME: {
+        type: "string",
+        description: "Card name",
+      },
+    },
+  },
+  generateCode: {
+    imports: ['import * as React from "react"'],
+    jsx: "<article className='prop-card'><header><h3>{props.TITLE}</h3><p>{props.SUBTITLE}</p></header><strong>{props.COUNT ?? (props.NAME ? 1 : 0)}</strong><div className='prop-body'><__ENGINE_CHILDREN__ /></div></article>",
+    stats: [],
+  },
+};
 
 const pageSchemaLayout: PageConfig = {
   meta: {
@@ -267,6 +297,70 @@ const pageSchemaSection: PageConfig = {
             },
             meta: {
               title: "Button",
+              scope: false,
+            },
+          },
+        ],
+      },
+    ],
+  },
+};
+
+const pageSchemaProps: PageConfig = {
+  meta: {
+    id: "page-props",
+    name: "Page Props",
+    title: "Page Props",
+    path: "/page-props",
+  },
+  context: {},
+  root: {
+    id: "layout-props",
+    type: "Layout",
+    props: {
+      TEXT: "Props Layout",
+    },
+    meta: {
+      title: "Layout",
+      scope: true,
+    },
+    children: [
+      {
+        id: "toggle-prop-1",
+        type: "Toggle",
+        props: {
+          LABEL: "Prop state",
+        },
+        meta: {
+          title: "Toggle",
+          scope: false,
+        },
+      },
+      {
+        id: "prop-card-1",
+        type: "PropCard",
+        props: {
+          TITLE: 'State On',
+          SUBTITLE: "Passed via state",
+          COUNT: {
+            type: "expression",
+            code: "on ? 1 : 0",
+          },
+        },
+        meta: {
+          title: "PropCard",
+          scope: true,
+        },
+        children: [
+          {
+            id: "text-prop-1",
+            type: "Text",
+            props: {
+              TEXT: "Child inside prop card",
+              DEFAULT_VALUE: 9,
+            },
+            meta: {
+              title: "Text",
               scope: false,
             },
           },
@@ -550,6 +644,43 @@ const pageSchemaActionGraph: PageConfig = {
         },
       },
       {
+        id: "prop-card-action-1",
+        type: "PropCard",
+        props: {
+          TITLE: {
+            type: "binding",
+            source: "createUserGraph",
+            path: "context.name",
+            defaultValue: "Anonymous",
+          },
+          SUBTITLE: "Passed via context",
+          NAME: {
+            type: "binding",
+            source: "createUserGraph",
+            path: "context.name",
+            defaultValue: "",
+          },
+        },
+        meta: {
+          title: "PropCard",
+          scope: true,
+        },
+        children: [
+          {
+            id: "text-action-1",
+            type: "Text",
+            props: {
+              TEXT: "Action graph child",
+              DEFAULT_VALUE: 10,
+            },
+            meta: {
+              title: "Text",
+              scope: false,
+            },
+          },
+        ],
+      },
+      {
         id: "button-submit",
         type: "Button",
         props: {
@@ -577,6 +708,7 @@ nodeRegistry.registerNode(ImageNode);
 nodeRegistry.registerNode(CardNode);
 nodeRegistry.registerNode(SectionNode);
 nodeRegistry.registerNode(TableNode);
+nodeRegistry.registerNode(PropCardNode);
 const dataSourceRegistry = new DataSourceRegistry();
 dataSourceRegistry.registerDataSource(StaticDataSource);
 dataSourceRegistry.registerDataSource(RestDataSource);
@@ -587,6 +719,7 @@ const codeGenerator = new CodeGenerator();
 const pageSchemas = [
   pageSchemaLayout,
   pageSchemaSection,
+  pageSchemaProps,
   pageSchemaMixed,
   pageSchemaHooks,
   pageSchemaScoped,

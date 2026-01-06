@@ -4,7 +4,7 @@ import { DataSourceDefinition } from "../engine/interfaces";
 export const StaticDataSource: DataSourceDefinition = {
   id: "static",
   schema: {
-    inputs: {
+    templateInputs: {
       DATA: {
         type: "object",
         description: "Static payload",
@@ -40,7 +40,7 @@ export const StaticDataSource: DataSourceDefinition = {
 export const RestDataSource: DataSourceDefinition = {
   id: "rest",
   schema: {
-    inputs: {
+    templateInputs: {
       URL: {
         type: "string",
         description: "Request URL",
