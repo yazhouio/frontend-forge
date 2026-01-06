@@ -125,9 +125,7 @@ export class HookCollector {
       .filter(Boolean) as CodeFragment[];
 
     if (fragment.jsx) {
-      const childJsx = children
-        .map((child) => child.jsx)
-        .filter(Boolean) as t.JSXElement[];
+      const childJsx = this.collectChildJsx(children);
       if (childJsx.length) {
         this.injectJsxChildren(fragment.jsx, "__ENGINE_CHILDREN__", childJsx);
       }
@@ -175,9 +173,7 @@ export class HookCollector {
       .filter(Boolean) as CodeFragment[];
 
     if (fragment.jsx) {
-      const childJsx = children
-        .map((child) => child.jsx)
-        .filter(Boolean) as t.JSXElement[];
+      const childJsx = this.collectChildJsx(children);
       if (childJsx.length) {
         this.injectJsxChildren(fragment.jsx, "__ENGINE_CHILDREN__", childJsx);
       }
@@ -300,8 +296,8 @@ export class HookCollector {
         ) {
           hookName = callee.property.name;
         }
-        if (hookName && HOOK_PRIORITY_MAP[hookName]) {
-          priority = HOOK_PRIORITY_MAP[hookName];
+        if (hookName && HOOK_PRIORITY_MAP[hookName as 'useState']) {
+          priority = HOOK_PRIORITY_MAP[hookName as 'useState'];
           path.stop();
         }
       },
@@ -324,5 +320,26 @@ export class HookCollector {
         }
       },
     });
+  }
+
+  private collectChildJsx(children: CodeFragment[]): t.JSXElement[] {
+    return children
+      .map((child) => this.resolveChildJsx(child))
+      .filter(Boolean) as t.JSXElement[];
+  }
+
+  private resolveChildJsx(child: CodeFragment): t.JSXElement | null {
+    if (child.meta.renderBoundary && child.meta.title) {
+      if (!t.isValidIdentifier(child.meta.title)) {
+        return child.jsx ?? null;
+      }
+      return this.createComponentElement(child.meta.title);
+    }
+    return child.jsx ?? null;
+  }
+
+  private createComponentElement(name: string): t.JSXElement {
+    const opening = t.jsxOpeningElement(t.jsxIdentifier(name), [], true);
+    return t.jsxElement(opening, null, [], true);
   }
 }
