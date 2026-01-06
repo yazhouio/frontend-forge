@@ -11,9 +11,10 @@
     "@babel/template": "^7.27.2",
     "@babel/traverse": "^7.28.5",
     "@babel/types": "^7.28.5",
+    "ajv": "^8.17.1",
     "es-toolkit": "^1.43.0",
     "swr": "^2.3.8",
-    "zustand": "^4.5.5"
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@types/babel__generator": "^7.27.0",

@@ -726,6 +726,7 @@ const pageSchemas = [
   pageSchemaActionGraph,
 ];
 pageSchemas.forEach((schema) => {
+  schemaValidator.validate(schema, schema.meta.id);
   const codeFragments = engine.transform(schema);
   // console.log("codeFragments", schema.meta.id, codeFragments);
   const code = codeGenerator.generate(codeFragments);
