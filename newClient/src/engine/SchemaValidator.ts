@@ -1,5 +1,17 @@
 import Ajv, { ErrorObject, ValidateFunction } from "ajv";
-import { PageConfig } from "./JSONSchema";
+import { ComponentNode, PageConfig } from "./JSONSchema";
+import { NodeDefinition } from "./interfaces";
+
+type DataSchemaDefinition = {
+  $id?: string;
+  $schema?: string;
+  type: "object" | "array" | "string" | "number" | "boolean";
+  properties?: Record<string, DataSchemaDefinition>;
+  items?: DataSchemaDefinition;
+  required?: string[];
+  description?: string;
+  $path?: string[];
+};
 
 const pageConfigSchema = {
   $id: "PageConfig",
@@ -177,8 +189,44 @@ const pageConfigSchema = {
   },
 } as const;
 
+const bindingValueSchema = {
+  type: "object",
+  required: ["type", "source"],
+  properties: {
+    type: { const: "binding" },
+    source: { type: "string" },
+    path: { type: "string" },
+    defaultValue: {},
+  },
+  additionalProperties: true,
+} as const;
+
+const expressionValueSchema = {
+  type: "object",
+  required: ["type", "code"],
+  properties: {
+    type: { const: "expression" },
+    code: { type: "string" },
+  },
+  additionalProperties: true,
+} as const;
+
+const bindingExpressionGuard = {
+  not: {
+    properties: {
+      type: { enum: ["binding", "expression"] },
+    },
+    required: ["type"],
+  },
+} as const;
+
 export class SchemaValidator {
-    private validatePageConfig: ValidateFunction<PageConfig>;
+  private ajv: Ajv;
+  private validatePageConfig: ValidateFunction<PageConfig>;
+  private nodePropValidators = new WeakMap<
+    NodeDefinition,
+    ValidateFunction<Record<string, any>>
+  >();
 
   constructor() {
     const ajv = new Ajv({
@@ -188,24 +236,107 @@ export class SchemaValidator {
       useDefaults: true,
       coerceTypes: false,
     });
-    this.validatePageConfig = ajv.compile<PageConfig>(pageConfigSchema);
+    this.ajv = ajv;
+    this.validatePageConfig = this.ajv.compile<PageConfig>(pageConfigSchema);
   }
 
-    validate(schema: PageConfig, label?: string): void {
-        if (this.validatePageConfig(schema)) {
-            return;
-        }
-        const details = this.formatErrors(this.validatePageConfig.errors);
-        const prefix = label
-            ? `Schema "${label}" validation failed:`
-            : "Schema validation failed:";
-        throw new Error(`${prefix}\n${details.join("\n")}`);
+  validate(schema: PageConfig, label?: string): void {
+    if (this.validatePageConfig(schema)) {
+      return;
     }
+    const details = this.formatErrors(this.validatePageConfig.errors);
+    const prefix = label
+      ? `Schema "${label}" validation failed:`
+      : "Schema validation failed:";
+    throw new Error(`${prefix}\n${details.join("\n")}`);
+  }
 
-    private formatErrors(errors?: ErrorObject[] | null): string[] {
-        if (!errors?.length) {
-            return ["Unknown validation error."];
-        }
+  validateNodeProps(
+    nodeDef: NodeDefinition,
+    props?: ComponentNode["props"],
+    label?: string
+  ): void {
+    if (!props || !Object.keys(props).length) {
+      return;
+    }
+    const validator = this.getNodePropsValidator(nodeDef);
+    if (validator(props)) {
+      return;
+    }
+    const details = this.formatErrors(validator.errors);
+    const prefix = label
+      ? `Node props validation failed for ${label}:`
+      : "Node props validation failed:";
+    throw new Error(`${prefix}\n${details.join("\n")}`);
+  }
+
+  private getNodePropsValidator(
+    nodeDef: NodeDefinition
+  ): ValidateFunction<Record<string, any>> {
+    const cached = this.nodePropValidators.get(nodeDef);
+    if (cached) {
+      return cached;
+    }
+    const schema = this.buildNodePropsSchema(nodeDef);
+    const validator = this.ajv.compile<Record<string, any>>(schema);
+    this.nodePropValidators.set(nodeDef, validator);
+    return validator;
+  }
+
+  private buildNodePropsSchema(nodeDef: NodeDefinition): Record<string, any> {
+    const schema = nodeDef.schema ?? {};
+    const propSchemas: Record<string, any> = {};
+    const props = {
+      ...(schema.templateInputs ?? {}),
+      ...(schema.runtimeProps ?? {}),
+    } as Record<string, DataSchemaDefinition>;
+    Object.entries(props).forEach(([key, value]) => {
+      propSchemas[key] = this.wrapPropSchema(value);
+    });
+    return {
+      type: "object",
+      properties: propSchemas,
+      additionalProperties: false,
+    };
+  }
+
+  private wrapPropSchema(schema: DataSchemaDefinition): Record<string, any> {
+    const jsonSchema =
+      schema.type === "object"
+        ? { allOf: [this.toJsonSchema(schema), bindingExpressionGuard] }
+        : this.toJsonSchema(schema);
+    return {
+      anyOf: [bindingValueSchema, expressionValueSchema, jsonSchema],
+    };
+  }
+
+  private toJsonSchema(schema: DataSchemaDefinition): Record<string, any> {
+    const jsonSchema: Record<string, any> = {
+      type: schema.type,
+    };
+    if (schema.description) {
+      jsonSchema.description = schema.description;
+    }
+    if (schema.required?.length) {
+      jsonSchema.required = schema.required;
+    }
+    if (schema.properties) {
+      const properties: Record<string, any> = {};
+      Object.entries(schema.properties).forEach(([key, value]) => {
+        properties[key] = this.toJsonSchema(value);
+      });
+      jsonSchema.properties = properties;
+    }
+    if (schema.items) {
+      jsonSchema.items = this.toJsonSchema(schema.items);
+    }
+    return jsonSchema;
+  }
+
+  private formatErrors(errors?: ErrorObject[] | null): string[] {
+    if (!errors?.length) {
+      return ["Unknown validation error."];
+    }
     return errors.map((error) => {
       const path = error.instancePath
         ? error.instancePath.replace(/\//g, ".")

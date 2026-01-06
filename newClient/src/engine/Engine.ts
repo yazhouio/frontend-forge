@@ -117,6 +117,11 @@ export class Engine {
     if (!nodeDef) {
       throw new Error(`Node ${node.type} not found`);
     }
+    this.schemaValidator.validateNodeProps(
+      nodeDef,
+      node.props,
+      `${node.type} (${node.id})`
+    );
     const mergedProps = this.mergeNodeProps(
       node.props,
       actionGraphHandlers?.get(node.id)
@@ -729,18 +734,13 @@ export class Engine {
         current.meta?.scope || (fragment?.meta.renderBoundary ?? false)
           ? current.id
           : currentBoundaryId;
-      const runtimePropKeys = fragment?.meta.runtimePropKeys ?? [];
-      const templateProps = this.omitPropsByKeys(
-        current.props,
-        runtimePropKeys
-      );
-      const runtimeProps = this.pickPropsByKeys(
-        current.props,
-        runtimePropKeys
-      );
-      const templateBindings = this.collectBindingsFromProps(templateProps);
-      const runtimeBindings = this.collectBindingsFromProps(runtimeProps);
-      const applyBindings = (bindings: BindingValue[], targetId: string) => {
+      const bindings = this.collectBindingsFromProps(current.props);
+      if (bindings.length) {
+        if (!boundaryId) {
+          throw new Error(
+            "Binding requires a render boundary. Add meta.scope to the root or a parent node."
+          );
+        }
         bindings.forEach((binding) => {
           const isDataSource = dataSourceInfo.has(binding.source);
           const isActionGraph = actionGraphInfo.has(binding.source);
@@ -759,34 +759,17 @@ export class Engine {
                 .map((part) => part.trim())
                 .filter(Boolean)
             );
-            const bySource = dataSourceTargets.get(targetId) ?? new Map();
+            const bySource = dataSourceTargets.get(boundaryId) ?? new Map();
             const outputSet = bySource.get(binding.source) ?? new Set();
             outputSet.add(outputKind);
             bySource.set(binding.source, outputSet);
-            dataSourceTargets.set(targetId, bySource);
+            dataSourceTargets.set(boundaryId, bySource);
             return;
           }
-          const graphSet = actionGraphTargets.get(targetId) ?? new Set();
+          const graphSet = actionGraphTargets.get(boundaryId) ?? new Set();
           graphSet.add(binding.source);
-          actionGraphTargets.set(targetId, graphSet);
+          actionGraphTargets.set(boundaryId, graphSet);
         });
-      };
-      if (templateBindings.length) {
-        if (!boundaryId) {
-          throw new Error(
-            "Binding requires a render boundary. Add meta.scope to the root or a parent node."
-          );
-        }
-        applyBindings(templateBindings, boundaryId);
-      }
-      if (runtimeBindings.length) {
-        const runtimeBoundaryId = currentBoundaryId ?? boundaryId;
-        if (!runtimeBoundaryId) {
-          throw new Error(
-            "Runtime props binding requires a render boundary. Add meta.scope to the root or a parent node."
-          );
-        }
-        applyBindings(runtimeBindings, runtimeBoundaryId);
       }
       const eventTargets = actionGraphEvents.get(current.id);
       if (eventTargets) {
@@ -833,42 +816,6 @@ export class Engine {
     };
     Object.values(props).forEach((value) => walk(value));
     return bindings;
-  }
-
-  private pickPropsByKeys(
-    props: ComponentNode["props"] | undefined,
-    keys: string[]
-  ): ComponentNode["props"] {
-    if (!props || !keys.length) {
-      return {};
-    }
-    const selected: Record<string, any> = {};
-    keys.forEach((key) => {
-      if (Object.prototype.hasOwnProperty.call(props, key)) {
-        selected[key] = props[key];
-      }
-    });
-    return selected;
-  }
-
-  private omitPropsByKeys(
-    props: ComponentNode["props"] | undefined,
-    keys: string[]
-  ): ComponentNode["props"] {
-    if (!props) {
-      return {};
-    }
-    if (!keys.length) {
-      return props;
-    }
-    const keySet = new Set(keys);
-    const rest: Record<string, any> = {};
-    Object.entries(props).forEach(([key, value]) => {
-      if (!keySet.has(key)) {
-        rest[key] = value;
-      }
-    });
-    return rest;
   }
 
   private applyBindingStats(
