@@ -13,7 +13,8 @@ interface DataSchema extends BaseSchema {
 }
 
 export type NodeDefinitionSchema = {
-  inputs?: Record<string, DataSchema>;
+  templateInputs?: Record<string, DataSchema>;
+  runtimeProps?: Record<string, DataSchema>;
 };
 
 // 对应上面 JSON Schema 的 TypeScript 类型

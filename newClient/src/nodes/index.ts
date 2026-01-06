@@ -29,7 +29,7 @@ const ast = template.expression(
 export const TextNode: NodeDefinition = {
   id: "Text",
   schema: {
-    inputs: {
+    templateInputs: {
       TEXT: {
         type: "string",
         description: "Text content",
@@ -67,7 +67,7 @@ export const TextNode: NodeDefinition = {
 export const CounterNode: NodeDefinition = {
   id: "Counter",
   schema: {
-    inputs: {
+    templateInputs: {
       LABEL: {
         type: "string",
         description: "Counter label",
@@ -119,7 +119,7 @@ export const CounterNode: NodeDefinition = {
 export const ToggleNode: NodeDefinition = {
   id: "Toggle",
   schema: {
-    inputs: {
+    templateInputs: {
       LABEL: {
         type: "string",
         description: "Toggle label",
@@ -159,7 +159,7 @@ export const ToggleNode: NodeDefinition = {
 export const ScopedNode: NodeDefinition = {
   id: "Scoped",
   schema: {
-    inputs: {
+    templateInputs: {
       LABEL: {
         type: "string",
         description: "Scoped label",
@@ -239,7 +239,7 @@ export const ScopedNode: NodeDefinition = {
 export const ButtonNode: NodeDefinition = {
   id: "Button",
   schema: {
-    inputs: {
+    templateInputs: {
       TEXT: {
         type: "string",
         description: "Button label",
@@ -273,7 +273,7 @@ export const ButtonNode: NodeDefinition = {
 export const InputNode: NodeDefinition = {
   id: "Input",
   schema: {
-    inputs: {
+    templateInputs: {
       VALUE: {
         type: "string",
         description: "Input value",
@@ -303,7 +303,7 @@ export const InputNode: NodeDefinition = {
 export const ImageNode: NodeDefinition = {
   id: "Image",
   schema: {
-    inputs: {
+    templateInputs: {
       SRC: {
         type: "string",
         description: "Image source",
@@ -337,7 +337,7 @@ export const ImageNode: NodeDefinition = {
 export const CardNode: NodeDefinition = {
   id: "Card",
   schema: {
-    inputs: {
+    templateInputs: {
       TITLE: {
         type: "string",
         description: "Card title",
@@ -369,7 +369,7 @@ export const CardNode: NodeDefinition = {
 export const SectionNode: NodeDefinition = {
   id: "Section",
   schema: {
-    inputs: {
+    templateInputs: {
       TITLE: {
         type: "string",
         description: "Section title",
@@ -395,7 +395,7 @@ export const SectionNode: NodeDefinition = {
 export const TableNode: NodeDefinition = {
   id: "Table",
   schema: {
-    inputs: {
+    templateInputs: {
       DATA: {
         type: "object",
         description: "Table data binding",
