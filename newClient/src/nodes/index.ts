@@ -19,12 +19,6 @@ export const LayoutNode: NodeDefinition = {
   },
 };
 
-const ast = template.expression(
-  LayoutNode.generateCode.jsx!,
-  JSX_TEMPLATE_OPTIONS
-)({
-  TEXT: t.stringLiteral("Hello World"),
-});
 
 export const TextNode: NodeDefinition = {
   id: "Text",
