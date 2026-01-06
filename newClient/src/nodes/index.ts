@@ -5,7 +5,14 @@ import { JSX_TEMPLATE_OPTIONS, StatementScope } from "../constants";
 
 export const LayoutNode: NodeDefinition = {
   id: "Layout",
-  schema: {},
+  schema: {
+    templateInputs: {
+      TEXT: {
+        type: "string",
+        description: "Layout text",
+      },
+    },
+  },
   generateCode: {
     imports: ['import * as React from "react"'],
     jsx: `<div className='layout'><__ENGINE_CHILDREN__ />
