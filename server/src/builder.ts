@@ -1,10 +1,11 @@
 import fs from "fs";
 import path from "path";
-import esbuild from "esbuild";
+import * as esbuild from "esbuild";
 import { execa } from "execa";
 import { transformFile } from "@swc/core";
-import { BUILD_TIMEOUT_MS, CHILD_MAX_OLD_SPACE_MB } from "./config.mjs";
-import { safeJoin, mkWorkDir, rmWorkDir, binPath, nowMs } from "./utils.mjs";
+import { BUILD_TIMEOUT_MS, CHILD_MAX_OLD_SPACE_MB } from "./config.js";
+import { safeJoin, mkWorkDir, rmWorkDir, binPath, nowMs } from "./utils.js";
+import type { BuildFile, BuildResult, TailwindOptions } from "./types.js";
 
 const ROOT_NODE_MODULES = path.resolve(process.cwd(), "node_modules");
 const VENDOR_NODE_MODULES = path.resolve(
@@ -13,7 +14,7 @@ const VENDOR_NODE_MODULES = path.resolve(
   "node_modules"
 );
 
-function withTimeout(promise, ms, label) {
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error(`${label} timeout after ${ms}ms`)),
@@ -32,7 +33,11 @@ function withTimeout(promise, ms, label) {
   });
 }
 
-async function runCmd(cmd, args, { cwd, timeoutMs }) {
+async function runCmd(
+  cmd: string,
+  args: string[],
+  { cwd, timeoutMs }: { cwd: string; timeoutMs: number }
+): Promise<string> {
   const env = {
     ...process.env,
     NODE_ENV: "production",
@@ -53,7 +58,17 @@ async function runCmd(cmd, args, { cwd, timeoutMs }) {
   return stdout;
 }
 
-export async function buildOnce({ files, entry, externals, tailwind }) {
+export async function buildOnce({
+  files,
+  entry,
+  externals,
+  tailwind,
+}: {
+  files: BuildFile[];
+  entry: string;
+  externals: string[];
+  tailwind?: TailwindOptions;
+}): Promise<BuildResult> {
   const start = nowMs();
   const workDir = mkWorkDir();
   const vendorNodeModules = VENDOR_NODE_MODULES;
@@ -146,7 +161,7 @@ export async function buildOnce({ files, entry, externals, tailwind }) {
     });
     jsCode = minified.code.replace(/\n+/g, "").trim();
 
-    let cssCode = null;
+    let cssCode: string | null = null;
     if (tailwind?.enabled) {
       const inputCss = tailwind.input ?? "src/index.css";
       const configFile = tailwind.config ?? null;
@@ -171,7 +186,7 @@ export async function buildOnce({ files, entry, externals, tailwind }) {
       }
     }
 
-    const forbidden = [
+    const forbidden: string[] = [
       "__webpack_require__",
       "__webpack_exports__",
       "webpackChunk",

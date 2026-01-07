@@ -1,9 +1,10 @@
 import Fastify from 'fastify';
 import PQueue from 'p-queue';
-import { PORT, MAX_BODY_BYTES, DEFAULT_EXTERNALS, CONCURRENCY, BUILD_TIMEOUT_MS } from './config.mjs';
-import { getCache, setCache } from './cache.mjs';
-import { computeBuildKey, nowMs, ALLOWED_FILE_RE } from './utils.mjs';
-import { buildOnce } from './builder.mjs';
+import { PORT, MAX_BODY_BYTES, DEFAULT_EXTERNALS, CONCURRENCY, BUILD_TIMEOUT_MS } from './config.js';
+import { getCache, setCache } from './cache.js';
+import { computeBuildKey, nowMs, ALLOWED_FILE_RE } from './utils.js';
+import { buildOnce } from './builder.js';
+import type { BuildFile, BuildRequestBody, BuildResult, TailwindOptions, CacheValue } from './types.js';
 
 const queue = new PQueue({ concurrency: CONCURRENCY });
 
@@ -14,8 +15,8 @@ const app = Fastify({
 
 app.get('/healthz', async () => ({ ok: true }));
 
-app.post('/build', async (req, reply) => {
-  const body = req.body ?? {};
+app.post<{ Body: BuildRequestBody }>('/build', async (req, reply) => {
+  const body = (req.body ?? {}) as BuildRequestBody;
 
   const files = Array.isArray(body.files) ? body.files : null;
   if (!files || files.length === 0) {
@@ -23,7 +24,7 @@ app.post('/build', async (req, reply) => {
     return { ok: false, error: 'files must be a non-empty array' };
   }
 
-  const normalizedFiles = files.map((f) => {
+  const normalizedFiles: BuildFile[] = files.map((f) => {
     if (!f || typeof f.path !== 'string') throw new Error('each file must have a string path');
     if (typeof f.content !== 'string') throw new Error('each file must have a string content');
     if (!ALLOWED_FILE_RE.test(f.path)) {
@@ -36,7 +37,7 @@ app.post('/build', async (req, reply) => {
   const externals = Array.isArray(body.externals) && body.externals.length > 0
     ? body.externals.map(String)
     : DEFAULT_EXTERNALS;
-  const tailwind = body.tailwind && typeof body.tailwind === 'object'
+  const tailwind: TailwindOptions = body.tailwind && typeof body.tailwind === 'object'
     ? {
         enabled: Boolean(body.tailwind.enabled),
         input: body.tailwind.input ? String(body.tailwind.input) : 'src/index.css',
@@ -58,7 +59,7 @@ app.post('/build', async (req, reply) => {
   }
 
   const jobStart = nowMs();
-  const result = await queue.add(async () => {
+  const result = await queue.add<BuildResult>(async () => {
     const timeout = BUILD_TIMEOUT_MS;
     const p = buildOnce({ files: normalizedFiles, entry, externals, tailwind });
 
@@ -77,7 +78,7 @@ app.post('/build', async (req, reply) => {
     css: result.css
   };
 
-  const cacheValue = {
+  const cacheValue: CacheValue = {
     outputs,
     meta: { buildMs: result.meta.buildMs, queuedMs: jobMs }
   };
@@ -93,7 +94,7 @@ app.post('/build', async (req, reply) => {
   };
 });
 
-app.setErrorHandler((err, _req, reply) => {
+app.setErrorHandler((err: Error, _req, reply) => {
   reply.code(500);
   return { ok: false, error: err.message || String(err) };
 });
