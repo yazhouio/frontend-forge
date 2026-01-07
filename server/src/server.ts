@@ -69,7 +69,7 @@ app.post<{ Body: BuildRequestBody }>('/build', async (req, reply) => {
     const timed = await Promise.race([p, timeoutPromise]);
 
     return timed;
-  }, { throwOnTimeout: true });
+  });
 
   const jobMs = Math.max(0, Math.round(nowMs() - jobStart));
 
