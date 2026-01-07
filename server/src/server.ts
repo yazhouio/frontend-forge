@@ -16,7 +16,7 @@ const app = Fastify({
 app.get('/healthz', async () => ({ ok: true }));
 
 app.post<{ Body: BuildRequestBody }>('/build', async (req, reply) => {
-  const body = (req.body ?? {}) as BuildRequestBody;
+  const body: BuildRequestBody = req.body ?? {};
 
   const files = Array.isArray(body.files) ? body.files : null;
   if (!files || files.length === 0) {
@@ -39,16 +39,16 @@ app.post<{ Body: BuildRequestBody }>('/build', async (req, reply) => {
     : DEFAULT_EXTERNALS;
   const tailwind: TailwindOptions = body.tailwind && typeof body.tailwind === 'object'
     ? {
-        enabled: Boolean(body.tailwind.enabled),
-        input: body.tailwind.input ? String(body.tailwind.input) : 'src/index.css',
-        config: body.tailwind.config ? String(body.tailwind.config) : null
-      }
+      enabled: Boolean(body.tailwind.enabled),
+      input: body.tailwind.input ? String(body.tailwind.input) : 'src/index.css',
+      config: body.tailwind.config ? String(body.tailwind.config) : null
+    }
     : { enabled: false };
 
   const key = computeBuildKey({ files: normalizedFiles, entry, externals, tailwind });
 
   const cached = getCache(key);
-  if (cached.hit) {
+  if (cached.hit && cached.value) {
     return {
       ok: true,
       cacheHit: cached.hit,
@@ -59,17 +59,17 @@ app.post<{ Body: BuildRequestBody }>('/build', async (req, reply) => {
   }
 
   const jobStart = nowMs();
-  const result = await queue.add<BuildResult>(async () => {
+  const result = await queue.add<BuildResult>(async (_options) => {
     const timeout = BUILD_TIMEOUT_MS;
     const p = buildOnce({ files: normalizedFiles, entry, externals, tailwind });
 
-    const timed = await Promise.race([
-      p,
-      new Promise((_, reject) => setTimeout(() => reject(new Error(`build timeout after ${timeout}ms`)), timeout))
-    ]);
+    const timeoutPromise: Promise<never> = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`build timeout after ${timeout}ms`)), timeout)
+    );
+    const timed = await Promise.race([p, timeoutPromise]);
 
     return timed;
-  });
+  }, { throwOnTimeout: true });
 
   const jobMs = Math.max(0, Math.round(nowMs() - jobStart));
 
