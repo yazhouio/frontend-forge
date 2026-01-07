@@ -1,7 +1,8 @@
-/server/node_modules
+**/node_modules
 spec
 .cache
 dist
 /client/node_modules
 /newClient/node_modules
 newClient/src/test.jsx
+**/.DS_Store
