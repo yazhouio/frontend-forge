@@ -11,14 +11,14 @@ KubeSphere v4 插件构建服务：接收 TS/TSX/CSS 源码，通过 esbuild + S
 
 ## 快速开始
 ```bash
-# 安装依赖（首选 npm） 
-npm install
+# 安装依赖（首选 pnpm）
+pnpm install
 
 # 本地开发（热重载）
-npm run dev
+pnpm dev
 
 # 生产运行
-npm start
+pnpm start
 ```
 
 服务默认监听 `0.0.0.0:3000`，健康检查 `GET /healthz`。
