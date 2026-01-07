@@ -12,15 +12,12 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@frontend-forge/project-generator": ["../../packages/project-generator"],
-      "@frontend-forge/project-generator/*": ["../../packages/project-generator/*"],
-      "@frontend-forge/code-export": ["../../packages/code-export"],
-      "@frontend-forge/code-export/*": ["../../packages/code-export/*"]
+      "@frontend-forge/forge-core": ["../../packages/forge-core/dist/index.d.ts"],
+      "@frontend-forge/forge-core/*": ["../../packages/forge-core/dist/*"]
     }
   },
   "include": ["src/**/*"],
   "references": [
-    { "path": "../../packages/project-generator" },
-    { "path": "../../packages/code-export" }
+    { "path": "../../packages/forge-core" }
   ]
 }

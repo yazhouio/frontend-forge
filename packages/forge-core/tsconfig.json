@@ -9,7 +9,21 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "strict": false,
-    "types": ["node"]
+    "types": ["node"],
+    "declaration": true,
+    "declarationMap": true,
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@frontend-forge/code-export": ["../code-export"],
+      "@frontend-forge/code-export/*": ["../code-export/*"],
+      "@frontend-forge/project-generator": ["../project-generator"],
+      "@frontend-forge/project-generator/*": ["../project-generator/*"]
+    }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../code-export" },
+    { "path": "../project-generator" }
+  ]
 }
