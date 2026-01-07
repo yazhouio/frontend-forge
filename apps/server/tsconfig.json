@@ -12,11 +12,15 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@frontend-forge/project-generator": ["../packages/project-generator/src/index.ts"],
-      "@frontend-forge/project-generator/*": ["../packages/project-generator/src/*"],
-      "@frontend-forge/code-export": ["../packages/code-export/src/index.ts"],
-      "@frontend-forge/code-export/*": ["../packages/code-export/src/*"]
+      "@frontend-forge/project-generator": ["../../packages/project-generator"],
+      "@frontend-forge/project-generator/*": ["../../packages/project-generator/*"],
+      "@frontend-forge/code-export": ["../../packages/code-export"],
+      "@frontend-forge/code-export/*": ["../../packages/code-export/*"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../../packages/project-generator" },
+    { "path": "../../packages/code-export" }
+  ]
 }

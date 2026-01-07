@@ -173,8 +173,10 @@ export async function buildOnce({
           target: "es2020",
           parser: { syntax: "ecmascript" }
         },
+        // `ignoreDynamic` is accepted by SWC runtime even though the types omit it.
         module: {
           type: "systemjs",
+          // @ts-expect-error Missing in @swc/core types
           ignoreDynamic: true
         }
       }),
