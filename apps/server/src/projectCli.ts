@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generateProject } from '@frontend-forge/project-generator';
-import type { ExtensionManifest, PageMeta } from '@frontend-forge/project-generator';
+import { generateProject } from '@frontend-forge/forge-core';
+import type { ExtensionManifest, PageMeta } from '@frontend-forge/forge-core';
 
 function usage(): void {
   console.log('Usage: tsx src/projectCli.ts [--manifest path] [--out dir] [--force]');

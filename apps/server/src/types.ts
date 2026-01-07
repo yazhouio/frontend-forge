@@ -1,4 +1,4 @@
-import type { BuildFile, BuildOutputs, BuildResult, TailwindOptions } from "@frontend-forge/code-export";
+import type { BuildFile, BuildOutputs, BuildResult, TailwindOptions } from "@frontend-forge/forge-core";
 
 export type { BuildFile, BuildOutputs, BuildResult, TailwindOptions };
 

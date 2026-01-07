@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import PQueue from 'p-queue';
-import { ALLOWED_FILE_RE, buildOnce, computeBuildKey, nowMs } from '@frontend-forge/code-export';
+import { ALLOWED_FILE_RE, buildOnce, computeBuildKey, nowMs } from '@frontend-forge/forge-core';
 import { PORT, MAX_BODY_BYTES, DEFAULT_EXTERNALS, CONCURRENCY, BUILD_TIMEOUT_MS } from './config.js';
 import { getCache, setCache } from './cache.js';
 import type { BuildFile, BuildRequestBody, BuildResult, TailwindOptions, CacheValue } from './types.js';

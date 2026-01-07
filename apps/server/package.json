@@ -20,9 +20,7 @@
     "esbuild": "^0.27.2",
     "@swc/core": "^1.9.2",
     "@tailwindcss/cli": "^4.1.18",
-    "@frontend-forge/project-generator": "workspace:*",
-    "@frontend-forge/code-export": "workspace:*",
-    "@frontend-forge/vendor": "workspace:*"
+    "@frontend-forge/forge-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.13.5",

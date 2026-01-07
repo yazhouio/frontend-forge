@@ -3,6 +3,9 @@ import path from "path";
 import {
   ALLOWED_FILE_RE,
   buildOnce,
+  computeBuildKey,
+  nowMs,
+  type BuildOutputs,
   type BuildFile,
   type BuildResult,
   type TailwindOptions
@@ -10,7 +13,8 @@ import {
 import {
   generateProject,
   type ComponentGenerator,
-  type ExtensionManifest
+  type ExtensionManifest,
+  type PageMeta
 } from "@frontend-forge/project-generator";
 
 export type ForgeBuildOptions = {
@@ -100,3 +104,21 @@ export async function forgeProject(options: ForgeProjectOptions): Promise<ForgeR
 
   return { projectDir: project.outputDir, warnings: project.warnings, build };
 }
+
+// Re-exports for consumers (server/cli) to avoid depending on underlying packages directly.
+export {
+  ALLOWED_FILE_RE,
+  buildOnce,
+  computeBuildKey,
+  nowMs,
+  generateProject
+};
+export type {
+  BuildFile,
+  BuildOutputs,
+  BuildResult,
+  TailwindOptions,
+  ComponentGenerator,
+  ExtensionManifest,
+  PageMeta
+};

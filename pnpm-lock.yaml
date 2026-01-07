@@ -10,15 +10,9 @@ importers:
 
   apps/server:
     dependencies:
-      '@frontend-forge/code-export':
+      '@frontend-forge/forge-core':
         specifier: workspace:*
-        version: link:../../packages/code-export
-      '@frontend-forge/project-generator':
-        specifier: workspace:*
-        version: link:../../packages/project-generator
-      '@frontend-forge/vendor':
-        specifier: workspace:*
-        version: link:../../packages/vendor
+        version: link:../../packages/forge-core
       '@swc/core':
         specifier: ^1.9.2
         version: 1.15.8
