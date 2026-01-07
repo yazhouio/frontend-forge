@@ -1,0 +1,25 @@
+{
+  "name": "@frontend-forge/component-generator",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@babel/generator": "^7.28.5",
+    "@babel/template": "^7.27.2",
+    "@babel/traverse": "^7.28.5",
+    "@babel/types": "^7.28.5",
+    "ajv": "^8.17.1",
+    "es-toolkit": "^1.43.0",
+    "swr": "^2.3.8",
+    "zod": "^3.25.76",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@types/babel__generator": "^7.27.0",
+    "@types/babel__template": "^7.4.4",
+    "@types/babel__traverse": "^7.28.0"
+  }
+}

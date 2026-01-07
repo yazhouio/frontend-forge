@@ -1,0 +1,32 @@
+{
+  "name": "@frontend-forge/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "KubeSphere plugin build service (SystemJS) powered by Fastify + esbuild + SWC + Tailwind.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prestart": "pnpm run build",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "project:debug": "node --import ./node_modules/tsx/dist/esm/index.mjs src/projectCli.ts"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "dependencies": {
+    "execa": "^9.5.1",
+    "fastify": "^5.6.2",
+    "lru-cache": "^11.0.2",
+    "p-queue": "^9.1.0",
+    "esbuild": "^0.27.2",
+    "@swc/core": "^1.9.2",
+    "@tailwindcss/cli": "^4.1.18",
+    "@frontend-forge/project-generator": "workspace:*",
+    "@frontend-forge/code-export": "workspace:*",
+    "@frontend-forge/vendor": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
