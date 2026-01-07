@@ -6,3 +6,4 @@ dist
 /newClient/node_modules
 newClient/src/test.jsx
 **/.DS_Store
+.tmp
