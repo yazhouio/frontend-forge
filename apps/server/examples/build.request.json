@@ -1,0 +1,13 @@
+{
+  "entry": "src/index.ts",
+  "files": [
+    {
+      "path": "src/index.ts",
+      "content": "import { greet } from \"./greet\";\n\nexport default function run() {\n  return greet(\"forge\");\n}\n"
+    },
+    {
+      "path": "src/greet.ts",
+      "content": "export const greet = (name: string) => `hello ${name}`;\n"
+    }
+  ]
+}

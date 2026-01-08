@@ -3,6 +3,10 @@ set -euo pipefail
 
 SERVER_URL=${SERVER_URL:-http://127.0.0.1:3000}
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+EXAMPLES_DIR="$SCRIPT_DIR/examples"
+BUILD_JSON="$EXAMPLES_DIR/build.request.json"
+PAGE_JSON="$EXAMPLES_DIR/page.schema.json"
+MANIFEST_JSON="$EXAMPLES_DIR/manifest.test.json"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -16,6 +20,17 @@ require_cmd() {
 for cmd in jq curl rg tar; do
   require_cmd "$cmd"
 done
+
+require_file() {
+  if [[ ! -f "$1" ]]; then
+    echo "Missing required file: $1" >&2
+    exit 1
+  fi
+}
+
+require_file "$BUILD_JSON"
+require_file "$PAGE_JSON"
+require_file "$MANIFEST_JSON"
 
 post_json() {
   local url=$1
@@ -50,87 +65,39 @@ post_tar() {
 }
 
 echo "==> /build"
-jq '(.files) |= map(select(.path|test("\\.(ts|tsx|js|jsx|css|json)$")))' \
-  "$SCRIPT_DIR/test.json" > "$TMP_DIR/build.json"
-post_json "/build" "$TMP_DIR/build.json" "$TMP_DIR/build.out.json"
+post_json "/build" "$BUILD_JSON" "$TMP_DIR/build.out.json"
 jq -e '.ok == true' "$TMP_DIR/build.out.json" >/dev/null
 jq -r '.outputs.js.content' "$TMP_DIR/build.out.json" > "$TMP_DIR/build.js"
 rg -q "System.register" "$TMP_DIR/build.js"
 
-cat <<'JSON' > "$TMP_DIR/page-schema.json"
-{
-  "pageSchema": {
-    "meta": { "id": "page-1", "name": "Sample", "path": "/sample" },
-    "root": {
-      "id": "root",
-      "type": "Layout",
-      "props": { "TEXT": "Hello" },
-      "children": [
-        { "id": "child", "type": "Text", "props": { "TEXT": "World", "DEFAULT_VALUE": 1 } }
-      ]
-    },
-    "context": {}
-  }
-}
-JSON
-
 echo "==> /page/code"
-post_json "/page/code" "$TMP_DIR/page-schema.json" "$TMP_DIR/page-code.out.json"
+post_json "/page/code" "$PAGE_JSON" "$TMP_DIR/page-code.out.json"
+cat "$TMP_DIR/page-code.out.json"
 jq -e '.ok == true' "$TMP_DIR/page-code.out.json" >/dev/null
 jq -r '.code' "$TMP_DIR/page-code.out.json" > "$TMP_DIR/page-code.tsx"
 rg -q "export default" "$TMP_DIR/page-code.tsx"
 
-cat <<'JSON' > "$TMP_DIR/manifest.json"
-{
-  "manifest": {
-    "version": "1.0",
-    "name": "ff-test",
-    "routes": [{ "path": "/sample", "pageId": "SamplePage" }],
-    "menus": [],
-    "locales": [{ "lang": "en", "messages": { "HELLO": "Hello" } }],
-    "pages": [
-      {
-        "id": "SamplePage",
-        "entryComponent": "SamplePage",
-        "componentsTree": {
-          "meta": { "id": "page-1", "name": "Sample", "path": "/sample" },
-          "root": {
-            "id": "root",
-            "type": "Layout",
-            "props": { "TEXT": "Hello" },
-            "children": [
-              { "id": "child", "type": "Text", "props": { "TEXT": "World", "DEFAULT_VALUE": 1 } }
-            ]
-          },
-          "context": {}
-        }
-      }
-    ],
-    "build": { "target": "kubesphere-extension" }
-  }
-}
-JSON
-
 echo "==> /project/files"
-post_json "/project/files" "$TMP_DIR/manifest.json" "$TMP_DIR/project-files.out.json"
+post_json "/project/files" "$MANIFEST_JSON" "$TMP_DIR/project-files.out.json"
+cat "$TMP_DIR/project-files.out.json"
 jq -e '.ok == true' "$TMP_DIR/project-files.out.json" >/dev/null
 jq -r '.files[] | select(.path == "src/index.ts") | .content' "$TMP_DIR/project-files.out.json" >/dev/null
 
 
 echo "==> /project/files.tar.gz"
-post_tar "/project/files.tar.gz" "$TMP_DIR/manifest.json" "$TMP_DIR/project-files.tar.gz"
+post_tar "/project/files.tar.gz" "$MANIFEST_JSON" "$TMP_DIR/project-files.tar.gz"
 tar -tzf "$TMP_DIR/project-files.tar.gz" | rg -q '^src/index.ts$'
 
 
 echo "==> /project/build"
-post_json "/project/build" "$TMP_DIR/manifest.json" "$TMP_DIR/project-build.out.json"
+post_json "/project/build" "$MANIFEST_JSON" "$TMP_DIR/project-build.out.json"
 jq -e '.ok == true' "$TMP_DIR/project-build.out.json" >/dev/null
 jq -r '.files[] | select(.path == "index.js") | .content' "$TMP_DIR/project-build.out.json" > "$TMP_DIR/project-build.js"
 rg -q "System.register" "$TMP_DIR/project-build.js"
 
 
 echo "==> /project/build.tar.gz"
-post_tar "/project/build.tar.gz" "$TMP_DIR/manifest.json" "$TMP_DIR/project-build.tar.gz"
+post_tar "/project/build.tar.gz" "$MANIFEST_JSON" "$TMP_DIR/project-build.tar.gz"
 tar -tzf "$TMP_DIR/project-build.tar.gz" | rg -q '^index.js$'
 
 
