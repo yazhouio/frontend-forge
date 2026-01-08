@@ -1,6 +1,11 @@
-import Ajv, { ErrorObject, ValidateFunction } from "ajv";
+import AjvModule, { ErrorObject, ValidateFunction } from "ajv";
 import { ComponentNode, PageConfig } from "./JSONSchema.js";
 import { NodeDefinition } from "./interfaces.js";
+
+type AjvClass = typeof import("ajv").default;
+const AjvCtor: AjvClass =
+  (AjvModule as unknown as { default?: AjvClass }).default ??
+  (AjvModule as unknown as AjvClass);
 
 type DataSchemaDefinition = {
   $id?: string;
@@ -221,7 +226,7 @@ const bindingExpressionGuard = {
 } as const;
 
 export class SchemaValidator {
-  private ajv: Ajv;
+  private ajv: InstanceType<AjvClass>;
   private validatePageConfig: ValidateFunction<PageConfig>;
   private nodePropValidators = new WeakMap<
     NodeDefinition,
@@ -229,7 +234,7 @@ export class SchemaValidator {
   >();
 
   constructor() {
-    const ajv = new Ajv({
+    const ajv = new AjvCtor({
       allErrors: true,
       allowUnionTypes: true,
       strict: false,

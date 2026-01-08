@@ -8,8 +8,10 @@ import {
   JSX_TEMPLATE_OPTIONS,
 } from "../constants.js";
 
-const traverse =
-  (traverseModule as unknown as { default?: typeof traverseModule }).default ?? traverseModule;
+type TraverseFn = typeof import("@babel/traverse").default;
+const traverse: TraverseFn =
+  (traverseModule as unknown as { default?: TraverseFn }).default ??
+  (traverseModule as unknown as TraverseFn);
 
 export type PreparedFragment = {
   fragment: CodeFragment;
