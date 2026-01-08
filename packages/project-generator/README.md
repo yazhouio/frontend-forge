@@ -13,5 +13,5 @@ Notes:
 - `build`/`archive` options are stubbed; they surface warnings only.
 
 Additional API:
-- `generateProjectFiles(manifest, { componentGenerator, ... })` returns `{ files, warnings }` for in-memory generation.
-- `generateProject(...)` now uses `generateProjectFiles(...)` and writes to `outputDir`.
+- `generateProjectFiles(manifest, { componentGenerator, ... })` returns `{ files, warnings }` for in-memory generation (`files` is `VirtualFile[]`).
+- Writing files to disk is handled by the caller (CLI/server/etc).

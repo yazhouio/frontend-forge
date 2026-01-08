@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generateProject } from '@frontend-forge/forge-core';
+import { generateProjectFiles } from '@frontend-forge/forge-core';
 import type { ExtensionManifest, PageMeta } from '@frontend-forge/forge-core';
 
 function usage(): void {
@@ -18,6 +18,38 @@ function toComponentName(page: PageMeta, index: number): string {
   const candidate = cleaned.length > 0 ? cleaned : `Page${index + 1}`;
   if (isValidIdentifier(candidate)) return candidate;
   return `Page${index + 1}`;
+}
+
+function safeJoin(root: string, relPath: string): string {
+  if (typeof relPath !== 'string' || relPath.length === 0) {
+    throw new Error('invalid file path');
+  }
+  if (path.isAbsolute(relPath)) throw new Error('absolute path is not allowed');
+  const normalized = path.posix.normalize(relPath.replace(/\\/g, '/'));
+  if (normalized.startsWith('..') || normalized.includes('/../')) {
+    throw new Error('path traversal is not allowed');
+  }
+  return path.join(root, normalized);
+}
+
+function ensureOutputDir(outputDir: string, allowNonEmptyDir?: boolean): void {
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+    return;
+  }
+  const items = fs.readdirSync(outputDir);
+  if (items.length > 0 && !allowNonEmptyDir) {
+    throw new Error(`outputDir is not empty: ${outputDir}`);
+  }
+}
+
+function writeProjectFiles(outputDir: string, files: { path: string; content: string }[]): void {
+  const stable = [...files].sort((a, b) => a.path.localeCompare(b.path));
+  for (const f of stable) {
+    const full = safeJoin(outputDir, f.path);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, f.content, 'utf8');
+  }
 }
 
 const args = process.argv.slice(2);
@@ -64,9 +96,9 @@ try {
   process.exit(1);
 }
 
-const result = generateProject(manifest, {
-  outputDir: resolvedOut,
-  allowNonEmptyDir: force,
+ensureOutputDir(resolvedOut, force);
+
+const result = generateProjectFiles(manifest, {
   componentGenerator: (page, _manifest) => {
     const name = toComponentName(page, _manifest.pages.indexOf(page));
     const label = JSON.stringify(`Generated page: ${page.id}`);
@@ -77,7 +109,9 @@ const result = generateProject(manifest, {
   archive: false,
 });
 
-console.log(`Project generated at: ${result.outputDir}`);
+writeProjectFiles(resolvedOut, result.files);
+
+console.log(`Project generated at: ${resolvedOut}`);
 if (result.warnings.length > 0) {
   console.warn('Warnings:', result.warnings.join('; '));
 }
