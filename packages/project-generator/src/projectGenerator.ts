@@ -5,10 +5,8 @@ import type {
   ExtensionManifest,
   GenerateProjectFilesOptions,
   GenerateProjectFilesResult,
-  GenerateProjectOptions,
-  GenerateProjectResult,
   PageMeta,
-  ProjectFile,
+  VirtualFile,
 } from './projectTypes.js';
 
 const SCAFFOLD_DIR = path.resolve(
@@ -38,29 +36,6 @@ function assertObject(value: unknown, label: string): Record<string, unknown> {
 function assertArray(value: unknown, label: string): unknown[] {
   if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
   return value;
-}
-
-function safeJoin(root: string, relPath: string): string {
-  if (typeof relPath !== 'string' || relPath.length === 0) {
-    throw new Error('invalid file path');
-  }
-  if (path.isAbsolute(relPath)) throw new Error('absolute path is not allowed');
-  const normalized = path.posix.normalize(relPath.replace(/\\/g, '/'));
-  if (normalized.startsWith('..') || normalized.includes('/../')) {
-    throw new Error('path traversal is not allowed');
-  }
-  return path.join(root, normalized);
-}
-
-function ensureOutputDir(outputDir: string, allowNonEmptyDir?: boolean): void {
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-    return;
-  }
-  const items = fs.readdirSync(outputDir);
-  if (items.length > 0 && !allowNonEmptyDir) {
-    throw new Error(`outputDir is not empty: ${outputDir}`);
-  }
 }
 
 function renderTemplate(content: string, vars: Record<string, string>): string {
@@ -225,8 +200,8 @@ function normalizeRelPath(relPath: string): string {
   return normalized;
 }
 
-function collectScaffoldFiles(root: string): ProjectFile[] {
-  const out: ProjectFile[] = [];
+function collectScaffoldFiles(root: string): VirtualFile[] {
+  const out: VirtualFile[] = [];
   const queue: string[] = [root];
   while (queue.length > 0) {
     const current = queue.pop() as string;
@@ -282,7 +257,7 @@ export function generateProjectFiles(
   const scaffoldMap = new Map(scaffoldFiles.map((f) => [f.path, f.content]));
 
   logMessage(options, 'render templates');
-  const out: ProjectFile[] = [];
+  const out: VirtualFile[] = [];
 
   const excluded = new Set([
     'package.json.tpl',
@@ -429,36 +404,4 @@ export function generateProjectFiles(
   }
 
   return { files: out, warnings: warningsFor(options) };
-}
-
-function writeProjectFiles(outputDir: string, files: ProjectFile[]): void {
-  const stable = [...files].sort((a, b) => a.path.localeCompare(b.path));
-  for (const f of stable) {
-    const full = safeJoin(outputDir, f.path);
-    fs.mkdirSync(path.dirname(full), { recursive: true });
-    fs.writeFileSync(full, f.content, 'utf8');
-  }
-}
-
-export function generateProject(
-  manifest: ExtensionManifest,
-  options: GenerateProjectOptions
-): GenerateProjectResult {
-  if (!options || typeof options !== 'object') {
-    throw new Error('options is required');
-  }
-  if (typeof options.outputDir !== 'string' || options.outputDir.length === 0) {
-    throw new Error('options.outputDir must be a non-empty string');
-  }
-  if (typeof options.componentGenerator !== 'function') {
-    throw new Error('options.componentGenerator must be a function');
-  }
-  if (!fs.existsSync(SCAFFOLD_DIR)) {
-    throw new Error(`scaffold directory not found: ${SCAFFOLD_DIR}`);
-  }
-
-  ensureOutputDir(options.outputDir, options.allowNonEmptyDir);
-  const result = generateProjectFiles(manifest, options);
-  writeProjectFiles(options.outputDir, result.files);
-  return { outputDir: options.outputDir, warnings: result.warnings };
 }

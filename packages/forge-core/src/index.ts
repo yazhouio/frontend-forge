@@ -10,12 +10,12 @@ import {
   type TailwindOptions
 } from "@frontend-forge/code-export";
 import {
-  generateProject,
   generateProjectFiles,
   type ComponentGenerator,
   type ExtensionManifest,
   type PageMeta,
-  type ProjectFile
+  type ProjectFile,
+  type VirtualFile
 } from "@frontend-forge/project-generator";
 
 export type MaybePromise<T> = T | Promise<T>;
@@ -90,7 +90,7 @@ export type ForgeProjectOptions = {
 };
 
 export type ForgeResult = {
-  files: ProjectFile[];
+  files: VirtualFile[];
   warnings: string[];
   build?: ForgeBuildResponse | null;
 };
@@ -327,7 +327,6 @@ export {
   computeBuildKey,
   nowMs,
   safeJoin,
-  generateProject,
   generateProjectFiles
 };
 export type {
@@ -338,5 +337,6 @@ export type {
   ComponentGenerator,
   ExtensionManifest,
   PageMeta,
-  ProjectFile
+  ProjectFile,
+  VirtualFile
 };
