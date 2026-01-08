@@ -12,8 +12,8 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@frontend-forge/forge-core": ["../../packages/forge-core/dist/index.d.ts"],
-      "@frontend-forge/forge-core/*": ["../../packages/forge-core/dist/*"]
+      "@frontend-forge/forge-core": ["../../packages/forge-core/src/index.ts"],
+      "@frontend-forge/forge-core/*": ["../../packages/forge-core/src/*"]
     }
   },
   "include": ["src/**/*"],

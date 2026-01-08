@@ -8,6 +8,7 @@ KubeSphere v4 插件构建服务：接收 TS/TSX/CSS 源码，通过 esbuild + S
 - 内存 LRU + 磁盘 JSON 缓存，命中即回
 - 并发队列、超时与隔离的临时工作目录，防止资源争用与路径穿越
 - 预置 external 白名单（React 等），无 Webpack runtime 依赖
+- 核心构建逻辑由 `@frontend-forge/forge-core` 提供，Server 仅做 HTTP 适配
 
 ## 快速开始
 ```bash
@@ -56,6 +57,9 @@ pnpm start
   "meta": { "buildMs": 123, "queuedMs": 130 }
 }
 ```
+
+说明：
+- `cacheHit`：未命中为 `false`，命中为 `"memory"` 或 `"disk"`。
 
 示例：
 ```bash

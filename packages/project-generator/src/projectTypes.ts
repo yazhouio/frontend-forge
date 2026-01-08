@@ -44,6 +44,11 @@ export type ComponentGenerator = (
   manifest: ExtensionManifest
 ) => string;
 
+export type ProjectFile = {
+  path: string;
+  content: string;
+};
+
 export type GenerateProjectOptions = {
   outputDir: string;
   componentGenerator: ComponentGenerator;
@@ -53,7 +58,19 @@ export type GenerateProjectOptions = {
   onLog?: (message: string) => void;
 };
 
+export type GenerateProjectFilesOptions = {
+  componentGenerator: ComponentGenerator;
+  build?: boolean;
+  archive?: boolean;
+  onLog?: (message: string) => void;
+};
+
 export type GenerateProjectResult = {
   outputDir: string;
+  warnings: string[];
+};
+
+export type GenerateProjectFilesResult = {
+  files: ProjectFile[];
   warnings: string[];
 };
