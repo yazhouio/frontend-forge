@@ -13,18 +13,6 @@ importers:
       '@frontend-forge/forge-core':
         specifier: workspace:*
         version: link:../../packages/forge-core
-      '@swc/core':
-        specifier: ^1.9.2
-        version: 1.15.8
-      '@tailwindcss/cli':
-        specifier: ^4.1.18
-        version: 4.1.18
-      esbuild:
-        specifier: ^0.27.2
-        version: 0.27.2
-      execa:
-        specifier: ^9.5.1
-        version: 9.6.1
       fastify:
         specifier: ^5.6.2
         version: 5.6.2
