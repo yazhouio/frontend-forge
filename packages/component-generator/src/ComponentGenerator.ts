@@ -5,6 +5,8 @@ import {
   NodeRegistry,
   SchemaValidator
 } from "./engine/index.js";
+import * as defaultDataSources from "./datasources/index.js";
+import * as defaultNodes from "./nodes/index.js";
 import type { DataSourceDefinition, NodeDefinition } from "./engine/interfaces.js";
 import type { PageConfig } from "./engine/JSONSchema.js";
 
@@ -13,6 +15,10 @@ export type ComponentGeneratorOptions = {
   dataSourceRegistry?: DataSourceRegistry;
   schemaValidator?: SchemaValidator;
 };
+
+function isDefinition(value: unknown): value is { id: string } {
+  return Boolean(value && typeof value === "object" && "id" in value);
+}
 
 export class ComponentGenerator {
   private nodeRegistry: NodeRegistry;
@@ -27,6 +33,12 @@ export class ComponentGenerator {
     this.codeGenerator = new CodeGenerator();
   }
 
+  static withDefaults(options: ComponentGeneratorOptions = {}): ComponentGenerator {
+    const generator = new ComponentGenerator(options);
+    generator.loadDefaults();
+    return generator;
+  }
+
   registerNode(definition: NodeDefinition): void {
     this.nodeRegistry.registerNode(definition);
   }
@@ -38,6 +50,15 @@ export class ComponentGenerator {
   clear(): void {
     this.nodeRegistry.clear();
     this.dataSourceRegistry.clear();
+  }
+
+  loadDefaults(): void {
+    for (const def of Object.values(defaultNodes)) {
+      if (isDefinition(def)) this.registerNode(def as NodeDefinition);
+    }
+    for (const def of Object.values(defaultDataSources)) {
+      if (isDefinition(def)) this.registerDataSource(def as DataSourceDefinition);
+    }
   }
 
   generatePageCode(schema: PageConfig): string {

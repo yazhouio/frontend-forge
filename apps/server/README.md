@@ -4,6 +4,11 @@ KubeSphere v4 插件构建服务：接收 TS/TSX/CSS 源码，通过 esbuild + S
 
 ## 功能特性
 - POST `/build` 接收文件数组并返回 SystemJS 产物（必含 `System.register`）
+- POST `/page/code` 生成单页代码（schema → TS/TSX string）
+- POST `/project/files` 生成项目 TS 源码数组（VirtualFile[]）
+- POST `/project/files.tar.gz` 打包项目 TS 源码数组（tar.gz）
+- POST `/project/build` 编译项目并返回产物数组（VirtualFile[]）
+- POST `/project/build.tar.gz` 打包编译产物数组（tar.gz）
 - 可选 Tailwind v4 输出 CSS，和 JS 构建解耦
 - 内存 LRU + 磁盘 JSON 缓存，命中即回
 - 并发队列、超时与隔离的临时工作目录，防止资源争用与路径穿越
@@ -75,6 +80,42 @@ curl -X POST http://localhost:3000/build \
     ]
   }'
 ```
+
+`POST /page/code`
+```json
+{
+  "pageSchema": { "meta": { "id": "page-1" }, "root": { "id": "root", "type": "Layout" }, "context": {} }
+}
+```
+
+响应（成功）：
+```json
+{ "ok": true, "code": "export default function Page() { ... }" }
+```
+
+`POST /project/files`
+```json
+{
+  "manifest": { "version": "1.0", "name": "demo", "routes": [], "menus": [], "locales": [], "pages": [] }
+}
+```
+
+响应（成功）：
+```json
+{ "ok": true, "files": [{ "path": "src/index.ts", "content": "..." }] }
+```
+
+`POST /project/files.tar.gz`
+- 请求体同 `/project/files`
+- 响应为 `tar.gz` 二进制内容（`Content-Type: application/gzip`）
+
+`POST /project/build`
+- 请求体同 `/project/files`
+- 返回编译后的 `VirtualFile[]`（SystemJS JS + 可选 CSS）
+
+`POST /project/build.tar.gz`
+- 请求体同 `/project/files`
+- 响应为编译产物的 `tar.gz`
 
 ## Docker
 ```bash
