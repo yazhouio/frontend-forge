@@ -1,3 +1,4 @@
+import type { ExtensionManifest } from "@frontend-forge/forge-core";
 import type {
   BuildOutputs,
   CodeExporterRequestBody,
@@ -5,9 +6,17 @@ import type {
   VirtualFile
 } from "@frontend-forge/forge-core/advanced";
 
-export type { BuildOutputs, TailwindOptions, VirtualFile };
+export type { BuildOutputs, ExtensionManifest, TailwindOptions, VirtualFile };
 
 export type BuildRequestBody = CodeExporterRequestBody;
+
+export type PageSchemaRequestBody = {
+  pageSchema?: unknown;
+};
+
+export type ProjectManifestRequestBody = {
+  manifest?: ExtensionManifest;
+};
 
 export type CacheValue = {
   outputs: BuildOutputs;

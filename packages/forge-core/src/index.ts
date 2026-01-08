@@ -7,6 +7,7 @@ import type {
   PageRenderer,
   VirtualFile
 } from "@frontend-forge/project-generator";
+import { emitToTar as emitToTarInternal, emitToTarGz as emitToTarGzInternal } from "./tar.js";
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -154,12 +155,12 @@ export class ForgeCore {
     emitFilesToDir(dir, files);
   }
 
-  emitToTar(_files: VirtualFile[]): never {
-    throw new ForgeError("emitToTar is not implemented", 501);
+  emitToTar(files: VirtualFile[]): Buffer {
+    return emitToTarInternal(files, (message, statusCode) => new ForgeError(message, statusCode));
   }
 
-  emitToZip(_files: VirtualFile[]): never {
-    throw new ForgeError("emitToZip is not implemented", 501);
+  emitToTarGz(files: VirtualFile[]): Buffer {
+    return emitToTarGzInternal(files, (message, statusCode) => new ForgeError(message, statusCode));
   }
 }
 

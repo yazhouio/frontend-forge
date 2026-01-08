@@ -93,10 +93,11 @@ High-level one-shot API.
 ```ts
 forge.emitToFileSystem(files, dir);
 forge.emitToTar(files);
+forge.emitToTarGz(files);
 forge.emitToZip(files);
 ```
 
-Note: `emitToTar` and `emitToZip` are placeholders and throw until implemented.
+Note: `emitToZip` is a placeholder and throws until implemented.
 
 ## Advanced API
 
