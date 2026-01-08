@@ -6,3 +6,4 @@ dist
 newClient/src/test.jsx
 **/.DS_Store
 .tmp
+**/tsconfig.tsbuildinfo
