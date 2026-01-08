@@ -3,9 +3,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import type {
   ExtensionManifest,
+  GenerateProjectFilesOptions,
+  GenerateProjectFilesResult,
   GenerateProjectOptions,
   GenerateProjectResult,
   PageMeta,
+  ProjectFile,
 } from './projectTypes.js';
 
 const SCAFFOLD_DIR = path.resolve(
@@ -14,7 +17,7 @@ const SCAFFOLD_DIR = path.resolve(
   'scaffold'
 );
 
-function logMessage(options: GenerateProjectOptions, message: string): void {
+function logMessage(options: { onLog?: (message: string) => void }, message: string): void {
   if (typeof options.onLog === 'function') options.onLog(message);
 }
 
@@ -210,47 +213,123 @@ function normalizeManifest(manifest: ExtensionManifest): ExtensionManifest {
   };
 }
 
-function renderPackageJson(
-  outputDir: string,
-  manifest: ExtensionManifest
-): void {
-  const templatePath = path.join(outputDir, 'package.json.tpl');
-  const targetPath = path.join(outputDir, 'package.json');
-  const raw = fs.readFileSync(templatePath, 'utf8');
-  const rendered = renderTemplate(raw, {
-    NAME: manifest.name,
-    VERSION: manifest.version,
-  });
-  fs.writeFileSync(targetPath, rendered, 'utf8');
-  fs.rmSync(templatePath, { force: true });
+function normalizeRelPath(relPath: string): string {
+  if (typeof relPath !== 'string' || relPath.length === 0) {
+    throw new Error('invalid file path');
+  }
+  if (path.isAbsolute(relPath)) throw new Error('absolute path is not allowed');
+  const normalized = path.posix.normalize(relPath.replace(/\\/g, '/'));
+  if (normalized.startsWith('..') || normalized.includes('/../')) {
+    throw new Error('path traversal is not allowed');
+  }
+  return normalized;
 }
 
-function renderExtensionConfig(
-  outputDir: string,
-  manifest: ExtensionManifest
-): void {
-  const templatePath = path.join(outputDir, 'src', 'extensionConfig.ts.tpl');
-  const targetPath = path.join(outputDir, 'src', 'extensionConfig.ts');
-  const raw = fs.readFileSync(templatePath, 'utf8');
-  const rendered = renderTemplate(raw, {
-    MENUS: JSON.stringify(manifest.menus, null, 2),
-  });
-  fs.writeFileSync(targetPath, rendered, 'utf8');
-  fs.rmSync(templatePath, { force: true });
+function collectScaffoldFiles(root: string): ProjectFile[] {
+  const out: ProjectFile[] = [];
+  const queue: string[] = [root];
+  while (queue.length > 0) {
+    const current = queue.pop() as string;
+    const entries = fs.readdirSync(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        queue.push(full);
+        continue;
+      }
+      const rel = normalizeRelPath(path.relative(root, full));
+      out.push({ path: rel, content: fs.readFileSync(full, 'utf8') });
+    }
+  }
+  return out;
 }
 
-function renderRoutes(outputDir: string, manifest: ExtensionManifest): void {
-  const tsxTemplate = path.join(outputDir, 'src', 'routes.tsx.tpl');
-  const tsTemplate = path.join(outputDir, 'src', 'routes.ts.tpl');
-  const useTsx = fs.existsSync(tsxTemplate);
-  const templatePath = useTsx ? tsxTemplate : tsTemplate;
-  const targetPath = path.join(outputDir, 'src', useTsx ? 'routes.tsx' : 'routes.ts');
-  const raw = fs.readFileSync(templatePath, 'utf8');
+function requiredTemplate(scaffold: Map<string, string>, relPath: string): string {
+  const p = normalizeRelPath(relPath);
+  const raw = scaffold.get(p);
+  if (typeof raw !== 'string') {
+    throw new Error(`scaffold template not found: ${p}`);
+  }
+  return raw;
+}
 
-  if (useTsx) {
+function warningsFor(options: { build?: boolean; archive?: boolean }): string[] {
+  const warnings: string[] = [];
+  if (options.build) warnings.push('build is not implemented');
+  if (options.archive) warnings.push('archive is not implemented');
+  return warnings;
+}
+
+export function generateProjectFiles(
+  manifest: ExtensionManifest,
+  options: GenerateProjectFilesOptions
+): GenerateProjectFilesResult {
+  if (!options || typeof options !== 'object') {
+    throw new Error('options is required');
+  }
+  if (typeof options.componentGenerator !== 'function') {
+    throw new Error('options.componentGenerator must be a function');
+  }
+  if (!fs.existsSync(SCAFFOLD_DIR)) {
+    throw new Error(`scaffold directory not found: ${SCAFFOLD_DIR}`);
+  }
+
+  validateManifest(manifest);
+  const normalized = normalizeManifest(manifest);
+
+  logMessage(options, 'copy scaffold');
+  const scaffoldFiles = collectScaffoldFiles(SCAFFOLD_DIR);
+  const scaffoldMap = new Map(scaffoldFiles.map((f) => [f.path, f.content]));
+
+  logMessage(options, 'render templates');
+  const out: ProjectFile[] = [];
+
+  const excluded = new Set([
+    'package.json.tpl',
+    'src/extensionConfig.ts.tpl',
+    'src/routes.tsx.tpl',
+    'src/routes.ts.tpl',
+    'src/locales/index.ts.tpl',
+    'src/pages/__PAGE__/index.tsx.tpl',
+  ]);
+
+  for (const f of scaffoldFiles) {
+    if (excluded.has(f.path)) continue;
+    if (f.path.startsWith('src/pages/__PAGE__/')) continue;
+    out.push(f);
+  }
+
+  const packageJsonTpl = requiredTemplate(scaffoldMap, 'package.json.tpl');
+  out.push({
+    path: 'package.json',
+    content: renderTemplate(packageJsonTpl, {
+      NAME: normalized.name,
+      VERSION: normalized.version,
+    }),
+  });
+
+  const extensionConfigTpl = requiredTemplate(scaffoldMap, 'src/extensionConfig.ts.tpl');
+  out.push({
+    path: 'src/extensionConfig.ts',
+    content: renderTemplate(extensionConfigTpl, {
+      MENUS: JSON.stringify(normalized.menus, null, 2),
+    }),
+  });
+
+  const routesTemplatePath = scaffoldMap.has('src/routes.tsx.tpl')
+    ? 'src/routes.tsx.tpl'
+    : scaffoldMap.has('src/routes.ts.tpl')
+      ? 'src/routes.ts.tpl'
+      : null;
+  if (!routesTemplatePath) {
+    throw new Error('scaffold routes template not found');
+  }
+  const routesTpl = requiredTemplate(scaffoldMap, routesTemplatePath);
+
+  if (routesTemplatePath.endsWith('.tsx.tpl')) {
     const used = new Set<string>();
     const nameByPageId = new Map<string, string>();
-    for (const page of manifest.pages) {
+    for (const page of normalized.pages) {
       const base = toComponentIdentifier(page.id, 'Page');
       let name = base;
       let idx = 2;
@@ -262,12 +341,12 @@ function renderRoutes(outputDir: string, manifest: ExtensionManifest): void {
       nameByPageId.set(page.id, name);
     }
 
-    const importPageIds = Array.from(new Set(manifest.routes.map((r) => r.pageId)));
+    const importPageIds = Array.from(new Set(normalized.routes.map((r) => r.pageId)));
     const imports = importPageIds
       .map((pageId) => `import ${nameByPageId.get(pageId)} from './pages/${pageId}';`)
       .join('\n');
 
-    const routes = manifest.routes
+    const routes = normalized.routes
       .map((r) => {
         const component = nameByPageId.get(r.pageId) || 'Page';
         const pathLiteral = JSON.stringify(r.path);
@@ -275,31 +354,28 @@ function renderRoutes(outputDir: string, manifest: ExtensionManifest): void {
       })
       .join('\n');
 
-    const rendered = renderTemplate(raw, {
-      ROUTE_IMPORTS: imports,
-      ROUTE_ENTRIES: routes,
+    out.push({
+      path: 'src/routes.tsx',
+      content: renderTemplate(routesTpl, {
+        ROUTE_IMPORTS: imports,
+        ROUTE_ENTRIES: routes,
+      }),
     });
-    fs.writeFileSync(targetPath, rendered, 'utf8');
-    fs.rmSync(templatePath, { force: true });
-    return;
+  } else {
+    const routes = normalized.routes.map((r) => ({
+      path: r.path,
+      component: `./pages/${r.pageId}`,
+    }));
+    out.push({
+      path: 'src/routes.ts',
+      content: renderTemplate(routesTpl, {
+        ROUTES: JSON.stringify(routes, null, 2),
+      }),
+    });
   }
 
-  const routes = manifest.routes.map((r) => ({
-    path: r.path,
-    component: `./pages/${r.pageId}`,
-  }));
-  const rendered = renderTemplate(raw, {
-    ROUTES: JSON.stringify(routes, null, 2),
-  });
-  fs.writeFileSync(targetPath, rendered, 'utf8');
-  fs.rmSync(templatePath, { force: true });
-}
-
-function renderLocales(outputDir: string, manifest: ExtensionManifest): void {
-  const localesDir = path.join(outputDir, 'src', 'locales');
-  fs.mkdirSync(localesDir, { recursive: true });
-
-  const localeInfos = manifest.locales.map((locale) => {
+  const localesIndexTpl = requiredTemplate(scaffoldMap, 'src/locales/index.ts.tpl');
+  const localeInfos = normalized.locales.map((locale) => {
     ensureSafeFileName(locale.lang, 'locale lang');
     const variableName = toIdentifier(locale.lang);
     return {
@@ -313,56 +389,55 @@ function renderLocales(outputDir: string, manifest: ExtensionManifest): void {
     throw new Error('locales.lang results in duplicate identifiers');
   }
 
-  for (const locale of manifest.locales) {
-    const localePath = safeJoin(localesDir, `${locale.lang}.json`);
-    const content = JSON.stringify(locale.messages, null, 2) + '\n';
-    fs.writeFileSync(localePath, content, 'utf8');
+  for (const locale of normalized.locales) {
+    out.push({
+      path: normalizeRelPath(`src/locales/${locale.lang}.json`),
+      content: JSON.stringify(locale.messages, null, 2) + '\n',
+    });
   }
 
-  const imports = localeInfos
+  const localeImports = localeInfos
     .map((l) => `import ${l.variableName} from './${l.fileName}';`)
     .join('\n');
 
-  const exportsLines = localeInfos
+  const localeExports = localeInfos
     .map((l) => {
       if (isValidIdentifier(l.lang)) return `  ${l.variableName},`;
       return `  '${l.lang}': ${l.variableName},`;
     })
     .join('\n');
 
-  const templatePath = path.join(localesDir, 'index.ts.tpl');
-  const targetPath = path.join(localesDir, 'index.ts');
-  const raw = fs.readFileSync(templatePath, 'utf8');
-  const rendered = renderTemplate(raw, {
-    LOCALE_IMPORTS: imports,
-    LOCALE_EXPORTS: exportsLines,
+  out.push({
+    path: 'src/locales/index.ts',
+    content: renderTemplate(localesIndexTpl, {
+      LOCALE_IMPORTS: localeImports,
+      LOCALE_EXPORTS: localeExports,
+    }),
   });
-  fs.writeFileSync(targetPath, rendered, 'utf8');
-  fs.rmSync(templatePath, { force: true });
-}
 
-function renderPages(
-  outputDir: string,
-  manifest: ExtensionManifest,
-  options: GenerateProjectOptions
-): void {
-  const templateDir = path.join(outputDir, 'src', 'pages', '__PAGE__');
-  const templatePath = path.join(templateDir, 'index.tsx.tpl');
-  const templateRaw = fs.readFileSync(templatePath, 'utf8');
-
-  for (const page of manifest.pages) {
-    const pageDir = safeJoin(path.join(outputDir, 'src', 'pages'), page.id);
-    fs.mkdirSync(pageDir, { recursive: true });
-    const pageContent = String(options.componentGenerator(page, manifest) ?? '');
-
-    const content = templateRaw.includes('__PAGE_CONTENT__')
-      ? renderTemplate(templateRaw, { PAGE_CONTENT: pageContent })
+  const pageTemplate = requiredTemplate(scaffoldMap, 'src/pages/__PAGE__/index.tsx.tpl');
+  for (const page of normalized.pages) {
+    const pageContent = String(options.componentGenerator(page, normalized) ?? '');
+    const content = pageTemplate.includes('__PAGE_CONTENT__')
+      ? renderTemplate(pageTemplate, { PAGE_CONTENT: pageContent })
       : pageContent;
 
-    fs.writeFileSync(path.join(pageDir, 'index.tsx'), content, 'utf8');
+    out.push({
+      path: normalizeRelPath(`src/pages/${page.id}/index.tsx`),
+      content,
+    });
   }
 
-  fs.rmSync(templateDir, { recursive: true, force: true });
+  return { files: out, warnings: warningsFor(options) };
+}
+
+function writeProjectFiles(outputDir: string, files: ProjectFile[]): void {
+  const stable = [...files].sort((a, b) => a.path.localeCompare(b.path));
+  for (const f of stable) {
+    const full = safeJoin(outputDir, f.path);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, f.content, 'utf8');
+  }
 }
 
 export function generateProject(
@@ -382,23 +457,8 @@ export function generateProject(
     throw new Error(`scaffold directory not found: ${SCAFFOLD_DIR}`);
   }
 
-  validateManifest(manifest);
-  const normalized = normalizeManifest(manifest);
-
   ensureOutputDir(options.outputDir, options.allowNonEmptyDir);
-  logMessage(options, 'copy scaffold');
-  fs.cpSync(SCAFFOLD_DIR, options.outputDir, { recursive: true });
-
-  logMessage(options, 'render templates');
-  renderPackageJson(options.outputDir, normalized);
-  renderExtensionConfig(options.outputDir, normalized);
-  renderRoutes(options.outputDir, normalized);
-  renderLocales(options.outputDir, normalized);
-  renderPages(options.outputDir, normalized, options);
-
-  const warnings: string[] = [];
-  if (options.build) warnings.push('build is not implemented');
-  if (options.archive) warnings.push('archive is not implemented');
-
-  return { outputDir: options.outputDir, warnings };
+  const result = generateProjectFiles(manifest, options);
+  writeProjectFiles(options.outputDir, result.files);
+  return { outputDir: options.outputDir, warnings: result.warnings };
 }
