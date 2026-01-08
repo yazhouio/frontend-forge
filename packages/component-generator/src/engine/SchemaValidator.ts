@@ -1,6 +1,6 @@
 import Ajv, { ErrorObject, ValidateFunction } from "ajv";
-import { ComponentNode, PageConfig } from "./JSONSchema";
-import { NodeDefinition } from "./interfaces";
+import { ComponentNode, PageConfig } from "./JSONSchema.js";
+import { NodeDefinition } from "./interfaces.js";
 
 type DataSchemaDefinition = {
   $id?: string;

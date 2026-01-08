@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import PQueue from 'p-queue';
-import { ForgeCore, isForgeError } from '@frontend-forge/forge-core';
+import { CodeExporter, isCodeExporterError } from '@frontend-forge/forge-core/advanced';
 import {
   PORT,
   MAX_BODY_BYTES,
@@ -14,7 +14,7 @@ import type { BuildRequestBody } from './types.js';
 
 const queue = new PQueue({ concurrency: CONCURRENCY });
 
-const forge = new ForgeCore({
+const exporter = new CodeExporter({
   cache: {
     get: (key) => getCache(key),
     set: (key, value) => setCache(key, value),
@@ -35,10 +35,10 @@ app.get('/healthz', async () => ({ ok: true }));
 
 app.post<{ Body: BuildRequestBody }>('/build', async (req, reply) => {
   try {
-    const result = await forge.build(req.body);
+    const result = await exporter.build(req.body);
     return { ok: true, ...result, cacheHit: result.cacheHit ?? false };
   } catch (err) {
-    if (isForgeError(err)) {
+    if (isCodeExporterError(err)) {
       reply.code(err.statusCode);
       return { ok: false, error: err.message || String(err) };
     }

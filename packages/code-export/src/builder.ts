@@ -12,7 +12,7 @@ import {
   rmWorkDir,
   safeJoin
 } from "./utils.js";
-import type { BuildFile, BuildResult, TailwindOptions } from "./types.js";
+import type { BuildFile, BuildResult, BuildVirtualFilesResult, TailwindOptions } from "./types.js";
 
 const DEFAULT_BUILD_TIMEOUT_MS = 30_000;
 const DEFAULT_CHILD_MAX_OLD_SPACE_MB = 512;
@@ -236,8 +236,8 @@ export async function buildOnce({
 
     const buildMs = Math.max(0, Math.round(nowMs() - start));
     return {
-      js: { filename: "index.js", content: jsCode },
-      css: cssCode ? { filename: "style.css", content: cssCode } : null,
+      js: { path: "index.js", content: jsCode },
+      css: cssCode ? { path: "style.css", content: cssCode } : null,
       meta: { buildMs }
     };
   } finally {
@@ -245,4 +245,12 @@ export async function buildOnce({
       rmWorkDir(workDir);
     }
   }
+}
+
+export async function buildVirtualFiles(
+  options: BuildOnceOptions
+): Promise<BuildVirtualFilesResult> {
+  const result = await buildOnce(options);
+  const files = [result.js, ...(result.css ? [result.css] : [])];
+  return { files, meta: result.meta };
 }

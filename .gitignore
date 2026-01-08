@@ -1,5 +1,4 @@
 **/node_modules
-spec
 .cache
 dist
 /client/node_modules

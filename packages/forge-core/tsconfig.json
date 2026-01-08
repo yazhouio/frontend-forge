@@ -17,6 +17,8 @@
     "paths": {
       "@frontend-forge/code-export": ["../code-export"],
       "@frontend-forge/code-export/*": ["../code-export/*"],
+      "@frontend-forge/component-generator": ["../component-generator/src/index.ts"],
+      "@frontend-forge/component-generator/*": ["../component-generator/src/*"],
       "@frontend-forge/project-generator": ["../project-generator"],
       "@frontend-forge/project-generator/*": ["../project-generator/*"]
     }
@@ -24,6 +26,7 @@
   "include": ["src/**/*"],
   "references": [
     { "path": "../code-export" },
+    { "path": "../component-generator" },
     { "path": "../project-generator" }
   ]
 }

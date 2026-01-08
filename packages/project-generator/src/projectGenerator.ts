@@ -242,8 +242,8 @@ export function generateProjectFiles(
   if (!options || typeof options !== 'object') {
     throw new Error('options is required');
   }
-  if (typeof options.componentGenerator !== 'function') {
-    throw new Error('options.componentGenerator must be a function');
+  if (typeof options.pageRenderer !== 'function') {
+    throw new Error('options.pageRenderer must be a function');
   }
   if (!fs.existsSync(SCAFFOLD_DIR)) {
     throw new Error(`scaffold directory not found: ${SCAFFOLD_DIR}`);
@@ -392,7 +392,7 @@ export function generateProjectFiles(
 
   const pageTemplate = requiredTemplate(scaffoldMap, 'src/pages/__PAGE__/index.tsx.tpl');
   for (const page of normalized.pages) {
-    const pageContent = String(options.componentGenerator(page, normalized) ?? '');
+    const pageContent = String(options.pageRenderer(page, normalized) ?? '');
     const content = pageTemplate.includes('__PAGE_CONTENT__')
       ? renderTemplate(pageTemplate, { PAGE_CONTENT: pageContent })
       : pageContent;

@@ -1,4 +1,9 @@
-export { buildOnce } from "./builder.js";
+export { buildOnce, buildVirtualFiles } from "./builder.js";
+export {
+  CodeExporter,
+  CodeExporterError,
+  isCodeExporterError
+} from "./CodeExporter.js";
 export {
   ALLOWED_FILE_RE,
   binPath,
@@ -14,5 +19,18 @@ export type {
   BuildKeyInput,
   BuildOutputs,
   BuildResult,
-  TailwindOptions
+  BuildVirtualFilesResult,
+  TailwindOptions,
+  VirtualFile
 } from "./types.js";
+export type {
+  CodeExporterBuildOptions,
+  CodeExporterCache,
+  CodeExporterCacheHit,
+  CodeExporterCacheResult,
+  CodeExporterCacheValue,
+  CodeExporterOptions,
+  CodeExporterRequestBody,
+  CodeExporterResult,
+  CodeExporterScheduler
+} from "./CodeExporter.js";

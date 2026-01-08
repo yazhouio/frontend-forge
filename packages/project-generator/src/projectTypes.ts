@@ -39,7 +39,7 @@ export type ExtensionManifest = {
   };
 };
 
-export type ComponentGenerator = (
+export type PageRenderer = (
   page: PageMeta,
   manifest: ExtensionManifest
 ) => string;
@@ -52,7 +52,7 @@ export type VirtualFile = {
 export type ProjectFile = VirtualFile;
 
 export type GenerateProjectFilesOptions = {
-  componentGenerator: ComponentGenerator;
+  pageRenderer: PageRenderer;
   build?: boolean;
   archive?: boolean;
   onLog?: (message: string) => void;

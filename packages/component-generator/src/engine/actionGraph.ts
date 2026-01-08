@@ -1,13 +1,13 @@
 import template from "@babel/template";
 import * as t from "@babel/types";
-import { JSX_TEMPLATE_OPTIONS, StatementScope } from "../constants";
+import { JSX_TEMPLATE_OPTIONS, StatementScope } from "../constants.js";
 import {
   ActionGraphSchema,
   DataSourceNode,
   ExpressionValue,
-} from "./JSONSchema";
-import { CodeFragment, Stat } from "./interfaces";
-import { BindingOutputKind, DataSourceBindingInfo } from "./bindingTypes";
+} from "./JSONSchema.js";
+import { CodeFragment, Stat } from "./interfaces.js";
+import { BindingOutputKind, DataSourceBindingInfo } from "./bindingTypes.js";
 
 export type ActionGraphInfo = {
   id: string;

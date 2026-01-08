@@ -1,38 +1,44 @@
-import {
-  ALLOWED_FILE_RE,
-  buildOnce,
-  computeBuildKey,
-  nowMs,
-  safeJoin,
-  type BuildOutputs,
-  type BuildFile,
-  type BuildResult,
-  type TailwindOptions
-} from "@frontend-forge/code-export";
-import {
-  generateProjectFiles,
-  type ComponentGenerator,
-  type ExtensionManifest,
-  type PageMeta,
-  type ProjectFile,
-  type VirtualFile
+import fs from "fs";
+import path from "path";
+import type {
+  ExtensionManifest,
+  GenerateProjectFilesResult,
+  PageMeta,
+  PageRenderer,
+  VirtualFile
 } from "@frontend-forge/project-generator";
 
 export type MaybePromise<T> = T | Promise<T>;
 
-export type ForgeCacheHit = string | null;
-
-export type ForgeCacheResult<V> = {
-  hit: ForgeCacheHit;
-  value: V | null;
+export type ForgeComponentGenerator = {
+  generatePageCode: (schema: unknown) => string;
 };
 
-export type ForgeCache<V> = {
-  get: (key: string) => MaybePromise<ForgeCacheResult<V>>;
-  set: (key: string, value: V) => MaybePromise<void>;
+export type ForgeProjectGenerator = {
+  generateProjectFiles: (
+    manifest: ExtensionManifest,
+    options: { pageRenderer: PageRenderer; onLog?: (message: string) => void; build?: boolean; archive?: boolean }
+  ) => GenerateProjectFilesResult;
 };
 
-export type ForgeScheduler = <T>(fn: () => Promise<T>) => Promise<T>;
+export type ForgeCodeExporter = {
+  buildVirtualFiles: (files: VirtualFile[]) => MaybePromise<{ files: VirtualFile[] } | VirtualFile[]>;
+};
+
+export type ForgeCoreOptions = {
+  componentGenerator: ForgeComponentGenerator;
+  projectGenerator: ForgeProjectGenerator;
+  codeExporter?: ForgeCodeExporter | null;
+};
+
+export type ForgeProjectFilesOptions = {
+  onLog?: (message: string) => void;
+  pageRenderer?: PageRenderer;
+};
+
+export type ForgeBuildProjectOptions = ForgeProjectFilesOptions & {
+  build?: boolean;
+};
 
 export class ForgeError extends Error {
   statusCode: number;
@@ -48,295 +54,118 @@ export function isForgeError(err: unknown): err is ForgeError {
   return err instanceof ForgeError;
 }
 
-export type ForgeBuildCacheValue = {
-  outputs: BuildOutputs;
-  meta: { buildMs: number; queuedMs: number };
-};
-
-export type ForgeBuildRequestBody = {
-  files?: BuildFile[];
-  entry?: string;
-  externals?: string[];
-  tailwind?: TailwindOptions;
-};
-
-export type ForgeBuildResponse = {
-  cacheHit: ForgeCacheHit;
-  key: string;
-  outputs: BuildOutputs;
-  meta: { buildMs: number; queuedMs: number };
-};
-
-export type ForgeBuildOptions = {
-  entry?: string;
-  externals?: string[];
-  tailwind?: TailwindOptions;
-  buildTimeoutMs?: number;
-  childMaxOldSpaceMb?: number;
-  vendorNodeModules?: string;
-  rootNodeModules?: string;
-};
-
-export type ForgeFileWriter = {
-  writeFile: (filePath: string, content: string) => MaybePromise<void>;
-};
-
-export type ForgeProjectOptions = {
-  manifest: ExtensionManifest;
-  componentGenerator: ComponentGenerator;
-  onLog?: (msg: string) => void;
-  writer?: ForgeFileWriter;
-  build?: ForgeBuildOptions | false;
-};
-
-export type ForgeResult = {
-  files: VirtualFile[];
-  warnings: string[];
-  build?: ForgeBuildResponse | null;
-};
-
-export type ForgeCoreOptions = {
-  cache?: ForgeCache<ForgeBuildCacheValue>;
-  schedule?: ForgeScheduler;
-  now?: () => number;
-  buildTimeoutMs?: number;
-  childMaxOldSpaceMb?: number;
-  vendorNodeModules?: string;
-  rootNodeModules?: string;
-  defaultEntry?: string;
-  defaultExternals?: string[];
-  defaultTailwind?: TailwindOptions;
-};
-
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} after ${ms}ms`)), ms);
-    promise.then(
-      (res) => {
-        clearTimeout(timer);
-        resolve(res);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
-}
-
-function asStringArray(value: unknown): string[] | null {
-  if (!Array.isArray(value) || value.length === 0) return null;
-  return value.map((v) => String(v));
-}
-
-function validateFiles(value: unknown): BuildFile[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    throw new ForgeError("files must be a non-empty array", 400);
-  }
-
-  return value.map((f) => {
-    const obj = f as { path?: unknown; content?: unknown } | null;
-    if (!obj || typeof obj.path !== "string") {
-      throw new ForgeError("each file must have a string path", 400);
-    }
-    if (typeof obj.content !== "string") {
-      throw new ForgeError("each file must have a string content", 400);
-    }
-    if (!ALLOWED_FILE_RE.test(obj.path)) {
-      throw new ForgeError(`unsupported file type: ${obj.path}`, 400);
-    }
-    try {
-      safeJoin(".", obj.path);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      throw new ForgeError(msg, 400);
-    }
-    return { path: obj.path, content: obj.content };
-  });
-}
-
-function normalizeTailwind(value: unknown, fallback: TailwindOptions): TailwindOptions {
-  if (!value || typeof value !== "object") return fallback;
-  const obj = value as { enabled?: unknown; input?: unknown; config?: unknown };
-  return {
-    enabled: Boolean(obj.enabled),
-    input: typeof obj.input === "string" && obj.input.length > 0 ? obj.input : "src/index.css",
-    config: typeof obj.config === "string" && obj.config.length > 0 ? obj.config : null
+function defaultPageRenderer(generator: ForgeComponentGenerator): PageRenderer {
+  return (page: PageMeta) => {
+    if (page.componentsTree == null) return "";
+    return String(generator.generatePageCode(page.componentsTree));
   };
 }
 
-function pickEntry(
-  entry: string | undefined,
-  defaultEntry: string,
-  files: BuildFile[]
-): string {
-  if (typeof entry === "string" && entry.length > 0) return entry;
-  if (files.some((f) => f.path === defaultEntry)) return defaultEntry;
-  if (files.some((f) => f.path === "src/index.tsx")) return "src/index.tsx";
-  return "src/index.ts";
+function safeJoin(root: string, relPath: string): string {
+  if (typeof relPath !== "string" || relPath.length === 0) {
+    throw new ForgeError("invalid file path", 400);
+  }
+  if (path.isAbsolute(relPath)) throw new ForgeError("absolute path is not allowed", 400);
+  const normalized = path.posix.normalize(relPath.replace(/\\/g, "/"));
+  if (normalized.startsWith("..") || normalized.includes("/../")) {
+    throw new ForgeError("path traversal is not allowed", 400);
+  }
+  return path.join(root, normalized);
+}
+
+function emitFilesToDir(outputDir: string, files: VirtualFile[]): void {
+  const stable = [...files].sort((a, b) => a.path.localeCompare(b.path));
+  for (const f of stable) {
+    const full = safeJoin(outputDir, f.path);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, f.content, "utf8");
+  }
 }
 
 export class ForgeCore {
-  private cache: ForgeCache<ForgeBuildCacheValue> | null;
-  private schedule: ForgeScheduler;
-  private now: () => number;
-  private buildTimeoutMs: number;
-  private childMaxOldSpaceMb: number | undefined;
-  private vendorNodeModules: string | undefined;
-  private rootNodeModules: string | undefined;
-  private defaultEntry: string;
-  private defaultExternals: string[];
-  private defaultTailwind: TailwindOptions;
+  private componentGenerator: ForgeComponentGenerator;
+  private projectGenerator: ForgeProjectGenerator;
+  private codeExporter: ForgeCodeExporter | null;
 
-  constructor(options: ForgeCoreOptions = {}) {
-    this.cache = options.cache ?? null;
-    this.schedule = options.schedule ?? (async (fn) => fn());
-    this.now = options.now ?? nowMs;
-    this.buildTimeoutMs = options.buildTimeoutMs ?? 30_000;
-    this.childMaxOldSpaceMb = options.childMaxOldSpaceMb;
-    this.vendorNodeModules = options.vendorNodeModules;
-    this.rootNodeModules = options.rootNodeModules;
-    this.defaultEntry = options.defaultEntry ?? "src/index.tsx";
-    this.defaultExternals = Array.isArray(options.defaultExternals) ? options.defaultExternals : [];
-    this.defaultTailwind = options.defaultTailwind ?? { enabled: false };
+  constructor(options: ForgeCoreOptions) {
+    if (!options?.componentGenerator) {
+      throw new ForgeError("componentGenerator is required", 400);
+    }
+    if (!options?.projectGenerator) {
+      throw new ForgeError("projectGenerator is required", 400);
+    }
+
+    this.componentGenerator = options.componentGenerator;
+    this.projectGenerator = options.projectGenerator;
+    this.codeExporter = options.codeExporter ?? null;
   }
 
-  async build(body: unknown): Promise<ForgeBuildResponse> {
-    const obj = (body ?? {}) as ForgeBuildRequestBody;
-    const files = validateFiles(obj.files);
-    const entry = pickEntry(obj.entry, this.defaultEntry, files);
-    const externals = asStringArray(obj.externals) ?? this.defaultExternals;
-    const tailwind = normalizeTailwind(obj.tailwind, this.defaultTailwind);
-    return this.buildFromInput({ files, entry, externals, tailwind });
+  generatePageCode(schema: unknown): string {
+    return this.componentGenerator.generatePageCode(schema);
   }
 
-  async forgeProject(options: ForgeProjectOptions): Promise<ForgeResult> {
-    const project = generateProjectFiles(options.manifest, {
-      componentGenerator: options.componentGenerator,
+  async generateProjectFiles(
+    manifest: ExtensionManifest,
+    options: ForgeProjectFilesOptions = {}
+  ): Promise<VirtualFile[]> {
+    const pageRenderer = options.pageRenderer ?? defaultPageRenderer(this.componentGenerator);
+    const result = await this.projectGenerator.generateProjectFiles(manifest, {
+      pageRenderer,
       onLog: options.onLog,
       build: false,
       archive: false
     });
 
-    if (options.writer) {
-      for (const f of project.files) {
-        await options.writer.writeFile(f.path, f.content);
-      }
+    if (result.warnings.length && options.onLog) {
+      result.warnings.forEach((warning) => options.onLog?.(`[warning] ${warning}`));
     }
 
-    let build: ForgeBuildResponse | null = null;
+    return result.files;
+  }
+
+  async buildVirtualFiles(files: VirtualFile[]): Promise<VirtualFile[]> {
+    if (!this.codeExporter) {
+      throw new ForgeError("codeExporter is required to build virtual files", 400);
+    }
+    const result = await this.codeExporter.buildVirtualFiles(files);
+    if (Array.isArray(result)) return result;
+    if (result && Array.isArray(result.files)) return result.files;
+    throw new ForgeError("codeExporter.buildVirtualFiles must return files", 500);
+  }
+
+  async buildProject(
+    manifest: ExtensionManifest,
+    options: ForgeBuildProjectOptions = {}
+  ): Promise<VirtualFile[]> {
+    const files = await this.generateProjectFiles(manifest, options);
     if (options.build) {
-      const entry = pickEntry(options.build.entry, "src/index.ts", project.files);
-      const externals = Array.isArray(options.build.externals) ? options.build.externals : [];
-      const tailwind = options.build.tailwind ?? { enabled: false };
-      const files: BuildFile[] = project.files
-        .filter((f) => ALLOWED_FILE_RE.test(f.path))
-        .map((f) => ({ path: f.path, content: f.content }));
-
-      build = await this.buildFromInput({
-        files,
-        entry,
-        externals,
-        tailwind,
-        buildTimeoutMs: options.build.buildTimeoutMs,
-        childMaxOldSpaceMb: options.build.childMaxOldSpaceMb,
-        vendorNodeModules: options.build.vendorNodeModules,
-        rootNodeModules: options.build.rootNodeModules
-      });
+      return this.buildVirtualFiles(files);
     }
-
-    return { files: project.files, warnings: project.warnings, build };
+    return files;
   }
 
-  private async buildFromInput({
-    files,
-    entry,
-    externals,
-    tailwind,
-    buildTimeoutMs,
-    childMaxOldSpaceMb,
-    vendorNodeModules,
-    rootNodeModules
-  }: {
-    files: BuildFile[];
-    entry: string;
-    externals: string[];
-    tailwind: TailwindOptions;
-    buildTimeoutMs?: number;
-    childMaxOldSpaceMb?: number;
-    vendorNodeModules?: string;
-    rootNodeModules?: string;
-  }): Promise<ForgeBuildResponse> {
-    const key = computeBuildKey({ files, entry, externals, tailwind });
-
-    if (this.cache) {
-      const cached = await this.cache.get(key);
-      if (cached.hit && cached.value) {
-        return {
-          cacheHit: cached.hit,
-          key,
-          outputs: cached.value.outputs,
-          meta: { ...cached.value.meta, buildMs: 0 }
-        };
-      }
+  emitToFileSystem(files: VirtualFile[], dir: string): void {
+    if (typeof dir !== "string" || dir.length === 0) {
+      throw new ForgeError("output dir must be a non-empty string", 400);
     }
-
-    const jobStart = this.now();
-    const result = await this.schedule(async () => {
-      const timeout = buildTimeoutMs ?? this.buildTimeoutMs;
-      return withTimeout(
-        buildOnce({
-          files,
-          entry,
-          externals,
-          tailwind,
-          buildTimeoutMs: timeout,
-          childMaxOldSpaceMb: childMaxOldSpaceMb ?? this.childMaxOldSpaceMb,
-          vendorNodeModules: vendorNodeModules ?? this.vendorNodeModules,
-          rootNodeModules: rootNodeModules ?? this.rootNodeModules
-        }),
-        timeout,
-        "build timeout"
-      );
-    });
-
-    const jobMs = Math.max(0, Math.round(this.now() - jobStart));
-    const outputs: BuildOutputs = { js: result.js, css: result.css };
-    const cacheValue: ForgeBuildCacheValue = {
-      outputs,
-      meta: { buildMs: result.meta.buildMs, queuedMs: jobMs }
-    };
-
-    if (this.cache) {
-      await this.cache.set(key, cacheValue);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
+    emitFilesToDir(dir, files);
+  }
 
-    return { cacheHit: null, key, outputs, meta: cacheValue.meta };
+  emitToTar(_files: VirtualFile[]): never {
+    throw new ForgeError("emitToTar is not implemented", 501);
+  }
+
+  emitToZip(_files: VirtualFile[]): never {
+    throw new ForgeError("emitToZip is not implemented", 501);
   }
 }
 
-export async function forgeProject(options: ForgeProjectOptions): Promise<ForgeResult> {
-  const core = new ForgeCore({});
-  return core.forgeProject(options);
-}
-
-// Re-exports for consumers (server/cli) to avoid depending on underlying packages directly.
-export {
-  ALLOWED_FILE_RE,
-  buildOnce,
-  computeBuildKey,
-  nowMs,
-  safeJoin,
-  generateProjectFiles
-};
 export type {
-  BuildFile,
-  BuildOutputs,
-  BuildResult,
-  TailwindOptions,
-  ComponentGenerator,
   ExtensionManifest,
   PageMeta,
-  ProjectFile,
+  PageRenderer,
   VirtualFile
 };

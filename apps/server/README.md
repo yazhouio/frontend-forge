@@ -51,8 +51,8 @@ pnpm start
   "cacheHit": false,
   "key": "sha256...",
   "outputs": {
-    "js": { "filename": "index.js", "content": "System.register(...)" },
-    "css": { "filename": "style.css", "content": "..." }
+    "js": { "path": "index.js", "content": "System.register(...)" },
+    "css": { "path": "style.css", "content": "..." }
   },
   "meta": { "buildMs": 123, "queuedMs": 130 }
 }
