@@ -1,12 +1,15 @@
 import { CodeFragment, Stat } from "./interfaces.js";
 import * as t from "@babel/types";
-import traverse from "@babel/traverse";
+import traverseModule from "@babel/traverse";
 import template from "@babel/template";
 import {
   HookPriority,
   HOOK_PRIORITY_MAP,
   JSX_TEMPLATE_OPTIONS,
 } from "../constants.js";
+
+const traverse =
+  (traverseModule as unknown as { default?: typeof traverseModule }).default ?? traverseModule;
 
 export type PreparedFragment = {
   fragment: CodeFragment;
