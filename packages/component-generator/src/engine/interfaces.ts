@@ -4,9 +4,9 @@ import type {
   JSXElement,
   Statement,
 } from "@babel/types";
-import { HookPriority, StatementScope } from "../constants";
+import { HookPriority, StatementScope } from "../constants.js";
 import template, { PublicReplacements } from "@babel/template";
-import { NodeDefinitionSchema } from "./JSONSchema";
+import { NodeDefinitionSchema } from "./JSONSchema.js";
 
 export type NodeDefinition = {
   id: string;

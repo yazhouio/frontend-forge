@@ -10,7 +10,8 @@
 
 ## Build, Test, and Development Commands
 - `pnpm install` installs dependencies from `package.json`.
-- There are no build or test scripts defined yet. If you add a compiler or test runner, wire it in `package.json` (for example, `pnpm run build`) and update this guide.
+- `pnpm build` compiles TypeScript to `dist/` via `tsc`.
+- `pnpm clean` removes the `dist/` output directory.
 
 ## Coding Style & Naming Conventions
 - TypeScript with ES module imports; follow existing formatting in `src/engine/Engine.ts` (2-space indentation, semicolons).

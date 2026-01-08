@@ -5,6 +5,16 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./advanced": {
+      "types": "./dist/advanced.d.ts",
+      "default": "./dist/advanced.js"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -15,6 +25,7 @@
   "packageManager": "pnpm@9.0.0",
   "dependencies": {
     "@frontend-forge/code-export": "workspace:*",
+    "@frontend-forge/component-generator": "workspace:*",
     "@frontend-forge/project-generator": "workspace:*"
   },
   "devDependencies": {

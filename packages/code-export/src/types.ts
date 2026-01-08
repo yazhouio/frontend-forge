@@ -1,7 +1,9 @@
-export type BuildFile = {
+export type VirtualFile = {
   path: string;
   content: string;
 };
+
+export type BuildFile = VirtualFile;
 
 export type TailwindOptions = {
   enabled: boolean;
@@ -10,13 +12,18 @@ export type TailwindOptions = {
 };
 
 export type BuildOutputs = {
-  js: { filename: string; content: string };
-  css: { filename: string; content: string } | null;
+  js: VirtualFile;
+  css: VirtualFile | null;
 };
 
 export type BuildResult = {
   js: BuildOutputs["js"];
   css: BuildOutputs["css"];
+  meta: { buildMs: number };
+};
+
+export type BuildVirtualFilesResult = {
+  files: VirtualFile[];
   meta: { buildMs: number };
 };
 

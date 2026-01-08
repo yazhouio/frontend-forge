@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generateProjectFiles } from '@frontend-forge/forge-core';
+import { ForgeCore } from '@frontend-forge/forge-core';
+import { ProjectGenerator } from '@frontend-forge/forge-core/advanced';
 import type { ExtensionManifest, PageMeta } from '@frontend-forge/forge-core';
 
 function usage(): void {
@@ -98,20 +99,20 @@ try {
 
 ensureOutputDir(resolvedOut, force);
 
-const result = generateProjectFiles(manifest, {
-  componentGenerator: (page, _manifest) => {
+const forge = new ForgeCore({
+  componentGenerator: { generatePageCode: () => '' },
+  projectGenerator: new ProjectGenerator(),
+});
+
+const files = await forge.generateProjectFiles(manifest, {
+  pageRenderer: (page, _manifest) => {
     const name = toComponentName(page, _manifest.pages.indexOf(page));
     const label = JSON.stringify(`Generated page: ${page.id}`);
     return `export default function ${name}() {\n  return <div>${label}</div>;\n}\n`;
   },
   onLog: (msg) => console.log(`[generator] ${msg}`),
-  build: false,
-  archive: false,
 });
 
-writeProjectFiles(resolvedOut, result.files);
+writeProjectFiles(resolvedOut, files);
 
 console.log(`Project generated at: ${resolvedOut}`);
-if (result.warnings.length > 0) {
-  console.warn('Warnings:', result.warnings.join('; '));
-}

@@ -5,8 +5,8 @@ import {
   NodeDefinitionWithParseTemplate,
   ParseTemplateExpression,
   ParseTemplateImport,
-} from "./interfaces";
-import { JSX_TEMPLATE_OPTIONS, StatementScope } from "../constants";
+} from "./interfaces.js";
+import { JSX_TEMPLATE_OPTIONS, StatementScope } from "../constants.js";
 
 const statementScopeValues = Object.values(StatementScope) as [
   StatementScope,

@@ -1,7 +1,7 @@
-import { NodeDefinition } from "../engine/interfaces";
+import { NodeDefinition } from "../engine/interfaces.js";
 import template from "@babel/template";
 import * as t from "@babel/types";
-import { JSX_TEMPLATE_OPTIONS, StatementScope } from "../constants";
+import { JSX_TEMPLATE_OPTIONS, StatementScope } from "../constants.js";
 
 export const LayoutNode: NodeDefinition = {
   id: "Layout",

@@ -106,12 +106,21 @@ importers:
       '@types/babel__traverse':
         specifier: ^7.28.0
         version: 7.28.0
+      '@types/node':
+        specifier: ^22.13.5
+        version: 22.19.3
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
 
   packages/forge-core:
     dependencies:
       '@frontend-forge/code-export':
         specifier: workspace:*
         version: link:../code-export
+      '@frontend-forge/component-generator':
+        specifier: workspace:*
+        version: link:../component-generator
       '@frontend-forge/project-generator':
         specifier: workspace:*
         version: link:../project-generator

@@ -1,5 +1,5 @@
-import { StatementScope } from "../constants";
-import { DataSourceDefinition } from "../engine/interfaces";
+import { StatementScope } from "../constants.js";
+import { DataSourceDefinition } from "../engine/interfaces.js";
 
 export const StaticDataSource: DataSourceDefinition = {
   id: "static",

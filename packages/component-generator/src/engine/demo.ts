@@ -10,15 +10,15 @@ import {
   TableNode,
   ToggleNode,
   TextNode,
-} from "../nodes";
-import { Engine } from "./Engine";
-import { DataSourceRegistry } from "./DataSourceRegistry";
-import { NodeRegistry } from "./NodeRegistry";
-import { NodeDefinition } from "./interfaces";
-import { PageConfig } from "./JSONSchema";
-import { SchemaValidator } from "./SchemaValidator";
-import { CodeGenerator } from "./CodeGenerator";
-import { RestDataSource, StaticDataSource } from "../datasources";
+} from "../nodes/index.js";
+import { Engine } from "./Engine.js";
+import { DataSourceRegistry } from "./DataSourceRegistry.js";
+import { NodeRegistry } from "./NodeRegistry.js";
+import { NodeDefinition } from "./interfaces.js";
+import { PageConfig } from "./JSONSchema.js";
+import { SchemaValidator } from "./SchemaValidator.js";
+import { CodeGenerator } from "./CodeGenerator.js";
+import { RestDataSource, StaticDataSource } from "../datasources/index.js";
 
 const PropCardNode: NodeDefinition = {
   id: "PropCard",

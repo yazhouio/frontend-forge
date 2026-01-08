@@ -5,18 +5,18 @@ import {
   DataSourceDefinitionWithParseTemplate,
   NodeDefinitionWithParseTemplate,
   Stat,
-} from "./interfaces";
-import { DataSourceRegistry } from "./DataSourceRegistry";
-import { NodeRegistry } from "./NodeRegistry";
-import { JSX_TEMPLATE_OPTIONS, StatementScope } from "../constants";
+} from "./interfaces.js";
+import { DataSourceRegistry } from "./DataSourceRegistry.js";
+import { NodeRegistry } from "./NodeRegistry.js";
+import { JSX_TEMPLATE_OPTIONS, StatementScope } from "../constants.js";
 import {
   BindingValue,
   ComponentNode,
   DataSourceNode,
   ExpressionValue,
   PageConfig,
-} from "./JSONSchema";
-import { SchemaValidator } from "./SchemaValidator";
+} from "./JSONSchema.js";
+import { SchemaValidator } from "./SchemaValidator.js";
 import {
   ActionGraphEventMap,
   ActionGraphInfo,
@@ -25,8 +25,8 @@ import {
   buildActionGraphEventHandlers,
   buildActionGraphEventMap,
   buildActionGraphInfoMap,
-} from "./actionGraph";
-import { BindingOutputKind, DataSourceBindingInfo } from "./bindingTypes";
+} from "./actionGraph.js";
+import { BindingOutputKind, DataSourceBindingInfo } from "./bindingTypes.js";
 
 type BindingTargets = {
   dataSources: Map<string, Map<string, Set<BindingOutputKind>>>;

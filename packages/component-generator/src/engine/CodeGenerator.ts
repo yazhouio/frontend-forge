@@ -1,9 +1,9 @@
-import { CodeFragment, Stat } from "./interfaces";
+import { CodeFragment, Stat } from "./interfaces.js";
 import generate from "@babel/generator";
 import * as t from "@babel/types";
-import { ImportManager } from "./imports";
-import { HookCollector, PreparedFragment } from "./hookCollector";
-import { StatementScope } from "../constants";
+import { ImportManager } from "./imports.js";
+import { HookCollector, PreparedFragment } from "./hookCollector.js";
+import { StatementScope } from "../constants.js";
 
 export class CodeGenerator {
   private hookCollector = new HookCollector();
