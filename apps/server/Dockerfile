@@ -31,7 +31,7 @@ COPY --from=deps /app/packages/project-generator/node_modules ./packages/project
 COPY --from=deps /app/apps/server/vendor/node_modules ./apps/server/vendor/node_modules
 
 RUN pnpm -r run build
-RUN pnpm --filter @frontend-forge/server deploy /app/server
+RUN pnpm --filter @frontend-forge/server deploy --prod /app/server
 RUN mkdir -p /app/server/vendor && cp -R apps/server/vendor/node_modules /app/server/vendor/node_modules
 
 FROM node:22-alpine AS runner
