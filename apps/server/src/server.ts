@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import Fastify, { type FastifyReply } from 'fastify';
 import PQueue from 'p-queue';
 import { ForgeCore, ForgeError, isForgeError } from '@frontend-forge/forge-core';
@@ -24,6 +26,8 @@ import type {
 } from './types.js';
 
 const queue = new PQueue({ concurrency: CONCURRENCY });
+const here = path.dirname(fileURLToPath(import.meta.url));
+const vendorNodeModules = path.resolve(here, '..', 'vendor', 'node_modules');
 
 const exporter = new CodeExporter({
   cache: {
@@ -35,6 +39,7 @@ const exporter = new CodeExporter({
   childMaxOldSpaceMb: CHILD_MAX_OLD_SPACE_MB,
   defaultExternals: DEFAULT_EXTERNALS,
   defaultEntry: 'src/index.tsx',
+  vendorNodeModules,
 });
 
 const componentGenerator = ComponentGenerator.withDefaults();
