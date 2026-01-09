@@ -1,10 +1,8 @@
 # @frontend-forge/forge-core
 
-Unified entry for Frontend Forge low-code toolchain.
+Unified entry for the Frontend Forge low-code toolchain.
 
-`forge-core` provides a stable, high-level API to generate, build, and export low-code projects.
-
-It orchestrates:
+`forge-core` provides a stable, high-level API to generate, build, and export low-code projects. It orchestrates:
 
 - `component-generator` – page schema → code
 - `project-generator` – project manifest → virtual files
@@ -26,10 +24,7 @@ import {
   CodeExporter,
 } from '@frontend-forge/forge-core/advanced';
 
-const component = new ComponentGenerator();
-component.registerNode(LayoutNode);
-component.registerNode(CardNode);
-
+const component = ComponentGenerator.withDefaults();
 const project = new ProjectGenerator();
 const exporter = new CodeExporter();
 
@@ -40,64 +35,59 @@ const forge = new ForgeCore({
 });
 
 const files = await forge.buildProject(manifest, { build: true });
-
 forge.emitToFileSystem(files, './dist');
 ```
 
+## Core Concepts
+
+- **VirtualFile**: `{ path, content }` is the shared intermediate format.
+- **Page renderer**: a callback that turns a page schema into TSX.
+- **Build step**: optional; only available when `codeExporter` is provided.
+
 ## Public API (Stable)
 
-### ForgeCore
+### `new ForgeCore(options)`
 
 ```ts
-new ForgeCore(options: {
-  componentGenerator: ComponentGenerator;
-  projectGenerator: ProjectGenerator;
-  codeExporter?: CodeExporter;
+new ForgeCore({
+  componentGenerator,
+  projectGenerator,
+  codeExporter,
 });
 ```
 
-### generatePageCode
-
-```ts
-forge.generatePageCode(pageSchema);
-```
+### `generatePageCode(schema)`
 
 Generate code for a single page schema.
 
-### generateProjectFiles
+### `generateProjectFiles(manifest, options?)`
 
-```ts
-forge.generateProjectFiles(projectManifest);
-```
+Generate project files without building. If `options.pageRenderer` is omitted,
+ForgeCore derives it from the `componentGenerator`.
 
-Generate project files without building.
+### `buildVirtualFiles(files)`
 
-### buildVirtualFiles
+Compile virtual files using the configured build backend. Throws if
+`codeExporter` is not provided.
 
-```ts
-forge.buildVirtualFiles(files);
-```
+### `buildProject(manifest, { build })`
 
-Compile virtual files using the configured build backend.
+High-level one-shot API. When `build: true`, it generates files and compiles them.
 
-### buildProject
-
-```ts
-forge.buildProject(manifest, { build: true });
-```
-
-High-level one-shot API.
-
-### emit helpers
+### Emit helpers
 
 ```ts
 forge.emitToFileSystem(files, dir);
 forge.emitToTar(files);
 forge.emitToTarGz(files);
-forge.emitToZip(files);
 ```
 
-Note: `emitToZip` is a placeholder and throws until implemented.
+These helpers validate file paths to prevent path traversal.
+
+## Errors
+
+All validation errors are surfaced as `ForgeError` with a `statusCode` to
+support server usage and HTTP error mapping.
 
 ## Advanced API
 
@@ -123,13 +113,6 @@ These APIs are less stable than the public ForgeCore API.
 - VirtualFile is the primary intermediate representation
 - Generators are composable, not hidden
 - Public API stability is prioritized over internal flexibility
-
-## Non-goals
-
-- No UI runtime
-- No framework lock-in
-- No file system dependency
-- No build tool configuration
 
 ## Mental Model
 
