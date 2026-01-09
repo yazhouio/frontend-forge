@@ -29,6 +29,13 @@ pnpm start
 
 服务默认监听 `0.0.0.0:3000`，健康检查 `GET /healthz`。
 
+## Vendor 依赖
+`apps/server/vendor` 保存构建阶段需要的第三方依赖（不属于 pnpm workspace）。首次使用或容器构建前请安装：
+```bash
+npm --prefix apps/server/vendor install --production
+```
+在 Docker 构建中已提前执行该安装步骤。
+
 ## 环境变量
 - `PORT`：HTTP 端口，默认 3000
 - `CACHE_DIR`：磁盘缓存目录，默认 `.cache`

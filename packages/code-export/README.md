@@ -12,5 +12,6 @@ Exports:
 - Helpers: `computeBuildKey`, `ALLOWED_FILE_RE`, `safeJoin`, `mkWorkDir`, `rmWorkDir`, `nowMs`, `binPath`, `sha256`.
 
 Notes:
-- `vendorNodeModules` defaults to locating `packages/vendor/node_modules` (workspace path) with fallbacks to `vendor/node_modules` or `node_modules`.
+- `vendorNodeModules` is resolved by checking the provided path first, then falling back to legacy `packages/vendor/node_modules`, `vendor/node_modules`, and finally `node_modules`.
+- When used by the server, `vendorNodeModules` points to `apps/server/vendor/node_modules` (installed separately).
 - If `workDir` is not provided, a temp dir is created and cleaned automatically.
