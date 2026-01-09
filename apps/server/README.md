@@ -2,7 +2,7 @@
 
 KubeSphere v4 插件构建服务：接收 TS/TSX/CSS 源码，通过 esbuild + SWC 生成 **SystemJS** 单文件 JS，支持可选 Tailwind CSS，同时具备缓存、并发队列与超时控制。
 
-## 功能特性
+## 能力概览
 - POST `/build` 接收文件数组并返回 SystemJS 产物（必含 `System.register`）
 - POST `/page/code` 生成单页代码（schema → TS/TSX string）
 - POST `/project/files` 生成项目 TS 源码数组（VirtualFile[]）
@@ -20,33 +20,37 @@ KubeSphere v4 插件构建服务：接收 TS/TSX/CSS 源码，通过 esbuild + S
 # 安装依赖（首选 pnpm）
 pnpm install
 
-# 本地开发（热重载）
-pnpm dev
+# vendor 依赖（构建时需要）
+npm --prefix apps/server/vendor install --production
 
-# 生产运行
-pnpm start
+# 本地开发（热重载）
+pnpm --filter @frontend-forge/server dev
 ```
 
 服务默认监听 `0.0.0.0:3000`，健康检查 `GET /healthz`。
 
-## Vendor 依赖
-`apps/server/vendor` 保存构建阶段需要的第三方依赖（不属于 pnpm workspace）。首次使用或容器构建前请安装：
+## CLI 生成项目（调试）
+服务内置一个简单 CLI，用于根据 manifest 生成项目文件：
 ```bash
-npm --prefix apps/server/vendor install --production
+pnpm --filter @frontend-forge/server project:debug -- \
+  --manifest apps/server/examples/manifest.sample.json \
+  --out .tmp/project-demo \
+  --force
 ```
-在 Docker 构建中已提前执行该安装步骤。
 
-## 环境变量
-- `PORT`：HTTP 端口，默认 3000
-- `CACHE_DIR`：磁盘缓存目录，默认 `.cache`
-- `CACHE_MAX_ITEMS`：内存缓存大小，默认 200
-- `CONCURRENCY`：并发构建数，默认 `cpu/2`
-- `BUILD_TIMEOUT_MS`：构建超时时间，默认 30000
-- `MAX_BODY_BYTES`：请求体大小限制，默认 1 MiB
-- `CHILD_MAX_OLD_SPACE_MB`：子进程 Node 最大内存，默认 512
+参数说明：
+- `--manifest`：manifest 路径（默认 `apps/server/examples/manifest.sample.json`）
+- `--out`：输出目录（默认 `.tmp/project-*`）
+- `--force`：允许写入非空目录
 
 ## API
-`POST /build`
+请求体支持两种形式：
+- `/page/code` 接受 `pageSchema` 或直接传 schema
+- `/project/*` 接受 `manifest` 或直接传 manifest
+
+JSON 接口成功响应包含 `ok: true`，失败为 `ok: false` 且带 `error` 信息。`*.tar.gz` 接口成功时返回二进制内容。
+
+### `POST /build`
 ```json
 {
   "files": [{ "path": "src/index.tsx", "content": "..." }],
@@ -72,6 +76,8 @@ npm --prefix apps/server/vendor install --production
 
 说明：
 - `cacheHit`：未命中为 `false`，命中为 `"memory"` 或 `"disk"`。
+- `externals` 会覆盖默认白名单，默认列表见 `apps/server/src/config.ts`。
+- `entry` 为空时会自动选择 `src/index.tsx` 或 `src/index.ts`。
 
 示例：
 ```bash
@@ -88,7 +94,7 @@ curl -X POST http://localhost:3000/build \
   }'
 ```
 
-`POST /page/code`
+### `POST /page/code`
 ```json
 {
   "pageSchema": { "meta": { "id": "page-1" }, "root": { "id": "root", "type": "Layout" }, "context": {} }
@@ -100,7 +106,7 @@ curl -X POST http://localhost:3000/build \
 { "ok": true, "code": "export default function Page() { ... }" }
 ```
 
-`POST /project/files`
+### `POST /project/files`
 ```json
 {
   "manifest": { "version": "1.0", "name": "demo", "routes": [], "menus": [], "locales": [], "pages": [] }
@@ -112,17 +118,35 @@ curl -X POST http://localhost:3000/build \
 { "ok": true, "files": [{ "path": "src/index.ts", "content": "..." }] }
 ```
 
-`POST /project/files.tar.gz`
+### `POST /project/files.tar.gz`
 - 请求体同 `/project/files`
 - 响应为 `tar.gz` 二进制内容（`Content-Type: application/gzip`）
 
-`POST /project/build`
+### `POST /project/build`
 - 请求体同 `/project/files`
 - 返回编译后的 `VirtualFile[]`（SystemJS JS + 可选 CSS）
 
-`POST /project/build.tar.gz`
+### `POST /project/build.tar.gz`
 - 请求体同 `/project/files`
 - 响应为编译产物的 `tar.gz`
+
+## 环境变量
+- `PORT`：HTTP 端口，默认 3000
+- `CACHE_DIR`：磁盘缓存目录，默认 `.cache`
+- `CACHE_MAX_ITEMS`：内存缓存大小，默认 200
+- `CONCURRENCY`：并发构建数，默认 `cpu/2`
+- `BUILD_TIMEOUT_MS`：构建超时时间，默认 30000
+- `MAX_BODY_BYTES`：请求体大小限制，默认 1 MiB
+- `CHILD_MAX_OLD_SPACE_MB`：子进程 Node 最大内存，默认 512
+
+## 缓存与队列
+- 内存 LRU + 磁盘 JSON 缓存，磁盘缓存目录由 `CACHE_DIR` 控制。
+- 并发构建通过 `p-queue` 控制，`CONCURRENCY` 决定队列并发度。
+
+## 约束与校验
+- 拒绝绝对路径与 `..`，限定扩展名：`ts|tsx|js|jsx|css|json`
+- 构建产物必须含 `System.register`，并拒绝 `__webpack_require__`、`webpackChunk`、`import(`
+- 单入口构建，无代码分割；external 需在白名单或请求中传入
 
 ## Docker
 ```bash
@@ -136,7 +160,8 @@ docker run --rm -p 3000:3000 \
 
 生产部署建议：限制 CPU/内存、设置 `--pids-limit`，并将容器 rootfs 设为只读，挂载 tmpfs 至 `/tmp` 以获得更好的隔离。
 
-## 约束与校验
-- 拒绝绝对路径与 `..`，限定扩展名：`ts|tsx|js|jsx|css|json`
-- 构建产物必须含 `System.register`，并拒绝 `__webpack_require__`、`webpackChunk`、`import(`
-- 单入口构建，无代码分割；external 需在白名单或请求中传入
+## 示例与验证
+- `apps/server/examples/build.request.json`：`/build` 请求示例
+- `apps/server/examples/page.schema.json`：`/page/code` 请求示例
+- `apps/server/examples/manifest.test.json`：`/project/*` 请求示例
+- `apps/server/test.sh`：端到端接口验证脚本
