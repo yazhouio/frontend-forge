@@ -16,6 +16,17 @@ const code = generator.generatePageCode({
 console.log(code);
 ```
 
+## 缓存（可选）
+默认不启用缓存。你可以开启内置的内存 LRU 缓存来加速相同 schema 的重复生成：
+
+```ts
+import { ComponentGenerator } from '@frontend-forge/component-generator';
+
+const generator = ComponentGenerator.withDefaults({
+  cache: { maxEntries: 50 },
+});
+```
+
 ## 核心概念
 - `PageConfig`：页面 schema，包含 `meta`、`root`、`context` 等字段。
 - `NodeDefinition`：描述一个节点如何生成代码（imports/stats/jsx）。
