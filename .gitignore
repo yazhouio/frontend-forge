@@ -8,6 +8,6 @@ newClient/src/test.jsx
 .tmp
 **/tsconfig.tsbuildinfo
 packages/project-generator/tsconfig.tsbuildinfo
-spec
-AGENTS.md
+
+**/AGENTS.md
 **/spec
