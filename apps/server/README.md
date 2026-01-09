@@ -119,7 +119,8 @@ curl -X POST http://localhost:3000/build \
 
 ## Docker
 ```bash
-docker build -t frontendforge .
+# From repo root
+docker build -f apps/server/Dockerfile -t frontendforge .
 docker run --rm -p 3000:3000 \
   -e CACHE_DIR=/data/cache \
   -v $(pwd)/.cache:/data/cache \
