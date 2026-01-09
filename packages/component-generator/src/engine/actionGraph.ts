@@ -163,6 +163,7 @@ export const applyActionGraphStats = (
     dataSourceById.set(dataSource.id, dataSource)
   );
   const declaredStores = new Set<string>();
+  const declaredDataSources = new Set<string>();
   actionGraphTargets.forEach((graphIds, boundaryId) => {
     if (!graphIds.size) {
       return;
@@ -198,6 +199,7 @@ export const applyActionGraphStats = (
           boundaryId,
           graph,
           info,
+          declaredDataSources,
           dataSourceInfo,
           dataSourceById,
           toAstValue
@@ -318,6 +320,7 @@ const buildActionGraphStats = (
   boundaryId: string,
   graph: ActionGraphSchema,
   info: ActionGraphInfo,
+  declaredDataSources: Set<string>,
   dataSourceInfo: Map<string, DataSourceBindingInfo>,
   dataSourceById: Map<string, DataSourceNode>,
   toAstValue: ActionGraphDeps["toAstValue"]
@@ -430,7 +433,16 @@ const buildActionGraphStats = (
     toAstValue
   );
   if (callDataSourceStats.length) {
-    stats.push(...callDataSourceStats);
+    if (declaredDataSources.has(graph.id)) {
+      stats.push(
+        ...callDataSourceStats.filter(
+          (stat) => stat.scope !== StatementScope.ModuleDecl
+        )
+      );
+    } else {
+      declaredDataSources.add(graph.id);
+      stats.push(...callDataSourceStats);
+    }
   }
 
   stats.push(
