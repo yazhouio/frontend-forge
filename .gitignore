@@ -9,3 +9,5 @@ newClient/src/test.jsx
 **/tsconfig.tsbuildinfo
 packages/project-generator/tsconfig.tsbuildinfo
 spec
+AGENTS.md
+**/spec
