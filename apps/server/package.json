@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "files": ["dist"],
+  "files": ["dist", "vendor"],
   "description": "KubeSphere plugin build service (SystemJS) powered by Fastify + esbuild + SWC + Tailwind.",
   "scripts": {
     "build": "tsc -p tsconfig.json",
