@@ -5,5 +5,6 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "kse-build"
-  }
+  },
+  "dependencies": {}
 }
