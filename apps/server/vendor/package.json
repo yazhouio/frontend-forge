@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "description": "Vendored runtime dependencies for build outputs.",
+  "files": [
+    "node_modules"
+  ],
   "dependencies": {
     "es-toolkit": "^1.43.0",
     "lodash": "4.17.21",
