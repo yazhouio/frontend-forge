@@ -14,7 +14,7 @@ COPY packages/forge-core/package.json packages/forge-core/
 COPY packages/project-generator/package.json packages/project-generator/
 
 RUN npm --prefix apps/server/vendor install --production
-RUN pnpm i --prod
+RUN pnpm i
 
 FROM node:22-alpine AS build
 WORKDIR /app
@@ -23,6 +23,11 @@ RUN corepack enable
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
+COPY --from=deps /app/packages/code-export/node_modules ./packages/code-export/node_modules
+COPY --from=deps /app/packages/component-generator/node_modules ./packages/component-generator/node_modules
+COPY --from=deps /app/packages/forge-core/node_modules ./packages/forge-core/node_modules
+COPY --from=deps /app/packages/project-generator/node_modules ./packages/project-generator/node_modules
 COPY --from=deps /app/apps/server/vendor/node_modules ./apps/server/vendor/node_modules
 
 RUN pnpm -r run build
