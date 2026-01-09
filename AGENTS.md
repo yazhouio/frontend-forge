@@ -7,7 +7,7 @@
 - `packages/project-generator/` scaffolding + manifest-driven project generation (`scaffold/`, `src/`).
 - `packages/code-export/` build pipeline helpers (esbuild/SWC/Tailwind).
 - `packages/component-generator/` component tree to TSX generator (evolving).
-- `packages/vendor/` vendored runtime dependencies for build outputs.
+- `apps/server/vendor/` vendored runtime dependencies for build outputs (installed separately).
 - `spec/` design/interface drafts (may be empty).
 
 ## Build, Test, and Development Commands
