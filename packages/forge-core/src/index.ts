@@ -101,6 +101,10 @@ export class ForgeCore {
     this.codeExporter = options.codeExporter ?? null;
   }
 
+  getCodeExporter(): ForgeCodeExporter | null {
+    return this.codeExporter;
+  }
+
   generatePageCode(schema: unknown): string {
     return this.componentGenerator.generatePageCode(schema);
   }
