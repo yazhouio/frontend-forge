@@ -29,6 +29,29 @@ pnpm --filter @frontend-forge/server dev
 
 服务默认监听 `0.0.0.0:3000`，健康检查 `GET /healthz`。
 
+## 静态文件服务（@fastify/static）
+服务启动时会读取配置文件 `config.json`（可用环境变量 `CONFIG_PATH` 覆盖路径），根据配置挂载静态目录。
+
+示例 `config.json`：
+```json
+{
+  "static": [
+    {
+      "root": "./public",
+      "prefix": "/",
+      "index": ["index.html"],
+      "cacheControl": "public, max-age=300"
+    }
+  ]
+}
+```
+
+字段说明：
+- `static[].root`：静态目录（相对路径以 `config.json` 所在目录为基准）
+- `static[].prefix`：URL 前缀（建议以 `/` 开头且以 `/` 结尾；例如 `/assets/`）
+- `static[].index`：目录默认首页（`string[]` 或 `false`）
+- `static[].cacheControl`：可选，设置响应头 `Cache-Control`
+
 ## CLI 生成项目（调试）
 服务内置一个简单 CLI，用于根据 manifest 生成项目文件：
 ```bash
@@ -132,6 +155,7 @@ curl -X POST http://localhost:3000/build \
 
 ## 环境变量
 - `PORT`：HTTP 端口，默认 3000
+- `CONFIG_PATH`：运行时配置文件路径，默认 `./config.json`
 - `CACHE_DIR`：磁盘缓存目录，默认 `.cache`
 - `CACHE_MAX_ITEMS`：内存缓存大小，默认 200
 - `CONCURRENCY`：并发构建数，默认 `cpu/2`
