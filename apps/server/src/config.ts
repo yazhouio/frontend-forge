@@ -2,6 +2,7 @@ import path from 'path';
 import os from 'os';
 
 export const PORT = Number(process.env.PORT || 3000);
+export const CONFIG_PATH = process.env.CONFIG_PATH || path.resolve(process.cwd(), 'config.json');
 export const CACHE_DIR = process.env.CACHE_DIR || path.resolve(process.cwd(), '.cache');
 export const CACHE_MAX_ITEMS = Number(process.env.CACHE_MAX_ITEMS || 200);
 export const CONCURRENCY = Number(process.env.CONCURRENCY || Math.max(1, Math.floor(os.cpus().length / 2)));

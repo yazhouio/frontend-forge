@@ -10,14 +10,17 @@ import {
 } from "@frontend-forge/forge-core/advanced";
 import {
   PORT,
+  CONFIG_PATH,
   MAX_BODY_BYTES,
   DEFAULT_EXTERNALS,
   CONCURRENCY,
   BUILD_TIMEOUT_MS,
   CHILD_MAX_OLD_SPACE_MB,
-} from './config.js';
+} from "./config.js";
 import { getCache, setCache } from './cache.js';
 import router from "./router.js";
+import { loadServerConfig } from "./runtimeConfig.js";
+import { registerStaticMounts } from "./staticServer.js";
 
 const queue = new PQueue({ concurrency: CONCURRENCY });
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -48,6 +51,9 @@ const app = Fastify({
   logger: true,
   bodyLimit: MAX_BODY_BYTES,
 });
+
+const serverConfig = loadServerConfig(CONFIG_PATH);
+await registerStaticMounts(app, serverConfig.static);
 
 await app.register(router, { forge });
 

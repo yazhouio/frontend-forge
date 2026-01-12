@@ -1,0 +1,11 @@
+{
+  "static": [
+    {
+      "root": ".",
+      "prefix": "/static/",
+      "index": ["static.index.html"],
+      "cacheControl": "no-store"
+    }
+  ]
+}
+
