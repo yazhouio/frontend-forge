@@ -9,6 +9,7 @@ KubeSphere v4 插件构建服务：接收 TS/TSX/CSS 源码，通过 esbuild + S
 - POST `/project/files.tar.gz` 打包项目 TS 源码数组（tar.gz）
 - POST `/project/build` 编译项目并返回产物数组（VirtualFile[]）
 - POST `/project/build.tar.gz` 打包编译产物数组（tar.gz）
+- POST `/k8s/jsbundles` 编译 manifest 并调用 K8s 创建 JSBundle
 - 可选 Tailwind v4 输出 CSS，和 JS 构建解耦
 - 内存 LRU + 磁盘 JSON 缓存，命中即回
 - 并发队列、超时与隔离的临时工作目录，防止资源争用与路径穿越
@@ -35,6 +36,7 @@ pnpm --filter @frontend-forge/server dev
 示例 `config.json`：
 ```json
 {
+  "k8s": { "server": "https://kubernetes.default.svc", "tokenCookieName": "token" },
   "static": [
     {
       "root": "./public",
@@ -47,6 +49,8 @@ pnpm --filter @frontend-forge/server dev
 ```
 
 字段说明：
+- `k8s.server`：K8s API Server 地址（用于 `/k8s/jsbundles`）
+- `k8s.tokenCookieName`：从 cookie 读取 token 的字段名（默认 `token`）
 - `static[].root`：静态目录（相对路径以 `config.json` 所在目录为基准）
 - `static[].prefix`：URL 前缀（建议以 `/` 开头且以 `/` 结尾；例如 `/assets/`）
 - `static[].index`：目录默认首页（`string[]` 或 `false`）
@@ -152,6 +156,20 @@ curl -X POST http://localhost:3000/build \
 ### `POST /project/build.tar.gz`
 - 请求体同 `/project/files`
 - 响应为编译产物的 `tar.gz`
+
+### `POST /k8s/jsbundles`
+请求体：
+```json
+{
+  "manifest": { "version": "1.0", "name": "demo", "routes": [], "menus": [], "locales": [], "pages": [] },
+  "jsBundleName": "demo"
+}
+```
+
+说明：
+- 需要在 `config.json` 配置 `k8s.server`。
+- 从 cookie 读取 token（默认 cookie 名为 `token`），拼接为请求头 `Authorization: Bearer <token>`，并 POST 到 `.../apis/extensions.kubesphere.io/v1alpha1/jsbundles`。
+- 创建的资源结构为：`spec: { row: { "index.js": "<compiled js>", "style.css": "<compiled css>" } }`，key 由编译产物的 `VirtualFile[].path` 决定。
 
 ## 环境变量
 - `PORT`：HTTP 端口，默认 3000
