@@ -20,6 +20,8 @@ export type ProjectManifestRequestBody = {
 
 export type ProjectJsBundleRequestBody = ProjectManifestRequestBody & {
   jsBundleName?: string;
+  namespace?: string;
+  cluster?: string;
 };
 
 export type CacheValue = {

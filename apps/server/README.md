@@ -162,7 +162,9 @@ curl -X POST http://localhost:3000/build \
 ```json
 {
   "manifest": { "version": "1.0", "name": "demo", "routes": [], "menus": [], "locales": [], "pages": [] },
-  "jsBundleName": "demo"
+  "jsBundleName": "demo",
+  "namespace": "kubesphere-system",
+  "cluster": "host"
 }
 ```
 
@@ -170,6 +172,8 @@ curl -X POST http://localhost:3000/build \
 - 需要在 `config.json` 配置 `k8s.server`。
 - 从 cookie 读取 token（默认 cookie 名为 `token`），拼接为请求头 `Authorization: Bearer <token>`，并 POST 到 `.../apis/extensions.kubesphere.io/v1alpha1/jsbundles`。
 - 创建的资源结构为：`spec: { row: { "index.js": "<compiled js>", "style.css": "<compiled css>" } }`，key 由编译产物的 `VirtualFile[].path` 决定。
+- 可选 `namespace`：如果提供，则请求路径变为 `.../apis/extensions.kubesphere.io/v1alpha1/namespaces/{namespace}/jsbundles`，且会写入 `metadata.namespace`。
+- 可选 `cluster`：如果提供，则请求路径会在前面加上 `/clusters/{cluster}`（例如 `.../clusters/{cluster}/apis/extensions.kubesphere.io/v1alpha1/...`）。
 
 ## 环境变量
 - `PORT`：HTTP 端口，默认 3000

@@ -62,6 +62,18 @@ function jsBundleNameFrom(body: ProjectJsBundleRequestBody, manifest: ExtensionM
   return String(manifest.name);
 }
 
+function namespaceFrom(body: ProjectJsBundleRequestBody): string | null {
+  const ns = body?.namespace;
+  if (typeof ns === 'string' && ns.trim().length > 0) return ns.trim();
+  return null;
+}
+
+function clusterFrom(body: ProjectJsBundleRequestBody): string | null {
+  const cluster = body?.cluster;
+  if (typeof cluster === 'string' && cluster.trim().length > 0) return cluster.trim();
+  return null;
+}
+
 function handleKnownError(err: unknown, reply: FastifyReply) {
   if (isForgeError(err)) {
     reply.code(err.statusCode);
@@ -211,10 +223,16 @@ export function createController({ forge, k8s }: ControllerDeps) {
 
         const rawName = jsBundleNameFrom(req.body, manifest);
         const name = normalizeDns1123Label(rawName, 'jsBundleName');
+        const namespaceRaw = namespaceFrom(req.body);
+        const namespace = namespaceRaw ? normalizeDns1123Label(namespaceRaw, 'namespace') : null;
+        const clusterRaw = clusterFrom(req.body);
+        const cluster = clusterRaw ? normalizeDns1123Label(clusterRaw, 'cluster') : null;
 
         reply.log.info(
           {
             name,
+            namespace,
+            cluster,
             k8sServer: k8s.server,
             outputFiles: Object.keys(row),
           },
@@ -224,14 +242,23 @@ export function createController({ forge, k8s }: ControllerDeps) {
         const jsBundle = {
           apiVersion: 'extensions.kubesphere.io/v1alpha1',
           kind: 'JSBundle',
-          metadata: { name },
+          metadata: namespace ? { name, namespace } : { name },
           spec: { row },
         };
 
-        const url = joinUrl(k8s.server, '/apis/extensions.kubesphere.io/v1alpha1/jsbundles');
+        let path: string;
+        if (namespace) {
+          path = `/apis/extensions.kubesphere.io/v1alpha1/namespaces/${namespace}/jsbundles`;
+        } else {
+          path = '/apis/extensions.kubesphere.io/v1alpha1/jsbundles';
+        }
+        if (cluster) {
+          path = `/clusters/${cluster}${path}`;
+        }
+        const url = joinUrl(k8s.server, path);
         const result = await postJson(url, { token: token.trim(), body: jsBundle });
         reply.log.info({ name, status: result.status }, 'K8s JSBundle create completed');
-        return { ok: true, name, result: result.body };
+        return { ok: true, name, namespace, cluster, result: result.body };
       } catch (err) {
         return handleKnownError(err, reply);
       }
