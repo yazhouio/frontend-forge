@@ -1,0 +1,5 @@
+{
+  "k8s": { "server": "https://kubernetes.default.svc", "tokenCookieName": "token" },
+  "static": []
+}
+
