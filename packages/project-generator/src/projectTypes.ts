@@ -35,6 +35,8 @@ export type ExtensionManifest = {
   build?: {
     target: "kubesphere-extension";
     moduleName?: string;
+    namespace?: string;
+    cluster?: string;
     systemjs?: boolean;
   };
 };
