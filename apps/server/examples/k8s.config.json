@@ -1,5 +1,5 @@
 {
-  "k8s": { "server": "https://kubernetes.default.svc", "tokenCookieName": "token" },
+  "k8s": { "server": "http://139.198.121.90:40881", "tokenCookieName": "token" },
   "static": []
 }
 

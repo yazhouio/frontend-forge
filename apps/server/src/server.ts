@@ -23,6 +23,25 @@ import router from "./router.js";
 import { loadServerConfig } from "./runtimeConfig.js";
 import { registerStaticMounts } from "./staticServer.js";
 
+function getLoggerOptions() {
+  const wantsPretty =
+    process.env.FORGE_PRETTY_LOGS === '1' ||
+    process.env.npm_lifecycle_event === 'dev';
+
+  if (!wantsPretty || !process.stdout.isTTY) return true;
+
+  return {
+    transport: {
+      target: 'pino-pretty',
+      options: {
+        colorize: true,
+        translateTime: 'SYS:standard',
+        ignore: 'pid,hostname',
+      },
+    },
+  };
+}
+
 const queue = new PQueue({ concurrency: CONCURRENCY });
 const here = path.dirname(fileURLToPath(import.meta.url));
 const vendorNodeModules = path.resolve(here, '..', 'vendor', 'node_modules');
@@ -49,7 +68,7 @@ const forge = new ForgeCore({
 });
 
 const app = Fastify({
-  logger: true,
+  logger: getLoggerOptions(),
   bodyLimit: MAX_BODY_BYTES,
 });
 
