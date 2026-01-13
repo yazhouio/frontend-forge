@@ -18,6 +18,10 @@ export type ProjectManifestRequestBody = {
   manifest?: ExtensionManifest;
 };
 
+export type ProjectJsBundleRequestBody = ProjectManifestRequestBody & {
+  jsBundleName?: string;
+};
+
 export type CacheValue = {
   outputs: BuildOutputs;
   meta: { buildMs: number; queuedMs: number };

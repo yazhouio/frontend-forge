@@ -8,8 +8,14 @@ export type StaticMountConfig = {
   cacheControl?: string;
 };
 
+export type K8sConfig = {
+  server: string;
+  tokenCookieName?: string;
+};
+
 export type ServerConfig = {
   static: StaticMountConfig[];
+  k8s?: K8sConfig;
 };
 
 function toNonEmptyString(value: unknown, field: string): string {
@@ -70,6 +76,34 @@ function asStaticMount(item: unknown, baseDir: string, index: number): StaticMou
   };
 }
 
+function normalizeK8sServer(server: string): string {
+  const trimmed = server.trim();
+  if (trimmed.length === 0) {
+    throw new Error('k8s.server must be a non-empty string');
+  }
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+function normalizeK8sConfig(value: unknown): K8sConfig {
+  if (typeof value === 'string') {
+    return { server: normalizeK8sServer(value) };
+  }
+  if (!value || typeof value !== 'object') {
+    throw new Error('k8s must be a string or object');
+  }
+
+  const obj = value as Record<string, unknown>;
+  const serverRaw = obj.server ?? obj.url ?? obj.apiServer;
+  const server = normalizeK8sServer(toNonEmptyString(serverRaw, 'k8s.server'));
+
+  const tokenCookieNameRaw = obj.tokenCookieName ?? obj.cookieTokenName;
+  const tokenCookieName =
+    tokenCookieNameRaw == null ? undefined : toNonEmptyString(tokenCookieNameRaw, 'k8s.tokenCookieName');
+
+  return { server, tokenCookieName };
+}
+
 export function loadServerConfig(configPath: string): ServerConfig {
   if (!fs.existsSync(configPath)) {
     return { static: [] };
@@ -90,11 +124,14 @@ export function loadServerConfig(configPath: string): ServerConfig {
 
   const baseDir = path.dirname(configPath);
   const staticValue = (json as Record<string, unknown>).static;
+  const k8sValue = (json as Record<string, unknown>).k8s;
   if (staticValue == null || staticValue === false) {
-    return { static: [] };
+    const k8s = k8sValue == null || k8sValue === false ? undefined : normalizeK8sConfig(k8sValue);
+    return { static: [], k8s };
   }
 
   const items = Array.isArray(staticValue) ? staticValue : [staticValue];
   const mounts = items.map((item, i) => asStaticMount(item, baseDir, i));
-  return { static: mounts };
+  const k8s = k8sValue == null || k8sValue === false ? undefined : normalizeK8sConfig(k8sValue);
+  return { static: mounts, k8s };
 }
