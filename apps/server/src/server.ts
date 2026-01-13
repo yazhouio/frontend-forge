@@ -2,6 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import Fastify from "fastify";
 import PQueue from 'p-queue';
+import cookie from '@fastify/cookie';
 import { ForgeCore } from "@frontend-forge/forge-core";
 import {
   CodeExporter,
@@ -52,10 +53,12 @@ const app = Fastify({
   bodyLimit: MAX_BODY_BYTES,
 });
 
+await app.register(cookie);
+
 const serverConfig = loadServerConfig(CONFIG_PATH);
 await registerStaticMounts(app, serverConfig.static);
 
-await app.register(router, { forge });
+await app.register(router, { forge, k8s: serverConfig.k8s });
 
 app.setErrorHandler((err: Error, _req, reply) => {
   reply.code(500);
