@@ -1,5 +1,4 @@
 import fs from 'fs';
-import type { ServerResponse } from 'http';
 import type { FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import type { StaticMountConfig } from './runtimeConfig.js';
@@ -26,10 +25,9 @@ export async function registerStaticMounts(app: FastifyInstance, mounts: StaticM
       prefix: mount.prefix,
       decorateReply: false,
       index: mount.index,
-      setHeaders: cacheControl ? (res: ServerResponse) => res.setHeader('Cache-Control', cacheControl) : undefined,
+      setHeaders: cacheControl ? (res) => res.setHeader('Cache-Control', cacheControl) : undefined,
     });
 
     app.log.info({ root: mount.root, prefix: mount.prefix }, 'Static files mounted');
   }
 }
-

@@ -1,10 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 import type { ForgeCore } from '@frontend-forge/forge-core';
-import type { BuildRequestBody, PageSchemaRequestBody, ProjectManifestRequestBody } from './types.js';
+import type {
+  BuildRequestBody,
+  PageSchemaRequestBody,
+  ProjectJsBundleRequestBody,
+  ProjectManifestRequestBody,
+} from './types.js';
 import { createController } from './controller.js';
+import type { K8sConfig } from './runtimeConfig.js';
 
 export type RouterOptions = {
   forge: ForgeCore;
+  k8s?: K8sConfig;
 };
 
 export default async function router(app: FastifyInstance, opts: RouterOptions) {
@@ -34,5 +41,9 @@ export default async function router(app: FastifyInstance, opts: RouterOptions) 
 
   app.post<{ Body: ProjectManifestRequestBody }>('/project/build.tar.gz', async (req, reply) => {
     return controller.projectBuildTarGz(req.body, reply);
+  });
+
+  app.post<{ Body: ProjectJsBundleRequestBody }>('/k8s/jsbundles', async (req, reply) => {
+    return controller.projectJsBundle(req, reply);
   });
 }
