@@ -18,10 +18,15 @@ export type ProjectManifestRequestBody = {
   manifest?: ExtensionManifest;
 };
 
-export type ProjectJsBundleRequestBody = ProjectManifestRequestBody & {
-  jsBundleName?: string;
+export type ProjectJsBundleParams = {
+  name: string;
+  extensionName: string;
   namespace?: string;
   cluster?: string;
+};
+
+export type ProjectJsBundleRequestBody = ProjectManifestRequestBody & {
+  params: ProjectJsBundleParams;
 };
 
 export type CacheValue = {

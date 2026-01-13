@@ -54,24 +54,46 @@ function requireManifest(body: ProjectManifestRequestBody | unknown): ExtensionM
   return manifest as ExtensionManifest;
 }
 
-function jsBundleNameFrom(body: ProjectJsBundleRequestBody, manifest: ExtensionManifest): string {
-  const direct = body?.jsBundleName;
-  if (typeof direct === 'string' && direct.trim().length > 0) return direct.trim();
-  const buildModuleName = manifest.build?.moduleName;
-  if (typeof buildModuleName === 'string' && buildModuleName.trim().length > 0) return buildModuleName.trim();
-  return String(manifest.name);
-}
+function requireJsBundleParams(
+  body: ProjectJsBundleRequestBody | unknown
+): { name: string; extensionName: string; namespace: string | null; cluster: string | null } {
+  if (!body || typeof body !== 'object') {
+    throw new ForgeError('params is required', 400);
+  }
+  if (!('params' in body)) {
+    throw new ForgeError('params is required', 400);
+  }
 
-function namespaceFrom(body: ProjectJsBundleRequestBody): string | null {
-  const ns = body?.namespace;
-  if (typeof ns === 'string' && ns.trim().length > 0) return ns.trim();
-  return null;
-}
+  const params = (body as ProjectJsBundleRequestBody).params as unknown;
+  if (!params || typeof params !== 'object') {
+    throw new ForgeError('params must be an object', 400);
+  }
 
-function clusterFrom(body: ProjectJsBundleRequestBody): string | null {
-  const cluster = body?.cluster;
-  if (typeof cluster === 'string' && cluster.trim().length > 0) return cluster.trim();
-  return null;
+  const rawName = (params as { name?: unknown }).name;
+  if (typeof rawName !== 'string' || rawName.trim().length === 0) {
+    throw new ForgeError('params.name is required', 400);
+  }
+  const name = normalizeDns1123Label(rawName.trim(), 'name');
+
+  const rawExtensionName = (params as { extensionName?: unknown }).extensionName;
+  if (typeof rawExtensionName !== 'string' || rawExtensionName.trim().length === 0) {
+    throw new ForgeError('params.extensionName is required', 400);
+  }
+  const extensionName = normalizeDns1123Label(rawExtensionName.trim(), 'extensionName');
+
+  const namespaceRaw = (params as { namespace?: unknown }).namespace;
+  const namespace =
+    typeof namespaceRaw === 'string' && namespaceRaw.trim().length > 0
+      ? normalizeDns1123Label(namespaceRaw.trim(), 'namespace')
+      : null;
+
+  const clusterRaw = (params as { cluster?: unknown }).cluster;
+  const cluster =
+    typeof clusterRaw === 'string' && clusterRaw.trim().length > 0
+      ? normalizeDns1123Label(clusterRaw.trim(), 'cluster')
+      : null;
+
+  return { name, extensionName, namespace, cluster };
 }
 
 function handleKnownError(err: unknown, reply: FastifyReply) {
@@ -209,7 +231,9 @@ export function createController({ forge, k8s }: ControllerDeps) {
           throw new ForgeError(`auth token is required (cookie: ${cookieName})`, 401);
         }
 
+        const { name, extensionName, namespace, cluster } = requireJsBundleParams(req.body);
         const manifest = requireManifest(req.body);
+
         const files = await forge.buildProject(manifest, { build: true });
         const row: Record<string, string> = {};
         for (const f of files) {
@@ -221,16 +245,10 @@ export function createController({ forge, k8s }: ControllerDeps) {
           throw new ForgeError('build output is missing index.js', 500);
         }
 
-        const rawName = jsBundleNameFrom(req.body, manifest);
-        const name = normalizeDns1123Label(rawName, 'jsBundleName');
-        const namespaceRaw = namespaceFrom(req.body);
-        const namespace = namespaceRaw ? normalizeDns1123Label(namespaceRaw, 'namespace') : null;
-        const clusterRaw = clusterFrom(req.body);
-        const cluster = clusterRaw ? normalizeDns1123Label(clusterRaw, 'cluster') : null;
-
         reply.log.info(
           {
             name,
+            extensionName,
             namespace,
             cluster,
             k8sServer: k8s.server,
@@ -239,26 +257,42 @@ export function createController({ forge, k8s }: ControllerDeps) {
           'K8s JSBundle create requested'
         );
 
+        const manifestJson = JSON.stringify(manifest);
+        if (manifestJson.length > 200_000) {
+          throw new ForgeError('manifest is too large to store in annotations', 400);
+        }
+
+        const annotations: Record<string, string> = {
+          'frontend-forge.io/manifest': manifestJson,
+        };
+        if (namespace) {
+          annotations['meta.helm.sh/release-namespace'] = namespace;
+        }
+
         const jsBundle = {
           apiVersion: 'extensions.kubesphere.io/v1alpha1',
           kind: 'JSBundle',
-          metadata: namespace ? { name, namespace } : { name },
+          metadata: {
+            name,
+            labels: {
+              'kubesphere.io/extension-ref': extensionName,
+            },
+            annotations,
+          },
           spec: { row },
         };
 
-        let path: string;
-        if (namespace) {
-          path = `/apis/extensions.kubesphere.io/v1alpha1/namespaces/${namespace}/jsbundles`;
-        } else {
-          path = '/apis/extensions.kubesphere.io/v1alpha1/jsbundles';
-        }
+        let path = '/apis/extensions.kubesphere.io/v1alpha1/jsbundles';
         if (cluster) {
           path = `/clusters/${cluster}${path}`;
         }
         const url = joinUrl(k8s.server, path);
         const result = await postJson(url, { token: token.trim(), body: jsBundle });
-        reply.log.info({ name, status: result.status }, 'K8s JSBundle create completed');
-        return { ok: true, name, namespace, cluster, result: result.body };
+        reply.log.info(
+          { name, extensionName, namespace, cluster, status: result.status },
+          'K8s JSBundle create completed'
+        );
+        return { ok: true, name, extensionName, namespace, cluster, result: result.body };
       } catch (err) {
         return handleKnownError(err, reply);
       }

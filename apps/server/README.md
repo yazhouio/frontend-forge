@@ -161,10 +161,8 @@ curl -X POST http://localhost:3000/build \
 请求体：
 ```json
 {
-  "manifest": { "version": "1.0", "name": "demo", "routes": [], "menus": [], "locales": [], "pages": [] },
-  "jsBundleName": "demo",
-  "namespace": "kubesphere-system",
-  "cluster": "host"
+  "params": { "name": "demo-frontend-js-bundle", "extensionName": "devops", "namespace": "kubesphere-system", "cluster": "host" },
+  "manifest": { "version": "1.0", "name": "demo", "routes": [], "menus": [], "locales": [], "pages": [] }
 }
 ```
 
@@ -172,8 +170,11 @@ curl -X POST http://localhost:3000/build \
 - 需要在 `config.json` 配置 `k8s.server`。
 - 从 cookie 读取 token（默认 cookie 名为 `token`），拼接为请求头 `Authorization: Bearer <token>`，并 POST 到 `.../apis/extensions.kubesphere.io/v1alpha1/jsbundles`。
 - 创建的资源结构为：`spec: { row: { "index.js": "<compiled js>", "style.css": "<compiled css>" } }`，key 由编译产物的 `VirtualFile[].path` 决定。
-- 可选 `namespace`：如果提供，则请求路径变为 `.../apis/extensions.kubesphere.io/v1alpha1/namespaces/{namespace}/jsbundles`，且会写入 `metadata.namespace`。
-- 可选 `cluster`：如果提供，则请求路径会在前面加上 `/clusters/{cluster}`（例如 `.../clusters/{cluster}/apis/extensions.kubesphere.io/v1alpha1/...`）。
+- `params.name`：JSBundle 名称（写入 `metadata.name`）。
+- `params.extensionName`：扩展名（写入 `metadata.labels["kubesphere.io/extension-ref"]`）。
+- 可选 `params.namespace`：如果提供，则写入 `metadata.annotations["meta.helm.sh/release-namespace"]`（不写入 `metadata.namespace`）。
+- 可选 `params.cluster`：如果提供，则请求路径会在前面加上 `/clusters/{cluster}`（例如 `.../clusters/{cluster}/apis/extensions.kubesphere.io/v1alpha1/...`）。
+- 会把请求中的 `manifest` 以 JSON 字符串形式写入 `metadata.annotations["frontend-forge.io/manifest"]`。
 
 ## 环境变量
 - `PORT`：HTTP 端口，默认 3000
