@@ -239,7 +239,7 @@ export function createController({ forge, k8s }: ControllerDeps) {
         for (const f of files) {
           if (!f || typeof f !== 'object') continue;
           if (typeof f.path !== 'string' || typeof f.content !== 'string') continue;
-          row[f.path] = f.content;
+          row[f.path] = Buffer.from(f.content, 'utf8').toString('base64');
         }
         if (!row['index.js']) {
           throw new ForgeError('build output is missing index.js', 500);
@@ -280,6 +280,9 @@ export function createController({ forge, k8s }: ControllerDeps) {
             annotations,
           },
           spec: { row },
+          status: {
+            state: 'Available',
+          }
         };
 
         let path = '/apis/extensions.kubesphere.io/v1alpha1/jsbundles';

@@ -169,7 +169,7 @@ curl -X POST http://localhost:3000/build \
 说明：
 - 需要在 `config.json` 配置 `k8s.server`。
 - 从 cookie 读取 token（默认 cookie 名为 `token`），拼接为请求头 `Authorization: Bearer <token>`，并 POST 到 `.../apis/extensions.kubesphere.io/v1alpha1/jsbundles`。
-- 创建的资源结构为：`spec: { row: { "index.js": "<compiled js>", "style.css": "<compiled css>" } }`，key 由编译产物的 `VirtualFile[].path` 决定。
+- 创建的资源结构为：`spec: { row: { "index.js": "<base64(compiled js)>", "style.css": "<base64(compiled css)>" } }`，key 由编译产物的 `VirtualFile[].path` 决定。
 - `params.name`：JSBundle 名称（写入 `metadata.name`）。
 - `params.extensionName`：扩展名（写入 `metadata.labels["kubesphere.io/extension-ref"]`）。
 - 可选 `params.namespace`：如果提供，则写入 `metadata.annotations["meta.helm.sh/release-namespace"]`（不写入 `metadata.namespace`）。
