@@ -17,7 +17,7 @@ KubeSphere v4 插件构建服务与低代码构建链路。接收 TS/TSX/CSS 源
 
 ## Monorepo 结构
 - `apps/server`：HTTP/CLI 入口（Fastify 服务、缓存/队列等）
-- `apps/server/vendor`：构建阶段需要的第三方依赖集合（独立安装）
+- `packages/vendor`：构建阶段需要的第三方依赖集合（独立安装）
 - `packages/forge-core`：编排层（项目生成 + 构建）
 - `packages/code-export`：SystemJS 构建管线包
 - `packages/project-generator`：根据 manifest + 组件代码生成项目骨架
@@ -29,7 +29,7 @@ KubeSphere v4 插件构建服务与低代码构建链路。接收 TS/TSX/CSS 源
 pnpm install
 
 # vendor 依赖（server 构建时需要）
-npm --prefix apps/server/vendor install --production
+pnpm --filter @frontend-forge/vendor deploy --prod apps/server/vendor
 
 # 本地开发（热重载）
 pnpm --filter @frontend-forge/server dev
