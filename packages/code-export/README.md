@@ -77,5 +77,5 @@ tailwind: {
 ## Resolution of `node_modules`
 
 - `vendorNodeModules` is resolved by checking the provided path first, then falling back to legacy `packages/vendor/node_modules`, `vendor/node_modules`, and finally `node_modules`.
-- When used by the server, `vendorNodeModules` points to `apps/server/vendor/node_modules` (installed separately).
+- When used by the server, `vendorNodeModules` points to `apps/server/vendor/node_modules` (deployed from `packages/vendor`).
 - If `workDir` is not provided, a temp dir is created and cleaned automatically.

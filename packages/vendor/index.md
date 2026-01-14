@@ -1,4 +1,4 @@
-vendor 内包含如下模块（位于 `apps/server/vendor`，独立安装）:
+vendor 内包含如下模块（位于 `packages/vendor`，构建时通过 pnpm 部署到 `apps/server/vendor`）:
  - [qs@6.14.1](https://www.npmjs.com/package/qs/v/6.14.1)
  - [wujie-polyfill@1.1.3](https://www.npmjs.com/package/wujie-polyfill/v/1.1.3)
  - [lodash@4.17.21](https://www.npmjs.com/package/lodash/v/4.17.21)
