@@ -15,12 +15,22 @@ export default defineConfig({
       "@frontend-forge/forge-components": path.resolve(
         forgeComponentsSrc,
         "index.ts"
-      )
-    }
+      ),
+    },
   },
   server: {
     fs: {
-      allow: [appRoot, forgeComponentsSrc]
-    }
-  }
+      allow: [appRoot, forgeComponentsSrc],
+    },
+    proxy: {
+      "/apis": {
+        target: "http://139.198.121.90:40880",
+        changeOrigin: true,
+      },
+      "/kapis": {
+        target: "http://139.198.121.90:40880",
+        changeOrigin: true,
+      },
+    },
+  },
 });

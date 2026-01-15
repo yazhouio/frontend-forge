@@ -1,4 +1,5 @@
 import { Button } from "@frontend-forge/forge-components";
+import { CrdStoreTest } from "./CrdStoreTest";
 
 export function App() {
   return (
@@ -28,6 +29,7 @@ export function App() {
           <p>Preview changes instantly with Vite dev server.</p>
         </div>
       </section>
+      <CrdStoreTest />
     </div>
   );
 }
