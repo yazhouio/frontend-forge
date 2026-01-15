@@ -87,6 +87,83 @@ body {
   color: #475569;
 }
 
+.store-test {
+  display: grid;
+  gap: 16px;
+}
+
+.store-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.store-card {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+}
+
+.store-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.store-field span {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  margin-bottom: 6px;
+  color: #64748b;
+}
+
+.store-field input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.8);
+  font-family: inherit;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.store-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.store-status {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.store-output {
+  margin: 0;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.06);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1e293b;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.store-note {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+}
+
 .ff-button {
   border: none;
   border-radius: 999px;
@@ -122,5 +199,11 @@ body {
   .actions {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 900px) {
+  .store-layout {
+    grid-template-columns: 1fr;
   }
 }
