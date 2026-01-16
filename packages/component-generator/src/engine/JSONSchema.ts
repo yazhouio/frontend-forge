@@ -17,6 +17,10 @@ export type NodeDefinitionSchema = {
   runtimeProps?: Record<string, DataSchema>;
 };
 
+export type DataSourceDefinitionSchema = NodeDefinitionSchema & {
+  outputs?: Record<string, DataSchema>;
+};
+
 // 对应上面 JSON Schema 的 TypeScript 类型
 export interface PageConfig {
   meta: PageMeta;
@@ -38,7 +42,7 @@ interface PageMeta {
 
 export interface DataSourceNode {
   id: string;
-  type: "rest" | "static";
+  type: string;
   config: Record<string, any>; // todo: 根据 type 不同，config 的类型不同
   autoLoad?: boolean;
   polling?: {
@@ -75,6 +79,7 @@ export type PropValue =
 export interface BindingValue {
   type: "binding";
   source: string;
+  bind?: string;
   path?: string;
   defaultValue?: any;
 }
