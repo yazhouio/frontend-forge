@@ -266,6 +266,7 @@ export function generateProjectFiles(
     'src/routes.ts.tpl',
     'src/locales/index.ts.tpl',
     'src/pages/__PAGE__/index.tsx.tpl',
+    'src/pages/__PAGE__/page.tsx.tpl',
   ]);
 
   for (const f of scaffoldFiles) {
@@ -390,15 +391,22 @@ export function generateProjectFiles(
     }),
   });
 
-  const pageTemplate = requiredTemplate(scaffoldMap, 'src/pages/__PAGE__/index.tsx.tpl');
+  const pageIndexTemplate = requiredTemplate(scaffoldMap, 'src/pages/__PAGE__/index.tsx.tpl');
+  const pageContentTemplate = requiredTemplate(scaffoldMap, 'src/pages/__PAGE__/page.tsx.tpl');
+  const pageComponentFile = /['"]\.\/page['"]/.test(pageIndexTemplate)
+    ? 'page.tsx'
+    : 'Page.tsx';
   for (const page of normalized.pages) {
     const pageContent = String(options.pageRenderer(page, normalized) ?? '');
-    const content = pageTemplate.includes('__PAGE_CONTENT__')
-      ? renderTemplate(pageTemplate, { PAGE_CONTENT: pageContent })
-      : pageContent;
-
     out.push({
       path: normalizeRelPath(`src/pages/${page.id}/index.tsx`),
+      content: renderTemplate(pageIndexTemplate, { PAGE_ID: page.id }),
+    });
+    const content = pageContentTemplate.includes('__PAGE_CONTENT__')
+      ? renderTemplate(pageContentTemplate, { PAGE_CONTENT: pageContent })
+      : pageContent;
+    out.push({
+      path: normalizeRelPath(`src/pages/${page.id}/${pageComponentFile}`),
       content,
     });
   }
