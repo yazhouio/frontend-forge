@@ -14,6 +14,12 @@ export const StaticDataSource: DataSourceDefinition = {
         description: "Hook name",
       },
     },
+    outputs: {
+      data: { type: "object" },
+      error: { type: "object" },
+      isLoading: { type: "boolean" },
+      mutate: { type: "object" },
+    },
   },
   generateCode: {
     imports: ['import { useState } from "react"'],
@@ -69,6 +75,12 @@ export const RestDataSource: DataSourceDefinition = {
         type: "string",
         description: "Fetcher name",
       },
+    },
+    outputs: {
+      data: { type: "object" },
+      error: { type: "object" },
+      isLoading: { type: "boolean" },
+      mutate: { type: "object" },
     },
   },
   generateCode: {

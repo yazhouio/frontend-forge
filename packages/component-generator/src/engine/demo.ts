@@ -14,11 +14,12 @@ import {
 import { Engine } from "./Engine.js";
 import { DataSourceRegistry } from "./DataSourceRegistry.js";
 import { NodeRegistry } from "./NodeRegistry.js";
-import { NodeDefinition } from "./interfaces.js";
+import { DataSourceDefinition, NodeDefinition } from "./interfaces.js";
 import { PageConfig } from "./JSONSchema.js";
 import { SchemaValidator } from "./SchemaValidator.js";
 import { CodeGenerator } from "./CodeGenerator.js";
 import { RestDataSource, StaticDataSource } from "../datasources/index.js";
+import { StatementScope } from "../constants.js";
 
 const PropCardNode: NodeDefinition = {
   id: "PropCard",
@@ -46,6 +47,51 @@ const PropCardNode: NodeDefinition = {
     imports: ['import * as React from "react"'],
     jsx: "<article className='prop-card'><header><h3>{props.TITLE}</h3><p>{props.SUBTITLE}</p></header><strong>{props.COUNT ?? (props.NAME ? 1 : 0)}</strong><div className='prop-body'><__ENGINE_CHILDREN__ /></div></article>",
     stats: [],
+  },
+};
+
+const CustomStoreDataSource: DataSourceDefinition = {
+  id: "custom-store",
+  schema: {
+    templateInputs: {
+      DEFAULT_RESULT: {
+        type: "object",
+        description: "Default result",
+      },
+      HOOK_NAME: {
+        type: "string",
+        description: "Hook name",
+      },
+    },
+    outputs: {
+      result: { type: "object" },
+      ready: { type: "boolean" },
+      "items-count": { type: "number" },
+    },
+  },
+  generateCode: {
+    imports: ['import { useState } from "react"'],
+    stats: [
+      {
+        id: "hookDecl",
+        scope: StatementScope.ModuleDecl,
+        code: `const %%HOOK_NAME%% = () => {
+  const [result] = useState(%%DEFAULT_RESULT%%);
+  return {
+    result,
+    ready: true,
+    "items-count": Array.isArray(result?.items) ? result.items.length : 0,
+  };
+};`,
+        output: ["HOOK_NAME"],
+        depends: [],
+      },
+    ],
+    meta: {
+      inputPaths: {
+        hookDecl: ["DEFAULT_RESULT", "HOOK_NAME"],
+      },
+    },
   },
 };
 
@@ -696,6 +742,94 @@ const pageSchemaActionGraph: PageConfig = {
     ],
   },
 };
+
+const pageSchemaOutputBindings: PageConfig = {
+  meta: {
+    id: "page-output-bindings",
+    name: "Page Output Bindings",
+    title: "Page Output Bindings",
+    path: "/page-output-bindings",
+  },
+  context: {},
+  dataSources: [
+    {
+      id: "custom-store",
+      type: "custom-store",
+      config: {
+        DEFAULT_RESULT: {
+          items: ["Alpha", "Beta"],
+        },
+        HOOK_NAME: "useCustomStore",
+      },
+      autoLoad: true,
+    },
+  ],
+  root: {
+    id: "layout-output",
+    type: "Layout",
+    props: {
+      TEXT: "Custom output bindings",
+    },
+    meta: {
+      title: "Layout",
+      scope: true,
+    },
+    children: [
+      {
+        id: "text-output-1",
+        type: "Text",
+        props: {
+          TEXT: {
+            type: "binding",
+            source: "custom-store",
+            bind: "result",
+            path: "items.0",
+            defaultValue: "No items",
+          },
+          DEFAULT_VALUE: 0,
+        },
+        meta: {
+          title: "Text",
+          scope: false,
+        },
+      },
+      {
+        id: "text-output-2",
+        type: "Text",
+        props: {
+          TEXT: {
+            type: "binding",
+            source: "custom-store",
+            bind: "items-count",
+            defaultValue: 0,
+          },
+          DEFAULT_VALUE: 1,
+        },
+        meta: {
+          title: "Text",
+          scope: false,
+        },
+      },
+      {
+        id: "text-output-3",
+        type: "Text",
+        props: {
+          TEXT: {
+            type: "binding",
+            source: "custom-store",
+            bind: "ready",
+            defaultValue: false,
+          },
+          DEFAULT_VALUE: 2,
+        },
+        meta: {
+          title: "Text",
+          scope: false,
+        },
+      },
+    ],
+  },
+};
 const nodeRegistry = new NodeRegistry();
 nodeRegistry.registerNode(TextNode);
 nodeRegistry.registerNode(LayoutNode);
@@ -712,6 +846,7 @@ nodeRegistry.registerNode(PropCardNode);
 const dataSourceRegistry = new DataSourceRegistry();
 dataSourceRegistry.registerDataSource(StaticDataSource);
 dataSourceRegistry.registerDataSource(RestDataSource);
+dataSourceRegistry.registerDataSource(CustomStoreDataSource);
 const schemaValidator = new SchemaValidator();
 const engine = new Engine(nodeRegistry, schemaValidator, dataSourceRegistry);
 const codeGenerator = new CodeGenerator();
@@ -724,6 +859,7 @@ const pageSchemas = [
   pageSchemaHooks,
   pageSchemaScoped,
   pageSchemaActionGraph,
+  pageSchemaOutputBindings,
 ];
 pageSchemas.forEach((schema) => {
   schemaValidator.validate(schema, schema.meta.id);
