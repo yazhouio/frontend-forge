@@ -7,7 +7,12 @@ import {
   ExpressionValue,
 } from "./JSONSchema.js";
 import { CodeFragment, Stat } from "./interfaces.js";
-import { BindingOutputKind, DataSourceBindingInfo } from "./bindingTypes.js";
+import {
+  BindingOutputKind,
+  DataSourceBindingInfo,
+  getBindingOutputVarName,
+  isBindingOutputDefined,
+} from "./bindingTypes.js";
 
 export type ActionGraphInfo = {
   id: string;
@@ -115,7 +120,8 @@ export const buildActionGraphEventHandlers = (
 export const applyActionGraphDataSourceDependencies = (
   dataSourceTargets: Map<string, Map<string, Set<BindingOutputKind>>>,
   actionGraphTargets: Map<string, Set<string>>,
-  actionGraphs?: ActionGraphSchema[]
+  actionGraphs?: ActionGraphSchema[],
+  dataSourceInfo?: Map<string, DataSourceBindingInfo>
 ) => {
   if (!actionGraphs?.length) {
     return;
@@ -132,6 +138,14 @@ export const applyActionGraphDataSourceDependencies = (
         action.do.forEach((step) => {
           if (step.type !== "callDataSource") {
             return;
+          }
+          if (dataSourceInfo) {
+            const info = dataSourceInfo.get(step.id);
+            if (info && !isBindingOutputDefined(info.outputNames, "mutate")) {
+              throw new Error(
+                `DataSource ${step.id} does not define output "mutate" required by ActionGraph`
+              );
+            }
           }
           const bySource = dataSourceTargets.get(boundaryId) ?? new Map();
           const outputSet = bySource.get(step.id) ?? new Set();
@@ -492,7 +506,9 @@ const buildActionGraphCallDataSourceStats = (
     mutateEntries.push(
       t.objectProperty(
         t.stringLiteral(dataSourceId),
-        t.identifier(bindingInfo.mutateName)
+        t.identifier(
+          getBindingOutputVarName(bindingInfo.baseName, "mutate")
+        )
       )
     );
     if (dataSource.type === "static") {

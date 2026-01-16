@@ -54,7 +54,7 @@ const pageConfigSchema = {
       required: ["id", "type", "config"],
       properties: {
         id: { type: "string" },
-        type: { enum: ["rest", "static"] },
+        type: { type: "string" },
         config: { type: "object", additionalProperties: true },
         autoLoad: { type: "boolean" },
         polling: {
@@ -101,6 +101,7 @@ const pageConfigSchema = {
             properties: {
                 type: { const: "binding" },
                 source: { type: "string" },
+                bind: { type: "string" },
                 path: { type: "string" },
                 defaultValue: {},
             },
@@ -200,6 +201,7 @@ const bindingValueSchema = {
   properties: {
     type: { const: "binding" },
     source: { type: "string" },
+    bind: { type: "string" },
     path: { type: "string" },
     defaultValue: {},
   },

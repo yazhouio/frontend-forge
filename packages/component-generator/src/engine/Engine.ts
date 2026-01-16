@@ -26,7 +26,13 @@ import {
   buildActionGraphEventMap,
   buildActionGraphInfoMap,
 } from "./actionGraph.js";
-import { BindingOutputKind, DataSourceBindingInfo } from "./bindingTypes.js";
+import {
+  BindingOutputKind,
+  DataSourceBindingInfo,
+  getBindingOutputVarName,
+  isBindingOutputDefined,
+  resolveDefaultBindingOutput,
+} from "./bindingTypes.js";
 
 type BindingTargets = {
   dataSources: Map<string, Map<string, Set<BindingOutputKind>>>;
@@ -77,7 +83,8 @@ export class Engine {
     applyActionGraphDataSourceDependencies(
       bindingTargets.dataSources,
       bindingTargets.actionGraphs,
-      schema.actionGraphs
+      schema.actionGraphs,
+      dataSourceInfo
     );
     this.applyBindingStats(
       nodeFragments,
@@ -221,7 +228,10 @@ export class Engine {
     const config = { ...node.config };
     const info =
       this.bindingContext?.dataSourceInfo.get(node.id) ??
-      this.getDataSourceBindingInfo(node);
+      this.getDataSourceBindingInfo(
+        node,
+        this.getDataSourceOutputNames(node)
+      );
     if (config.HOOK_NAME === undefined || typeof config.HOOK_NAME === "string") {
       config.HOOK_NAME = t.identifier(info.hookName);
     }
@@ -338,8 +348,20 @@ export class Engine {
     return `_${camel.replace(/[^a-zA-Z0-9_]/g, "_")}`;
   }
 
+  private getDataSourceOutputNames(dataSource: DataSourceNode): string[] {
+    const dataSourceDef = this.dataSourceRegistry?.getDataSource(
+      dataSource.type
+    );
+    const outputs = dataSourceDef?.schema.outputs;
+    if (!outputs) {
+      return [];
+    }
+    return Object.keys(outputs);
+  }
+
   private getDataSourceBindingInfo(
-    dataSource: DataSourceNode
+    dataSource: DataSourceNode,
+    outputNames: string[]
   ): DataSourceBindingInfo {
     const baseName = this.toCamelCase(dataSource.id);
     const pascalName = this.toPascalCase(dataSource.id);
@@ -356,10 +378,8 @@ export class Engine {
       hookName,
       fetcherName,
       baseName,
-      dataName: `${baseName}Data`,
-      errorName: `${baseName}Error`,
-      loadingName: `${baseName}Loading`,
-      mutateName: `${baseName}Mutate`,
+      outputNames,
+      defaultOutput: resolveDefaultBindingOutput(outputNames),
     };
   }
 
@@ -368,9 +388,65 @@ export class Engine {
   ): Map<string, DataSourceBindingInfo> {
     const map = new Map<string, DataSourceBindingInfo>();
     (dataSources ?? []).forEach((dataSource) => {
-      map.set(dataSource.id, this.getDataSourceBindingInfo(dataSource));
+      const outputNames = this.getDataSourceOutputNames(dataSource);
+      map.set(
+        dataSource.id,
+        this.getDataSourceBindingInfo(dataSource, outputNames)
+      );
     });
     return map;
+  }
+
+  private parseBindingPath(path?: string): string[] {
+    return (path ?? "")
+      .split(".")
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  private resolveDataSourceBindingOutput(
+    binding: BindingValue,
+    info: DataSourceBindingInfo
+  ): { outputName: string; pathParts: string[] } {
+    const bindName =
+      typeof binding.bind === "string" ? binding.bind.trim() : "";
+    if (bindName) {
+      if (!isBindingOutputDefined(info.outputNames, bindName)) {
+        const available = info.outputNames.length
+          ? ` Available outputs: ${info.outputNames.join(", ")}.`
+          : "";
+        throw new Error(
+          `Binding output ${bindName} not found in dataSource ${binding.source}.${available}`
+        );
+      }
+      return {
+        outputName: bindName,
+        pathParts: this.parseBindingPath(binding.path),
+      };
+    }
+    const pathParts = this.parseBindingPath(binding.path);
+    if (!pathParts.length) {
+      if (!info.defaultOutput) {
+        const available = info.outputNames.length
+          ? ` Available outputs: ${info.outputNames.join(", ")}.`
+          : "";
+        throw new Error(
+          `Binding path for ${binding.source} must specify an output.${available}`
+        );
+      }
+      return { outputName: info.defaultOutput, pathParts };
+    }
+    const outputName = pathParts[0];
+    if (!isBindingOutputDefined(info.outputNames, outputName)) {
+      const available = info.outputNames.length
+        ? ` Available outputs: ${info.outputNames.join(", ")}.`
+        : "";
+      throw new Error(
+        `Binding output ${outputName} not found in dataSource ${binding.source}.${available}`
+      );
+    }
+    pathParts.shift();
+    return { outputName, pathParts };
   }
 
 
@@ -387,10 +463,7 @@ export class Engine {
       );
     }
     if (actionGraphInfo) {
-      const pathParts = (binding.path ?? "")
-        .split(".")
-        .map((part) => part.trim())
-        .filter(Boolean);
+      const pathParts = this.parseBindingPath(binding.path);
       if (pathParts[0] === "context") {
         pathParts.shift();
       }
@@ -413,30 +486,13 @@ export class Engine {
     if (!dataSourceInfo) {
       throw new Error(`Binding source ${binding.source} not found`);
     }
-    const pathParts = (binding.path ?? "")
-      .split(".")
-      .map((part) => part.trim())
-      .filter(Boolean);
-    const baseKind = this.resolveBindingOutputKind(pathParts);
-    if (pathParts[0] === baseKind) {
-      pathParts.shift();
-    }
-    let expr: t.Expression;
-    switch (baseKind) {
-      case "error":
-        expr = t.identifier(dataSourceInfo.errorName);
-        break;
-      case "isLoading":
-        expr = t.identifier(dataSourceInfo.loadingName);
-        break;
-      case "mutate":
-        expr = t.identifier(dataSourceInfo.mutateName);
-        break;
-      case "data":
-      default:
-        expr = t.identifier(dataSourceInfo.dataName);
-        break;
-    }
+    const { outputName, pathParts } = this.resolveDataSourceBindingOutput(
+      binding,
+      dataSourceInfo
+    );
+    let expr: t.Expression = t.identifier(
+      getBindingOutputVarName(dataSourceInfo.baseName, outputName)
+    );
     if (pathParts.length) {
       expr = t.callExpression(t.identifier("get"), [
         expr,
@@ -461,26 +517,26 @@ export class Engine {
   }
 
   private bindingUsesPathAccess(binding: BindingValue): boolean {
-    const pathParts = (binding.path ?? "")
-      .split(".")
-      .map((part) => part.trim())
-      .filter(Boolean);
-    if (!pathParts.length) {
-      return false;
-    }
     const isActionGraph = this.bindingContext?.actionGraphInfo.has(
       binding.source
     );
     if (isActionGraph) {
+      const pathParts = this.parseBindingPath(binding.path);
       if (pathParts[0] === "context") {
         pathParts.shift();
       }
       return pathParts.length > 0;
     }
-    const baseKind = this.resolveBindingOutputKind(pathParts);
-    if (pathParts[0] === baseKind) {
-      pathParts.shift();
+    const dataSourceInfo = this.bindingContext?.dataSourceInfo.get(
+      binding.source
+    );
+    if (!dataSourceInfo) {
+      throw new Error(`Binding source ${binding.source} not found`);
     }
+    const { pathParts } = this.resolveDataSourceBindingOutput(
+      binding,
+      dataSourceInfo
+    );
     return pathParts.length > 0;
   }
 
@@ -488,19 +544,6 @@ export class Engine {
     return t.arrayExpression(
       pathParts.map((part) => t.stringLiteral(part))
     );
-  }
-
-  private resolveBindingOutputKind(pathParts: string[]): BindingOutputKind {
-    const head = pathParts[0];
-    if (
-      head === "data" ||
-      head === "error" ||
-      head === "isLoading" ||
-      head === "mutate"
-    ) {
-      return head;
-    }
-    return "data";
   }
 
   private node2codeFragment(
@@ -753,15 +796,17 @@ export class Engine {
             throw new Error(`Binding source ${binding.source} not found`);
           }
           if (isDataSource) {
-            const outputKind = this.resolveBindingOutputKind(
-              (binding.path ?? "")
-                .split(".")
-                .map((part) => part.trim())
-                .filter(Boolean)
+            const info = dataSourceInfo.get(binding.source);
+            if (!info) {
+              throw new Error(`Binding source ${binding.source} not found`);
+            }
+            const { outputName } = this.resolveDataSourceBindingOutput(
+              binding,
+              info
             );
             const bySource = dataSourceTargets.get(boundaryId) ?? new Map();
             const outputSet = bySource.get(binding.source) ?? new Set();
-            outputSet.add(outputKind);
+            outputSet.add(outputName);
             bySource.set(binding.source, outputSet);
             dataSourceTargets.set(boundaryId, bySource);
             return;
@@ -860,30 +905,32 @@ export class Engine {
     const properties: t.ObjectProperty[] = [];
     const outputNames: string[] = [];
     const addProperty = (key: string, name: string) => {
-      const keyId = t.identifier(key);
+      const keyId = t.isValidIdentifier(key)
+        ? t.identifier(key)
+        : t.stringLiteral(key);
       const valueId = t.identifier(name);
       properties.push(
-        t.objectProperty(keyId, valueId, false, keyId.name === valueId.name)
+        t.objectProperty(
+          keyId,
+          valueId,
+          false,
+          t.isIdentifier(keyId) && keyId.name === valueId.name
+        )
       );
       outputNames.push(name);
     };
 
-    if (outputs.has("data")) {
-      addProperty("data", info.dataName);
-    }
-    if (outputs.has("error")) {
-      addProperty("error", info.errorName);
-    }
-    if (outputs.has("isLoading")) {
-      addProperty("isLoading", info.loadingName);
-    }
-    if (outputs.has("mutate")) {
-      addProperty("mutate", info.mutateName);
+    const outputList = Array.from(outputs);
+    if (!outputList.length && info.defaultOutput) {
+      outputList.push(info.defaultOutput);
     }
 
-    if (!properties.length) {
-      addProperty("data", info.dataName);
-    }
+    outputList.forEach((outputName) => {
+      addProperty(
+        outputName,
+        getBindingOutputVarName(info.baseName, outputName)
+      );
+    });
 
     const pattern = t.objectPattern(properties);
     const init = t.callExpression(t.identifier(info.hookName), []);
