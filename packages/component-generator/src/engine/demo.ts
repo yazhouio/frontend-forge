@@ -679,7 +679,8 @@ const pageSchemaActionGraph: PageConfig = {
           VALUE: {
             type: "binding",
             source: "createUserGraph",
-            path: "context.name",
+            target: "context",
+            path: "name",
             defaultValue: "",
           },
           PLACEHOLDER: "Enter name",
@@ -696,14 +697,16 @@ const pageSchemaActionGraph: PageConfig = {
           TITLE: {
             type: "binding",
             source: "createUserGraph",
-            path: "context.name",
+            target: "context",
+            path: "name",
             defaultValue: "Anonymous",
           },
           SUBTITLE: "Passed via context",
           NAME: {
             type: "binding",
             source: "createUserGraph",
-            path: "context.name",
+            target: "context",
+            path: "name",
             defaultValue: "",
           },
         },
