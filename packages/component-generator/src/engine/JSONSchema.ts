@@ -80,6 +80,7 @@ export interface BindingValue {
   type: "binding";
   source: string;
   bind?: string;
+  target?: "context" | "dataSource";
   path?: string;
   defaultValue?: any;
 }

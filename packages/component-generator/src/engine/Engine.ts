@@ -404,6 +404,61 @@ export class Engine {
       .filter(Boolean);
   }
 
+  private normalizeBindingTarget(
+    binding: BindingValue
+  ): "context" | "dataSource" | undefined {
+    const target = binding.target?.trim();
+    if (!target) {
+      return undefined;
+    }
+    if (target === "context" || target === "dataSource") {
+      return target;
+    }
+    throw new Error(
+      `Unsupported binding target ${target} for ${binding.source}`
+    );
+  }
+
+  private resolveBindingTarget(
+    binding: BindingValue,
+    dataSourceInfo?: DataSourceBindingInfo,
+    actionGraphInfo?: ActionGraphInfo
+  ): "dataSource" | "actionGraph" {
+    const target = this.normalizeBindingTarget(binding);
+    if (target === "context") {
+      if (!actionGraphInfo) {
+        throw new Error(
+          `Binding target context requires actionGraph source ${binding.source}`
+        );
+      }
+      return "actionGraph";
+    }
+    if (target === "dataSource") {
+      if (!dataSourceInfo) {
+        throw new Error(
+          `Binding target dataSource requires dataSource source ${binding.source}`
+        );
+      }
+      return "dataSource";
+    }
+    if (dataSourceInfo && actionGraphInfo) {
+      throw new Error(
+        `Binding source ${binding.source} is ambiguous (dataSource and actionGraph)`
+      );
+    }
+    if (actionGraphInfo) {
+      return "actionGraph";
+    }
+    if (dataSourceInfo) {
+      return "dataSource";
+    }
+    throw new Error(`Binding source ${binding.source} not found`);
+  }
+
+  private normalizeActionGraphBindingPath(binding: BindingValue): string[] {
+    return this.parseBindingPath(binding.path);
+  }
+
   private resolveDataSourceBindingOutput(
     binding: BindingValue,
     info: DataSourceBindingInfo
@@ -457,16 +512,13 @@ export class Engine {
     const actionGraphInfo = this.bindingContext?.actionGraphInfo.get(
       binding.source
     );
-    if (dataSourceInfo && actionGraphInfo) {
-      throw new Error(
-        `Binding source ${binding.source} is ambiguous (dataSource and actionGraph)`
-      );
-    }
-    if (actionGraphInfo) {
-      const pathParts = this.parseBindingPath(binding.path);
-      if (pathParts[0] === "context") {
-        pathParts.shift();
-      }
+    const target = this.resolveBindingTarget(
+      binding,
+      dataSourceInfo,
+      actionGraphInfo
+    );
+    if (target === "actionGraph") {
+      const pathParts = this.normalizeActionGraphBindingPath(binding);
       let expr: t.Expression = t.identifier(actionGraphInfo.contextName);
       if (pathParts.length) {
         expr = t.callExpression(t.identifier("get"), [
@@ -517,19 +569,21 @@ export class Engine {
   }
 
   private bindingUsesPathAccess(binding: BindingValue): boolean {
-    const isActionGraph = this.bindingContext?.actionGraphInfo.has(
-      binding.source
-    );
-    if (isActionGraph) {
-      const pathParts = this.parseBindingPath(binding.path);
-      if (pathParts[0] === "context") {
-        pathParts.shift();
-      }
-      return pathParts.length > 0;
-    }
     const dataSourceInfo = this.bindingContext?.dataSourceInfo.get(
       binding.source
     );
+    const actionGraphInfo = this.bindingContext?.actionGraphInfo.get(
+      binding.source
+    );
+    const target = this.resolveBindingTarget(
+      binding,
+      dataSourceInfo,
+      actionGraphInfo
+    );
+    if (target === "actionGraph") {
+      const pathParts = this.normalizeActionGraphBindingPath(binding);
+      return pathParts.length > 0;
+    }
     if (!dataSourceInfo) {
       throw new Error(`Binding source ${binding.source} not found`);
     }
@@ -785,18 +839,10 @@ export class Engine {
           );
         }
         bindings.forEach((binding) => {
-          const isDataSource = dataSourceInfo.has(binding.source);
-          const isActionGraph = actionGraphInfo.has(binding.source);
-          if (isDataSource && isActionGraph) {
-            throw new Error(
-              `Binding source ${binding.source} is ambiguous (dataSource and actionGraph)`
-            );
-          }
-          if (!isDataSource && !isActionGraph) {
-            throw new Error(`Binding source ${binding.source} not found`);
-          }
-          if (isDataSource) {
-            const info = dataSourceInfo.get(binding.source);
+          const info = dataSourceInfo.get(binding.source);
+          const graphInfo = actionGraphInfo.get(binding.source);
+          const target = this.resolveBindingTarget(binding, info, graphInfo);
+          if (target === "dataSource") {
             if (!info) {
               throw new Error(`Binding source ${binding.source} not found`);
             }
