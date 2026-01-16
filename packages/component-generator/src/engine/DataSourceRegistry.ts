@@ -34,6 +34,7 @@ const dataSourceDefinitionSchema = z
       .object({
         templateInputs: z.record(dataSchema).optional(),
         runtimeProps: z.record(dataSchema).optional(),
+        outputs: z.record(dataSchema).optional(),
       })
       .strict(),
     generateCode: z
