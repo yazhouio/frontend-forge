@@ -6,7 +6,7 @@ import type {
 } from "@babel/types";
 import { HookPriority, StatementScope } from "../constants.js";
 import template, { PublicReplacements } from "@babel/template";
-import { NodeDefinitionSchema } from "./JSONSchema.js";
+import { DataSourceDefinitionSchema, NodeDefinitionSchema } from "./JSONSchema.js";
 
 export type NodeDefinition = {
   id: string;
@@ -30,7 +30,7 @@ export type NodeDefinition = {
 
 export type DataSourceDefinition = {
   id: string;
-  schema: NodeDefinitionSchema;
+  schema: DataSourceDefinitionSchema;
   generateCode: {
     imports: string[];
     stats: {
