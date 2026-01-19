@@ -15,15 +15,35 @@ export function Demo() {
 ## Runtime context
 
 ```tsx
-import { useRuntimeContext, withPageRuntime } from "@frontend-forge/forge-components";
+import {
+  RuntimeProvider,
+  type RuntimeContextInfo,
+  useRuntimeContext,
+} from "@frontend-forge/forge-components";
+
+const runtime: RuntimeContextInfo = {
+  page: { id: "page-demo" },
+  route: { current: "/", params: {}, query: {} },
+  location: { pathname: "/", search: "", hash: "" },
+  navigation: { navigate: () => {}, goBack: () => {} },
+};
 
 function Page() {
   const runtime = useRuntimeContext();
   return <div>{runtime.page.id}</div>;
 }
 
-export default withPageRuntime(Page, { id: "page-demo" });
+export function PageWithRuntime() {
+  return (
+    <RuntimeProvider value={runtime}>
+      <Page />
+    </RuntimeProvider>
+  );
+}
 ```
+
+For react-router v6 integration, use the `withPageRuntime` helper from
+the project generator scaffold.
 
 ## Notes
 
