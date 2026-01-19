@@ -12,6 +12,7 @@
     "qs": "6.14.1",
     "swr": "^2.3.8",
     "wujie-polyfill": "1.1.3",
-    "zustand": "^5.0.9"
+    "zustand": "^5.0.9",
+    "@frontend-forge/forge-components": "workspace:*"
   }
 }

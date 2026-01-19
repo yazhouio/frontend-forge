@@ -202,6 +202,9 @@ importers:
 
   packages/vendor:
     dependencies:
+      '@frontend-forge/forge-components':
+        specifier: workspace:*
+        version: link:../forge-components
       es-toolkit:
         specifier: ^1.43.0
         version: 1.43.0
