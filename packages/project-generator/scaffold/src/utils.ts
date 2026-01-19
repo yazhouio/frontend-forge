@@ -1,3 +1,1 @@
-import { withPageRuntime } from "@frontend-forge/forge-components";
-
-export { withPageRuntime };
+export { withPageRuntime } from './runtime/withPageRuntime';
