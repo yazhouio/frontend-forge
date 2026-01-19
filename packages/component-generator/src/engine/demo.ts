@@ -562,6 +562,63 @@ const pageSchemaHooks: PageConfig = {
   },
 };
 
+const pageSchemaRuntime: PageConfig = {
+  meta: {
+    id: "page-runtime",
+    name: "Page Runtime",
+    title: "Page Runtime",
+    path: "/page-runtime",
+  },
+  context: {},
+  root: {
+    id: "layout-runtime",
+    type: "Layout",
+    props: {
+      TEXT: "Runtime Layout",
+    },
+    meta: {
+      title: "Layout",
+      scope: true,
+    },
+    children: [
+      {
+        id: "text-runtime-1",
+        type: "Text",
+        props: {
+          TEXT: {
+            type: "binding",
+            target: "runtime",
+            path: "page.id",
+            defaultValue: "Unknown page",
+          },
+          DEFAULT_VALUE: 11,
+        },
+        meta: {
+          title: "Text",
+          scope: false,
+        },
+      },
+      {
+        id: "text-runtime-2",
+        type: "Text",
+        props: {
+          TEXT: {
+            type: "binding",
+            target: "runtime",
+            path: "location.pathname",
+            defaultValue: "/",
+          },
+          DEFAULT_VALUE: 12,
+        },
+        meta: {
+          title: "Text",
+          scope: false,
+        },
+      },
+    ],
+  },
+};
+
 const pageSchemaScoped: PageConfig = {
   meta: {
     id: "page-scoped",
@@ -632,6 +689,7 @@ const pageSchemaActionGraph: PageConfig = {
       id: "createUserGraph",
       context: {
         name: "",
+        detailPath: "/detail",
       },
       actions: {
         INPUT_CHANGE: {
@@ -655,6 +713,23 @@ const pageSchemaActionGraph: PageConfig = {
             {
               type: "reset",
               path: "context.name",
+            },
+          ],
+        },
+        NAVIGATE_DETAIL: {
+          on: "button-detail.click",
+          do: [
+            {
+              type: "navigate",
+              path: "context.detailPath",
+            },
+          ],
+        },
+        GO_BACK: {
+          on: "button-back.click",
+          do: [
+            {
+              type: "goBack",
             },
           ],
         },
@@ -735,6 +810,32 @@ const pageSchemaActionGraph: PageConfig = {
         props: {
           TEXT: "Add User",
           VARIANT: "btn-primary",
+          DISABLED: false,
+        },
+        meta: {
+          title: "Button",
+          scope: false,
+        },
+      },
+      {
+        id: "button-detail",
+        type: "Button",
+        props: {
+          TEXT: "Go Detail",
+          VARIANT: "btn-secondary",
+          DISABLED: false,
+        },
+        meta: {
+          title: "Button",
+          scope: false,
+        },
+      },
+      {
+        id: "button-back",
+        type: "Button",
+        props: {
+          TEXT: "Go Back",
+          VARIANT: "btn-secondary",
           DISABLED: false,
         },
         meta: {
@@ -860,6 +961,7 @@ const pageSchemas = [
   pageSchemaProps,
   pageSchemaMixed,
   pageSchemaHooks,
+  pageSchemaRuntime,
   pageSchemaScoped,
   pageSchemaActionGraph,
   pageSchemaOutputBindings,

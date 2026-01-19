@@ -36,6 +36,13 @@ const generator = ComponentGenerator.withDefaults({
 - `Engine`：将 schema 转换为 `CodeFragment`。
 - `CodeGenerator`：把 `CodeFragment` 组装成最终 TSX 代码。
 
+## Runtime 绑定
+通过 `binding.target = "runtime"` 访问运行时上下文：
+
+```json
+{ "type": "binding", "target": "runtime", "path": "page.id", "defaultValue": "Unknown" }
+```
+
 ## 注册自定义节点
 ```ts
 import { ComponentGenerator } from '@frontend-forge/component-generator';

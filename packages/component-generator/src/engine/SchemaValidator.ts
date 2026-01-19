@@ -97,15 +97,27 @@ const pageConfigSchema = {
     },
     bindingValue: {
       type: "object",
-      required: ["type", "source"],
+      required: ["type"],
+      properties: {
+        type: { const: "binding" },
+        source: { type: "string" },
+        bind: { type: "string" },
+        target: { enum: ["context", "dataSource", "runtime"] },
+        path: { type: "string" },
+        defaultValue: {},
+      },
+      allOf: [
+        {
+          if: {
             properties: {
-                type: { const: "binding" },
-                source: { type: "string" },
-                bind: { type: "string" },
-                target: { enum: ["context", "dataSource"] },
-                path: { type: "string" },
-                defaultValue: {},
+              target: { const: "runtime" },
             },
+            required: ["target"],
+          },
+          then: {},
+          else: { required: ["source"] },
+        },
+      ],
       additionalProperties: true,
     },
     expressionValue: {
@@ -191,6 +203,23 @@ const pageConfigSchema = {
           },
           additionalProperties: false,
         },
+        {
+          type: "object",
+          required: ["type", "path"],
+          properties: {
+            type: { const: "navigate" },
+            path: { type: "string" },
+          },
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          required: ["type"],
+          properties: {
+            type: { const: "goBack" },
+          },
+          additionalProperties: false,
+        },
       ],
     },
   },
@@ -198,15 +227,27 @@ const pageConfigSchema = {
 
 const bindingValueSchema = {
   type: "object",
-  required: ["type", "source"],
+  required: ["type"],
   properties: {
     type: { const: "binding" },
     source: { type: "string" },
     bind: { type: "string" },
-    target: { enum: ["context", "dataSource"] },
+    target: { enum: ["context", "dataSource", "runtime"] },
     path: { type: "string" },
     defaultValue: {},
   },
+  allOf: [
+    {
+      if: {
+        properties: {
+          target: { const: "runtime" },
+        },
+        required: ["target"],
+      },
+      then: {},
+      else: { required: ["source"] },
+    },
+  ],
   additionalProperties: true,
 } as const;
 

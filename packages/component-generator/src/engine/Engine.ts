@@ -10,6 +10,7 @@ import { DataSourceRegistry } from "./DataSourceRegistry.js";
 import { NodeRegistry } from "./NodeRegistry.js";
 import { JSX_TEMPLATE_OPTIONS, StatementScope } from "../constants.js";
 import {
+  ActionGraphSchema,
   BindingValue,
   ComponentNode,
   DataSourceNode,
@@ -37,6 +38,7 @@ import {
 type BindingTargets = {
   dataSources: Map<string, Map<string, Set<BindingOutputKind>>>;
   actionGraphs: Map<string, Set<string>>;
+  runtime: Set<string>;
 };
 
 export class Engine {
@@ -85,6 +87,12 @@ export class Engine {
       bindingTargets.actionGraphs,
       schema.actionGraphs,
       dataSourceInfo
+    );
+    this.applyRuntimeTargets(nodeFragments, bindingTargets.runtime);
+    this.applyRuntimeDepsFromActionGraphs(
+      nodeFragments,
+      bindingTargets.actionGraphs,
+      schema.actionGraphs
     );
     this.applyBindingStats(
       nodeFragments,
@@ -222,6 +230,13 @@ export class Engine {
       }
     }
     return value;
+  }
+
+  private toRuntimeDepSet(value?: string[]): Set<string> | undefined {
+    if (!value || !value.length) {
+      return undefined;
+    }
+    return new Set(value);
   }
 
   private wrapDataSourceProps(node: DataSourceNode): Record<string, any> {
@@ -406,16 +421,16 @@ export class Engine {
 
   private normalizeBindingTarget(
     binding: BindingValue
-  ): "context" | "dataSource" | undefined {
+  ): "context" | "dataSource" | "runtime" | undefined {
     const target = binding.target?.trim();
     if (!target) {
       return undefined;
     }
-    if (target === "context" || target === "dataSource") {
+    if (target === "context" || target === "dataSource" || target === "runtime") {
       return target;
     }
     throw new Error(
-      `Unsupported binding target ${target} for ${binding.source}`
+      `Unsupported binding target ${target} for ${binding.source ?? ""}`
     );
   }
 
@@ -423,12 +438,15 @@ export class Engine {
     binding: BindingValue,
     dataSourceInfo?: DataSourceBindingInfo,
     actionGraphInfo?: ActionGraphInfo
-  ): "dataSource" | "actionGraph" {
+  ): "dataSource" | "actionGraph" | "runtime" {
     const target = this.normalizeBindingTarget(binding);
+    if (target === "runtime") {
+      return "runtime";
+    }
     if (target === "context") {
       if (!actionGraphInfo) {
         throw new Error(
-          `Binding target context requires actionGraph source ${binding.source}`
+          `Binding target context requires actionGraph source ${binding.source ?? ""}`
         );
       }
       return "actionGraph";
@@ -436,14 +454,14 @@ export class Engine {
     if (target === "dataSource") {
       if (!dataSourceInfo) {
         throw new Error(
-          `Binding target dataSource requires dataSource source ${binding.source}`
+          `Binding target dataSource requires dataSource source ${binding.source ?? ""}`
         );
       }
       return "dataSource";
     }
     if (dataSourceInfo && actionGraphInfo) {
       throw new Error(
-        `Binding source ${binding.source} is ambiguous (dataSource and actionGraph)`
+        `Binding source ${binding.source ?? ""} is ambiguous (dataSource and actionGraph)`
       );
     }
     if (actionGraphInfo) {
@@ -452,7 +470,9 @@ export class Engine {
     if (dataSourceInfo) {
       return "dataSource";
     }
-    throw new Error(`Binding source ${binding.source} not found`);
+    throw new Error(
+      `Binding source ${binding.source ?? ""} not found`
+    );
   }
 
   private normalizeActionGraphBindingPath(binding: BindingValue): string[] {
@@ -506,17 +526,36 @@ export class Engine {
 
 
   private bindingToAst(binding: BindingValue): t.Expression {
-    const dataSourceInfo = this.bindingContext?.dataSourceInfo.get(
-      binding.source
-    );
-    const actionGraphInfo = this.bindingContext?.actionGraphInfo.get(
-      binding.source
-    );
+    const sourceId = binding.source;
+    const dataSourceInfo = sourceId
+      ? this.bindingContext?.dataSourceInfo.get(sourceId)
+      : undefined;
+    const actionGraphInfo = sourceId
+      ? this.bindingContext?.actionGraphInfo.get(sourceId)
+      : undefined;
     const target = this.resolveBindingTarget(
       binding,
       dataSourceInfo,
       actionGraphInfo
     );
+    if (target === "runtime") {
+      const pathParts = this.parseBindingPath(binding.path);
+      let expr: t.Expression = t.identifier("__runtime__");
+      if (pathParts.length) {
+        expr = t.callExpression(t.identifier("get"), [
+          expr,
+          this.toPathExpression(pathParts),
+        ]);
+      }
+      if (binding.defaultValue !== undefined) {
+        return t.logicalExpression(
+          "??",
+          expr,
+          this.toAstValue(binding.defaultValue)
+        );
+      }
+      return expr;
+    }
     if (target === "actionGraph") {
       const pathParts = this.normalizeActionGraphBindingPath(binding);
       let expr: t.Expression = t.identifier(actionGraphInfo.contextName);
@@ -536,7 +575,7 @@ export class Engine {
       return expr;
     }
     if (!dataSourceInfo) {
-      throw new Error(`Binding source ${binding.source} not found`);
+      throw new Error(`Binding source ${binding.source ?? ""} not found`);
     }
     const { outputName, pathParts } = this.resolveDataSourceBindingOutput(
       binding,
@@ -569,23 +608,28 @@ export class Engine {
   }
 
   private bindingUsesPathAccess(binding: BindingValue): boolean {
-    const dataSourceInfo = this.bindingContext?.dataSourceInfo.get(
-      binding.source
-    );
-    const actionGraphInfo = this.bindingContext?.actionGraphInfo.get(
-      binding.source
-    );
+    const sourceId = binding.source;
+    const dataSourceInfo = sourceId
+      ? this.bindingContext?.dataSourceInfo.get(sourceId)
+      : undefined;
+    const actionGraphInfo = sourceId
+      ? this.bindingContext?.actionGraphInfo.get(sourceId)
+      : undefined;
     const target = this.resolveBindingTarget(
       binding,
       dataSourceInfo,
       actionGraphInfo
     );
+    if (target === "runtime") {
+      const pathParts = this.parseBindingPath(binding.path);
+      return pathParts.length > 0;
+    }
     if (target === "actionGraph") {
       const pathParts = this.normalizeActionGraphBindingPath(binding);
       return pathParts.length > 0;
     }
     if (!dataSourceInfo) {
-      throw new Error(`Binding source ${binding.source} not found`);
+      throw new Error(`Binding source ${binding.source ?? ""} not found`);
     }
     const { pathParts } = this.resolveDataSourceBindingOutput(
       binding,
@@ -612,6 +656,9 @@ export class Engine {
       nodeDef.schema.runtimeProps
     );
     const runtimePropKeys = Object.keys(nodeDef.schema.runtimeProps ?? {});
+    const runtimeDeps = this.toRuntimeDepSet(
+      nodeDef.generateCode.meta?.runtimeDeps
+    );
     const imports = nodeDef.templates.imports.flatMap((importDecl) => {
       return importDecl();
     });
@@ -655,6 +702,7 @@ export class Engine {
         renderBoundary: !!node.meta?.scope,
         runtimeProps,
         runtimePropKeys,
+        runtimeDeps,
       },
     };
   }
@@ -822,6 +870,7 @@ export class Engine {
       Map<string, Set<BindingOutputKind>>
     >();
     const actionGraphTargets = new Map<string, Set<string>>();
+    const runtimeTargets = new Set<string>();
     const visit = (
       current: ComponentNode,
       currentBoundaryId: string | null
@@ -831,6 +880,14 @@ export class Engine {
         current.meta?.scope || (fragment?.meta.renderBoundary ?? false)
           ? current.id
           : currentBoundaryId;
+      if (fragment?.meta.runtimeDeps?.has("runtime")) {
+        if (!boundaryId) {
+          throw new Error(
+            "Runtime usage requires a render boundary. Add meta.scope to the root or a parent node."
+          );
+        }
+        runtimeTargets.add(boundaryId);
+      }
       const bindings = this.collectBindingsFromProps(current.props);
       if (bindings.length) {
         if (!boundaryId) {
@@ -839,26 +896,36 @@ export class Engine {
           );
         }
         bindings.forEach((binding) => {
-          const info = dataSourceInfo.get(binding.source);
-          const graphInfo = actionGraphInfo.get(binding.source);
+          const sourceId = binding.source;
+          const info = sourceId ? dataSourceInfo.get(sourceId) : undefined;
+          const graphInfo = sourceId ? actionGraphInfo.get(sourceId) : undefined;
           const target = this.resolveBindingTarget(binding, info, graphInfo);
+          if (target === "runtime") {
+            runtimeTargets.add(boundaryId);
+            return;
+          }
           if (target === "dataSource") {
-            if (!info) {
-              throw new Error(`Binding source ${binding.source} not found`);
+            if (!info || !sourceId) {
+              throw new Error(`Binding source ${binding.source ?? ""} not found`);
             }
             const { outputName } = this.resolveDataSourceBindingOutput(
               binding,
               info
             );
             const bySource = dataSourceTargets.get(boundaryId) ?? new Map();
-            const outputSet = bySource.get(binding.source) ?? new Set();
+            const outputSet = bySource.get(sourceId) ?? new Set();
             outputSet.add(outputName);
-            bySource.set(binding.source, outputSet);
+            bySource.set(sourceId, outputSet);
             dataSourceTargets.set(boundaryId, bySource);
             return;
           }
           const graphSet = actionGraphTargets.get(boundaryId) ?? new Set();
-          graphSet.add(binding.source);
+          if (!sourceId) {
+            throw new Error(
+              "Binding target context requires actionGraph source."
+            );
+          }
+          graphSet.add(sourceId);
           actionGraphTargets.set(boundaryId, graphSet);
         });
       }
@@ -878,7 +945,70 @@ export class Engine {
       current.children?.forEach((child) => visit(child, boundaryId));
     };
     visit(node, null);
-    return { dataSources: dataSourceTargets, actionGraphs: actionGraphTargets };
+    return {
+      dataSources: dataSourceTargets,
+      actionGraphs: actionGraphTargets,
+      runtime: runtimeTargets,
+    };
+  }
+
+  private ensureRuntimeDeps(fragment: CodeFragment): Set<string> {
+    if (!fragment.meta.runtimeDeps) {
+      fragment.meta.runtimeDeps = new Set();
+    }
+    return fragment.meta.runtimeDeps;
+  }
+
+  private applyRuntimeTargets(
+    nodeFragments: Map<string, CodeFragment>,
+    runtimeTargets: Set<string>
+  ) {
+    runtimeTargets.forEach((boundaryId) => {
+      const fragment = nodeFragments.get(boundaryId);
+      if (!fragment) {
+        return;
+      }
+      this.ensureRuntimeDeps(fragment).add("runtime");
+    });
+  }
+
+  private applyRuntimeDepsFromActionGraphs(
+    nodeFragments: Map<string, CodeFragment>,
+    actionGraphTargets: Map<string, Set<string>>,
+    actionGraphs?: ActionGraphSchema[]
+  ) {
+    if (!actionGraphs?.length || !actionGraphTargets.size) {
+      return;
+    }
+    const runtimeGraphs = new Set(
+      actionGraphs
+        .filter((graph) => this.actionGraphUsesRuntime(graph))
+        .map((graph) => graph.id)
+    );
+    if (!runtimeGraphs.size) {
+      return;
+    }
+    actionGraphTargets.forEach((graphIds, boundaryId) => {
+      const usesRuntime = Array.from(graphIds).some((graphId) =>
+        runtimeGraphs.has(graphId)
+      );
+      if (!usesRuntime) {
+        return;
+      }
+      const fragment = nodeFragments.get(boundaryId);
+      if (!fragment) {
+        return;
+      }
+      this.ensureRuntimeDeps(fragment).add("runtime");
+    });
+  }
+
+  private actionGraphUsesRuntime(graph: ActionGraphSchema): boolean {
+    return Object.values(graph.actions ?? {}).some((action) =>
+      action.do.some(
+        (step) => step.type === "navigate" || step.type === "goBack"
+      )
+    );
   }
 
   private collectBindingsFromProps(props?: ComponentNode["props"]): BindingValue[] {
