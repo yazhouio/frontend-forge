@@ -793,6 +793,33 @@ const buildActionGraphDispatchStat = (
         );
         return;
       }
+      if (step.type === "navigate") {
+        const resolvedPath = t.callExpression(t.identifier(info.resolveName), [
+          toActionValueExpr(step.path, toAstValue),
+          eventId,
+          nextContextId,
+        ]);
+        const navigateExpr = t.callExpression(
+          t.memberExpression(
+            t.memberExpression(t.identifier("__runtime__"), t.identifier("navigation")),
+            t.identifier("navigate")
+          ),
+          [resolvedPath]
+        );
+        statements.push(t.expressionStatement(navigateExpr));
+        return;
+      }
+      if (step.type === "goBack") {
+        const goBackExpr = t.callExpression(
+          t.memberExpression(
+            t.memberExpression(t.identifier("__runtime__"), t.identifier("navigation")),
+            t.identifier("goBack")
+          ),
+          []
+        );
+        statements.push(t.expressionStatement(goBackExpr));
+        return;
+      }
       if (step.type === "reset") {
         const setExpr = t.callExpression(t.identifier(info.setPathName), [
           nextContextId,

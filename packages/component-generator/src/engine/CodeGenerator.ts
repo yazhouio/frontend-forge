@@ -3,7 +3,7 @@ import { generate } from "@babel/generator";
 import * as t from "@babel/types";
 import { ImportManager } from "./imports.js";
 import { HookCollector, PreparedFragment } from "./hookCollector.js";
-import { StatementScope } from "../constants.js";
+import { HookPriority, StatementScope } from "../constants.js";
 
 export class CodeGenerator {
   private hookCollector = new HookCollector();
@@ -21,12 +21,20 @@ export class CodeGenerator {
     const functions: t.FunctionDeclaration[] = [];
 
     const prepared = new Map<string, PreparedFragment>();
+    const runtimeImport = this.buildRuntimeImport(renderFragments);
+    if (runtimeImport) {
+      moduleImports.push(runtimeImport);
+    }
+
     renderFragments.forEach((fragment) => {
       const preparedFragment = this.hookCollector.prepare(
         fragment,
         fragments,
         prepared
       );
+      if (this.fragmentUsesRuntime(fragment)) {
+        this.injectRuntimeHook(preparedFragment);
+      }
       const scoped = this.collectScopedStats(preparedFragment.stats);
       moduleImports.push(...scoped.moduleImports);
       moduleDecls.push(...this.flattenStats(scoped.moduleDecls));
@@ -138,6 +146,57 @@ export class CodeGenerator {
     });
 
     return scoped;
+  }
+
+  private fragmentUsesRuntime(fragment: CodeFragment): boolean {
+    return Boolean(fragment.meta.runtimeDeps?.has("runtime"));
+  }
+
+  private buildRuntimeImport(
+    renderFragments: CodeFragment[]
+  ): t.ImportDeclaration | null {
+    if (!renderFragments.some((fragment) => this.fragmentUsesRuntime(fragment))) {
+      return null;
+    }
+    return t.importDeclaration(
+      [
+        t.importSpecifier(
+          t.identifier("useRuntimeContext"),
+          t.identifier("useRuntimeContext")
+        ),
+      ],
+      t.stringLiteral("@frontend-forge/forge-components")
+    );
+  }
+
+  private injectRuntimeHook(prepared: PreparedFragment) {
+    const alreadyInjected = prepared.stats.some((stat) =>
+      stat.meta.output.includes("__runtime__")
+    );
+    if (alreadyInjected) {
+      return;
+    }
+    prepared.stats.unshift(this.buildRuntimeHookStat(prepared.fragment.meta.id));
+  }
+
+  private buildRuntimeHookStat(fragmentId: string): Stat {
+    const declaration = t.variableDeclaration("const", [
+      t.variableDeclarator(
+        t.identifier("__runtime__"),
+        t.callExpression(t.identifier("useRuntimeContext"), [])
+      ),
+    ]);
+    return {
+      id: `${fragmentId}:runtime`,
+      source: "const __runtime__ = useRuntimeContext();",
+      scope: StatementScope.FunctionBody,
+      hook: HookPriority.CONTEXT,
+      stat: declaration,
+      meta: {
+        output: ["__runtime__"],
+        depends: [],
+      },
+    };
   }
 
   private flattenStats(stats: Stat[]): t.Statement[] {

@@ -78,9 +78,9 @@ export type PropValue =
 
 export interface BindingValue {
   type: "binding";
-  source: string;
+  source?: string;
   bind?: string;
-  target?: "context" | "dataSource";
+  target?: "context" | "dataSource" | "runtime";
   path?: string;
   defaultValue?: any;
 }
@@ -104,7 +104,9 @@ export type ActionNode = {
 export type ActionStep =
   | { type: "assign"; to: string; value: string }
   | { type: "callDataSource"; id: string; args?: string[] }
-  | { type: "reset"; path: string };
+  | { type: "reset"; path: string }
+  | { type: "navigate"; path: string }
+  | { type: "goBack" };
 
 // type ActionConfig = SingleAction | SingleAction[];
 

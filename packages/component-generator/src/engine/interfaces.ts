@@ -24,6 +24,7 @@ export type NodeDefinition = {
     meta?: {
       // depends: string[];
       inputPaths: Record<string, string[]>;
+      runtimeDeps?: string[];
     };
   };
 };
@@ -103,6 +104,7 @@ export type CodeFragment = {
     exportDefault?: boolean;
     runtimeProps?: Record<string, any>;
     runtimePropKeys?: string[];
+    runtimeDeps?: Set<string>;
   };
 };
 

@@ -55,6 +55,7 @@ const nodeDefinitionSchema = z
         meta: z
           .object({
             inputPaths: z.record(z.array(z.string())),
+            runtimeDeps: z.array(z.string()).optional(),
           })
           .strict()
           .optional(),
