@@ -12,6 +12,19 @@ export function Demo() {
 }
 ```
 
+## Runtime context
+
+```tsx
+import { useRuntimeContext, withPageRuntime } from "@frontend-forge/forge-components";
+
+function Page() {
+  const runtime = useRuntimeContext();
+  return <div>{runtime.page.id}</div>;
+}
+
+export default withPageRuntime(Page, { id: "page-demo" });
+```
+
 ## Notes
 
 - The build outputs ESM and keeps `react`/`react-dom` as peer dependencies.
