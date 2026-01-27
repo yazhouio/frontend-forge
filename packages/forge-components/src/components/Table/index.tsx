@@ -3,6 +3,7 @@ import { DataTable } from "@kubed/components";
 import type {
   ColumnDef,
   Table as ReactTable,
+  RowModel,
   TableMeta,
 } from "@tanstack/react-table";
 import React, { useCallback, useImperativeHandle } from "react";
@@ -20,7 +21,7 @@ type TableMetaWithName<TData> = TableMeta<TData> & {
 };
 
 export type BaseTableHandle<TData> = {
-  table: () => ReactTable<TData>;
+  getSelectedRowModel: () => RowModel<TData>;
 };
 
 export type TableProps<TData extends { uid: string }> = {
@@ -56,9 +57,7 @@ const Table = <TData extends { uid: string }>(
   useImperativeHandle(
     ref,
     () => ({
-      table: () => {
-        return table;
-      },
+      getSelectedRowModel: table.getSelectedRowModel,
     }),
     [table],
   );
