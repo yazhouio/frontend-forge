@@ -10,7 +10,8 @@
     "types": ["vite/client"],
     "baseUrl": ".",
     "paths": {
-      "@frontend-forge/forge-components": ["../../packages/forge-components/src/index.ts"]
+      "@frontend-forge/forge-components": ["../../packages/forge-components/src/index.ts"],
+      "@frontend-forge/forge-components/*": ["../../packages/forge-components/src/*"]
     }
   },
   "include": ["src"]

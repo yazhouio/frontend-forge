@@ -15,14 +15,22 @@
   "packageManager": "pnpm@9.0.0",
   "peerDependencies": {
     "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react-dom": "^17.0.2",
+    "react-router-dom": "^6.22.3",
+    "@tanstack/react-table": "^8.21.3",
+    "styled-components": "5.3.3",
+    "@kubed/icons": "0.2.33",
+    "@kubed/code-editor": "0.2.33",
+    "@kubed/hooks": "0.2.33"
   },
   "dependencies": {
     "semver": "^7.7.3",
     "swr": "^2.3.8",
     "es-toolkit": "^1.43.0",
     "qs": "6.14.1",
-    "@kubed/components": "^0.2.35"
+    "zustand": "^4.5.2",
+    "@kubed/components": "^0.2.35",
+    "js-yaml": "^3.13.1"
   },
   "devDependencies": {
     "@types/node": "^22.13.5",
@@ -31,6 +39,11 @@
     "esbuild": "^0.27.2",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "typescript": "^5.7.3"
+    "react-router-dom": "^6.22.3",
+    "typescript": "^5.7.3",
+    "@types/styled-components": "^5.1.15",
+    "@kubed/code-editor": "0.2.33",
+    "@kubed/hooks": "0.2.33",
+    "@types/js-yaml": "^4.0.5"
   }
 }

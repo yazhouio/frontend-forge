@@ -11,12 +11,16 @@ const forgeComponentsSrc = path.resolve(
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      "@frontend-forge/forge-components": path.resolve(
-        forgeComponentsSrc,
-        "index.ts"
-      ),
-    },
+    alias: [
+      {
+        find: "@frontend-forge/forge-components",
+        replacement: path.resolve(forgeComponentsSrc, "index.ts"),
+      },
+      {
+        find: /^@frontend-forge\/forge-components\/(.*)$/,
+        replacement: `${forgeComponentsSrc}/$1`,
+      },
+    ],
   },
   server: {
     fs: {
