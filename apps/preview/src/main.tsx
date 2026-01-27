@@ -2,10 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { CssBaseline, KubedConfigProvider } from "@kubed/components";
+import { init } from "@frontend-forge/forge-components";
 import { App, HomePanels } from "./App";
 import { CrdStoreTest } from "./CrdStoreTest";
 import { TablePreview } from "./TablePreview";
 import "./index.css";
+
+init();
 
 const win = window as typeof window & { t?: (label: string) => string };
 
@@ -13,7 +16,6 @@ const root = document.getElementById("root");
 if (!root) {
   throw new Error("Root element not found");
 }
-
 
 win.t = (label) => label;
 

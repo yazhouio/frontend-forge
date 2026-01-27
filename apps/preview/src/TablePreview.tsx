@@ -5,6 +5,7 @@ import {
   useBatchActions,
   useItemActions,
   useTableActions,
+  getActions,
 } from "@ks-console/shared";
 
 type PreviewRow = {
@@ -19,6 +20,7 @@ const pageContext = {
   useTableActions: useTableActions,
   useBatchActions: useBatchActions,
   useItemActions: useItemActions,
+  getActions: getActions,
 };
 
 export function TablePreview() {
@@ -87,13 +89,30 @@ export function TablePreview() {
     [rows],
   );
 
+  const [actions, setActions] = React.useState([]);
+
+  React.useEffect(() => {
+    const actions = getActions({
+      module: "jobs",
+      cluster: "host",
+    });
+    setActions(actions);
+  }, []);
+
+  const toolbarLeft = () => {
+    return <div>111</div>;
+  };
+
   return (
     <PageTable
       tableKey="forge-preview-table"
       title="Table Preview"
-      authKey="preview"
-      params={{}}
+      authKey="jobs"
+      params={{
+        cluster: "host",
+      }}
       refetch={() => {}}
+      toolbarLeft={toolbarLeft}
       pageContext={pageContext}
       columns={columns}
       data={data}
