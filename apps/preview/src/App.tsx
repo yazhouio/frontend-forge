@@ -1,20 +1,8 @@
-import { Button } from "@frontend-forge/forge-components";
-import { CrdStoreTest } from "./CrdStoreTest";
+import { NavLink, Outlet } from "react-router-dom";
 
-export function App() {
+export function HomePanels() {
   return (
-    <div className="app">
-      <header className="hero">
-        <p className="eyebrow">Frontend Forge</p>
-        <h1>Forge Components Preview</h1>
-        <p className="subtitle">
-          A quick stage for iterating on UI primitives and themes.
-        </p>
-        <div className="actions">
-          <Button.ForgeButton>Primary action</Button.ForgeButton>
-          <Button.ForgeButton variant="ghost">Ghost action</Button.ForgeButton>
-        </div>
-      </header>
+    <>
       <section className="grid">
         <div className="panel">
           <h2>Token-ready</h2>
@@ -29,7 +17,50 @@ export function App() {
           <p>Preview changes instantly with Vite dev server.</p>
         </div>
       </section>
-      <CrdStoreTest />
+      <section className="panel">
+        <h2>Example routes</h2>
+        <p className="panel-note">
+          Use the navigation above to check the Table and CRD store samples.
+        </p>
+      </section>
+    </>
+  );
+}
+
+export function App() {
+  return (
+    <div className="app">
+      <header className="hero">
+        <p className="eyebrow">Frontend Forge Preview</p>
+        <nav className="nav">
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) =>
+              `nav-link${isActive ? " is-active" : ""}`
+            }
+          >
+            Overview
+          </NavLink>
+          <NavLink
+            to="/table"
+            className={({ isActive }) =>
+              `nav-link${isActive ? " is-active" : ""}`
+            }
+          >
+            Table
+          </NavLink>
+          <NavLink
+            to="/crd"
+            className={({ isActive }) =>
+              `nav-link${isActive ? " is-active" : ""}`
+            }
+          >
+            CRD Store
+          </NavLink>
+        </nav>
+      </header>
+      <Outlet />
     </div>
   );
 }

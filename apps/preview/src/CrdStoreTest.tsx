@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, getCrdStore } from "@frontend-forge/forge-components";
+import { Button } from "@kubed/components";
+import { getCrdStore } from "@frontend-forge/forge-components";
 
 type DemoSpec = {
   flavor: string;

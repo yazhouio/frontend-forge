@@ -11,13 +11,23 @@
   "dependencies": {
     "@frontend-forge/forge-components": "workspace:*",
     "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react-dom": "^17.0.2",
+    "react-router-dom": "^6.22.3",
+    "@tanstack/react-table": "^8.21.3",
+    "@kubed/components": "^0.2.35",
+    "styled-components": "5.3.3",
+    "@kubed/icons": "0.2.33",
+    "@ks-console/shared": "4.2.1"
   },
   "devDependencies": {
     "@types/react": "^17.0.2",
     "@types/react-dom": "^17.0.2",
     "@vitejs/plugin-react": "^5.1.2",
     "typescript": "^5.7.3",
-    "vite": "^8.0.0-beta.7"
-  }
+    "vite": "^8.0.0-beta.7",
+    "lodash": "^4.17.21",
+    "mitt": "^3.0.0",
+    "react-query": "^3.32.1"
+  },
+  "peerDependencies": {}
 }
