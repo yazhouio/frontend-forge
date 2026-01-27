@@ -22,11 +22,7 @@ type ModalEntry = {
 
 type ModalStore = {
   modals: Record<string, ModalEntry>;
-  ensureModal: (
-    id: string,
-    modal: ComponentType<any>,
-    deps?: Record<string, unknown>,
-  ) => void;
+  ensureModal: (id: string, modal: ComponentType<any>) => void;
   setDeps: (id: string, deps: Record<string, unknown>) => void;
   removeModal: (id: string) => void;
   setVisible: (id: string, visible: boolean) => void;
@@ -37,7 +33,7 @@ const closeTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 const useModalStore = create<ModalStore>((set) => ({
   modals: {},
-  ensureModal: (id, modal, deps) =>
+  ensureModal: (id, modal) =>
     set((state) => {
       const existing = state.modals[id];
       return {
@@ -46,7 +42,7 @@ const useModalStore = create<ModalStore>((set) => ({
           [id]: {
             id,
             modal,
-            deps: deps ?? existing?.deps ?? {},
+            deps: existing?.deps ?? {},
             visible: existing?.visible ?? false,
           },
         },
@@ -112,10 +108,6 @@ export const useModalAction = <TProps extends ModalVisibleProps>(
   }, [config.id, removeModal]);
 
   useEffect(() => {
-    ensureModal(config.id, config.modal, config.deps);
-  }, [config.id, config.modal, config.deps, ensureModal]);
-
-  useEffect(() => {
     if (config.deps) {
       setDeps(config.id, config.deps as Record<string, unknown>);
     }
@@ -128,14 +120,11 @@ export const useModalAction = <TProps extends ModalVisibleProps>(
         clearTimeout(timer);
         closeTimers.delete(config.id);
       }
-      ensureModal(
-        config.id,
-        config.modal,
-        (modalProps as Record<string, unknown> | undefined) ?? config.deps,
-      );
-      if (modalProps) {
-        setDeps(config.id, modalProps as Record<string, unknown>);
-      }
+      ensureModal(config.id, config.modal);
+      setDeps(config.id, {
+        ...(config.deps ?? {}),
+        ...(modalProps as Record<string, unknown> | undefined),
+      });
       setVisible(config.id, true);
     },
     [config.id, config.modal, config.deps, ensureModal, setDeps, setVisible],
