@@ -69,18 +69,25 @@ export const getCrdStore = (store: Store) => {
     const key = [url, queryString];
 
     const swr = useSWR(key, () => fetchHandler.get(url, queryString), options);
-    const create = async (body: any) => {
-      const res = await fetchHandler.post(url, body);
+    const create = async (params: PathParams, body: any) => {
+      const createUrl = getUrlHof(store, k8sVersion)(params);
+      const res = await fetchHandler.post(createUrl, body);
       swr.mutate();
       return res;
     };
-    const update = async (body: any) => {
-      const res = await fetchHandler.put(url, body);
+    const update = async (
+      params: PathParams,
+      body: any,
+      noGetDetail = false,
+    ) => {
+      const updateUrl = getUrlHof(store, k8sVersion)(params);
+      const res = await fetchHandler.put(updateUrl, body, noGetDetail);
       swr.mutate();
       return res;
     };
-    const del = async (resolve = true) => {
-      const res = await fetchHandler.delete(url);
+    const del = async (params: PathParams, resolve = true) => {
+      const deleteUrl = getUrlHof(store, k8sVersion)(params);
+      const res = await fetchHandler.delete(deleteUrl);
       if (resolve) {
         swr.mutate();
       } else {
