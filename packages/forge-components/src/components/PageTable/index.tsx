@@ -63,10 +63,12 @@ function BasePageTable(props) {
     del,
     pageContext,
     columns,
+    toolbarLeft,
     ...rest
   } = props;
   const { useItemActions, useBatchActions, useTableActions } = pageContext;
   const tableRef = React.useRef<Table<Record<string, unknown>>>(null);
+  const resolvedParams = params ?? {};
 
   const { open: createYaml, close: closeYaml } = useModalAction({
     id: tableKey + "-create",
@@ -74,6 +76,7 @@ function BasePageTable(props) {
     deps: {
       onOk: () => {},
       title: title,
+      initialValue: "",
     },
   });
 
@@ -92,13 +95,9 @@ function BasePageTable(props) {
     },
   });
 
-  const toolbarLeft = () => {
-    return <div>111</div>;
-  };
-
   const tableActions = useTableActions({
     authKey,
-    params,
+    params: resolvedParams,
     actions: [
       {
         key: "create",
@@ -109,7 +108,9 @@ function BasePageTable(props) {
           shadow: true,
         },
         onClick: () => {
-          createYaml();
+          createYaml({
+            onCancel: closeYaml,
+          });
         },
       },
     ],
@@ -117,14 +118,24 @@ function BasePageTable(props) {
 
   const batchActions = useBatchActions({
     authKey,
-    params,
+    params: resolvedParams,
     actions: [
       {
         key: "delete",
         text: t("DELETE"),
         // action: "delete",
         onClick: () => {
-          // todo
+          const selectedRows = tableRef.current?.getSelectedRowModel().rows;
+          if (!selectedRows) {
+            return;
+          }
+          const resource = selectedRows.map(
+            (row) => row.original.name,
+          ) as string[];
+          delYaml({
+            onCancel: closeDelYaml,
+            resource,
+          });
         },
         props: {
           color: "error",
@@ -135,7 +146,7 @@ function BasePageTable(props) {
 
   const renderItemActions = useItemActions({
     authKey,
-    params,
+    params: resolvedParams,
     actions: [
       {
         key: "editYaml",
@@ -143,7 +154,11 @@ function BasePageTable(props) {
         text: t("EDIT_YAML"),
         // action: "edit",
         onClick: (_, record) => {
-          updateYaml(record);
+          updateYaml({
+            onCancel: closeUpdateYaml,
+            initialValue: record,
+            title: t("EDIT_YAML"),
+          });
         },
       },
       {
@@ -152,7 +167,11 @@ function BasePageTable(props) {
         text: t("DELETE"),
         // action: "delete",
         onClick: (_, record) => {
-          delYaml(record);
+          console.log("record", record);
+          delYaml({
+            onCancel: closeDelYaml,
+            resource: [record.name],
+          });
         },
       },
     ],
@@ -199,15 +218,12 @@ function BasePageTable(props) {
         },
       },
       cell: (info) => {
-        console.log(
-          "xxx",
-          renderItemActions(info.getValue(), info.row.original),
-        );
         return renderItemActions(info.getValue(), info.row.original);
       },
     },
   ];
 
+  console.log("wwwxxxxww", tableMeta, tableRef.current);
   return (
     <PageLayout>
       <PageTitle>{title}</PageTitle>
