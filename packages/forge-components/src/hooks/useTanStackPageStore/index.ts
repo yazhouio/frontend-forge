@@ -9,7 +9,7 @@ import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { omit, throttle } from 'es-toolkit';
-import { lruCache } from '../cache';
+import { lruCache } from "../../utils/cache";
 
 type Updater<T> = T | ((prev: T) => T);
 
