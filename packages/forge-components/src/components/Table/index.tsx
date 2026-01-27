@@ -1,5 +1,73 @@
 import { DataTable } from "@kubed/components";
 
-export const BaseTable = (props: any) => {
-  const { columns, data } = props;
+import type {
+  ColumnDef,
+  Table as ReactTable,
+  TableMeta,
+} from "@tanstack/react-table";
+import React, { useCallback, useImperativeHandle } from "react";
+import type { ForwardedRef, ReactElement, RefAttributes } from "react";
+import { usePageStore } from "../../hooks/useTanStackPageStore";
+import { usePageTable } from "../../hooks/useTanStackPageTable";
+
+type TablePayload<TData> = {
+  data: TData[];
+  total: number;
 };
+
+type TableMetaWithName<TData> = TableMeta<TData> & {
+  tableName: string;
+};
+
+export type BaseTableHandle<TData> = {
+  table: () => ReactTable<TData>;
+};
+
+export type TableProps<TData extends { uid: string }> = {
+  columns: ColumnDef<TData>[];
+  data?: TablePayload<TData>;
+  isLoading?: boolean;
+  tableMeta: TableMetaWithName<TData>;
+};
+
+const Table = <TData extends { uid: string }>(
+  props: TableProps<TData>,
+  ref: ForwardedRef<BaseTableHandle<TData>>,
+) => {
+  const { columns, data, isLoading, tableMeta } = props;
+
+  const page = usePageStore<TData>({
+    pageId: tableMeta.tableName,
+    columns,
+  });
+
+  const table = usePageTable<TData>({
+    data: data?.data ?? [],
+    columns,
+    page,
+    tableMeta,
+    tableOptions: {
+      getRowId: useCallback((row) => row.uid, []),
+      loading: isLoading,
+      rowCount: data?.total ?? 0,
+    },
+  });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      table: () => {
+        return table;
+      },
+    }),
+    [table],
+  );
+
+  return <DataTable.DataTable table={table} />;
+};
+
+type BaseTableComponent = <TData extends { uid: string }>(
+  props: TableProps<TData> & RefAttributes<BaseTableHandle<TData>>,
+) => ReactElement | null;
+
+export const BaseTable = React.forwardRef(Table) as BaseTableComponent;
