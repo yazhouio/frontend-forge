@@ -23,7 +23,10 @@ const useLocalNamespace = (defaultNamespace = "") => {
   return { namespace, setNamespace };
 };
 
-export const useProjectSelect = ({ cluster }: { cluster: string }) => {
+export const useProjectSelect = (
+  { cluster }: { cluster: string },
+  { enabled = true } = {},
+) => {
   const [search, setSearch] = useState("");
   const { namespace: project, setNamespace: setProject } =
     useLocalNamespace("");
@@ -33,14 +36,19 @@ export const useProjectSelect = ({ cluster }: { cluster: string }) => {
     loading: projectLoading,
     fetchNext: fetchNextPage,
     hasNext: hasNextPage,
-  } = useNamespaceStoreInfinite({
-    params: { cluster },
-    search: {
-      name: search,
-      labelSelector:
-        "kubefed.io/managed!=true, kubesphere.io/kubefed-host-namespace!=true",
+  } = useNamespaceStoreInfinite(
+    {
+      params: { cluster },
+      search: {
+        name: search,
+        labelSelector:
+          "kubefed.io/managed!=true, kubesphere.io/kubefed-host-namespace!=true",
+      },
     },
-  });
+    {
+      enabled,
+    },
+  );
   const projectOptions = React.useMemo(() => {
     const projectListDefault = (projectList ?? []).map((_project) => ({
       label: get(_project, "metadata.name"),

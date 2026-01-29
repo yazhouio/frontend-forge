@@ -1,19 +1,26 @@
-import useSWRInfinite from "swr/infinite";
+import useSWRInfinite, { type SWRInfiniteConfiguration } from "swr/infinite";
 import { useMemo } from "react";
 import {
   InfiniteQueryOptions,
   InfiniteSWRSourceOptions,
   PageResult,
 } from "./interfaces";
-import { PublicConfiguration } from "swr/_internal";
 
 export function useInfiniteQuery<T>(
   options: InfiniteSWRSourceOptions<T>,
-  swrOptions?: Partial<PublicConfiguration>,
+  swrOptions: Omit<SWRInfiniteConfiguration<PageResult<T>>, "fetcher"> & {
+    enabled?: boolean;
+  } = { enabled: true },
 ): InfiniteQueryOptions<T> {
-  const { key, fetcher, limit = 10, enabled = true, ...rest } = options;
-  const getItems = (page?: PageResult<T> | { data?: T[] }) =>
-    page?.items ?? page?.data ?? [];
+  const { key, fetcher, limit = 10, ...rest } = options;
+  const { enabled = true, ...restOptions } = swrOptions;
+  const getItems = (page?: PageResult<T>) => page?.items ?? [];
+
+  type InfiniteKey = readonly [
+    InfiniteSWRSourceOptions<T>["key"],
+    { page: number; limit: number },
+    Record<string, any>?,
+  ];
 
   const { data, size, setSize, isValidating } = useSWRInfinite<PageResult<T>>(
     (index, previousPageData) => {
@@ -24,20 +31,28 @@ export function useInfiniteQuery<T>(
         return null;
       }
 
-      return [
-        key,
-        {
-          page: index + 1,
-          limit,
-        },
-        rest,
-      ];
+      return enabled
+        ? ([
+            key,
+            {
+              page: index + 1,
+              limit,
+            },
+            rest,
+          ] as const)
+        : null;
     },
-    (_, params, extra) => fetcher({ ...(extra ?? {}), ...(params ?? {}) }),
-    swrOptions,
+    (args) => {
+      const [, params, extra] = args as InfiniteKey;
+      const requestParams = {
+        ...(extra ?? {}),
+        ...params,
+      } as { [key: string]: any; page: number; limit: number };
+      return fetcher(requestParams);
+    },
+    restOptions,
   );
 
-  console.log("data xxx", data);
   const flatData = useMemo(
     () => data?.flatMap((p) => getItems(p)) ?? [],
     [data],
