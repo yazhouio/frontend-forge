@@ -44,20 +44,20 @@ export function App() {
             Overview
           </NavLink>
           <NavLink
-            to="/table"
+            to="/cluster/host/table"
             className={({ isActive }) =>
               `nav-link${isActive ? " is-active" : ""}`
             }
           >
-            Table
+            Cluster crd table
           </NavLink>
           <NavLink
-            to="/crd"
+            to="/workspaces/xxx/table"
             className={({ isActive }) =>
               `nav-link${isActive ? " is-active" : ""}`
             }
           >
-            CRD Store
+            Workspace crd table
           </NavLink>
         </nav>
       </header>

@@ -27,19 +27,11 @@ export default defineConfig({
       allow: [appRoot, forgeComponentsSrc],
     },
     proxy: {
-      "/apis": {
+      "^/k?apis": {
         target: "http://139.198.121.90:40880",
         changeOrigin: true,
       },
-      "/kapis": {
-        target: "http://139.198.121.90:40880",
-        changeOrigin: true,
-      },
-      "/clusters/host/apis": {
-        target: "http://139.198.121.90:40880",
-        changeOrigin: true,
-      },
-      "/clusters/host/kapis": {
+      "^/clusters/[^/]+/k?apis": {
         target: "http://139.198.121.90:40880",
         changeOrigin: true,
       },
