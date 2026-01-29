@@ -38,7 +38,7 @@ export const getUrlHof =
       store.group
     }/${apiVersion}/${namespacePath}${store.plural}${namePath}`;
     if (params.cluster) {
-      return `/${params.cluster}${path}`;
+      return `/clusters/${params.cluster}${path}`;
     } else {
       return path;
     }
