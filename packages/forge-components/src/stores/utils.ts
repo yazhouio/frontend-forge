@@ -32,11 +32,11 @@ export const getUrlHof =
     const apiVersion = getApiVersion(store, k8sVersion);
     const namespacePath = params.namespace
       ? `/namespaces/${params.namespace}/`
-      : "";
+      : "/";
     const namePath = params.name ? `/${params.name}` : "";
     const path = `/${store.kapi ? "kapis" : "apis"}/${
       store.group
-    }/${apiVersion}/${namespacePath}${store.plural}${namePath}`;
+    }/${apiVersion}${namespacePath}${store.plural}${namePath}`;
     if (params.cluster) {
       return `/clusters/${params.cluster}${path}`;
     } else {
