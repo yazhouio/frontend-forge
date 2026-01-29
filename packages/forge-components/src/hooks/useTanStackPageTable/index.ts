@@ -13,12 +13,12 @@ import {
 type Updater<T> = T | ((prev: T) => T);
 
 export type PageTableController = {
-  table: {
+  state: {
     columnFilters: ColumnFiltersState;
     sorting: SortingState;
     columnVisibility: VisibilityState;
+    pagination: PaginationState;
   };
-  pagination: PaginationState;
   setColumnFilters: (updater: Updater<ColumnFiltersState>) => void;
   setSorting: (updater: Updater<SortingState>) => void;
   setColumnVisibility: (updater: Updater<VisibilityState>) => void;
@@ -38,14 +38,15 @@ export function usePageTable<T>({
   tableMeta: TableMeta<T>;
   tableOptions?: Partial<TableOptions<T>> & { loading?: boolean };
 }) {
+  console.log("page", page);
   return useReactTable({
     data,
     columns,
     state: {
-      columnFilters: page.table.columnFilters,
-      sorting: page.table.sorting,
-      columnVisibility: page.table.columnVisibility,
-      pagination: page.pagination,
+      columnFilters: page.state.columnFilters,
+      sorting: page.state.sorting,
+      columnVisibility: page.state.columnVisibility,
+      pagination: page.state.pagination,
     },
     onColumnFiltersChange: page.setColumnFilters,
     onSortingChange: page.setSorting,
