@@ -5,15 +5,21 @@ import qs from "qs";
 import { getUrlHof } from "./utils";
 import { PublicConfiguration } from "swr/_internal";
 
-const fetchHandler = {
-  get: (url: string, query?: string) => {
-    return fetch(url, {
+export const fetchHandler = {
+  get: async (url: string, query?: Record<string, any>, kapi?: boolean) => {
+    const queryString = query
+      ? qs.stringify(query ?? {}, { skipNulls: true })
+      : "";
+    const requestUrl = queryString
+      ? `${url}${url.includes("?") ? "&" : "?"}${queryString}`
+      : url;
+    const resp = await fetch(requestUrl, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
-      ...(query && { search: query }),
     });
+    return parseResponseData(resp, kapi);
   },
   post: (url: string, body: any) => {
     return fetch(url, {
@@ -26,7 +32,7 @@ const fetchHandler = {
   },
   put: async (url: string, body: any, noGetDetail = false) => {
     if (!noGetDetail) {
-      const data = await fetchHandler.get(url).then((res) => res.json());
+      const data = await fetchHandler.get(url);
       const resourceVersion = get(data, "metadata.resourceVersion");
       if (resourceVersion) {
         set(body, "metadata.resourceVersion", resourceVersion);
@@ -50,6 +56,21 @@ const fetchHandler = {
   },
 };
 
+const parseResponseData = async (resp: Response, kapi?: boolean) => {
+  const data = await resp.json();
+  console.log("parseResponseData", data, kapi);
+  if (kapi) {
+    return { data: get(data, "items"), total: get(data, "totalItems") };
+  }
+  const items = get(data, "items");
+  const remainingItemCount = get(data, "metadata.remainingItemCount", 0);
+  const total = items?.length + remainingItemCount;
+  return {
+    data: items,
+    total,
+  };
+};
+
 export const getCrdStore = (store: Store) => {
   return function useStore(
     {
@@ -61,14 +82,16 @@ export const getCrdStore = (store: Store) => {
       query?: Record<string, any>;
       k8sVersion?: string;
     },
-    options?: Partial<PublicConfiguration>
+    options?: Partial<PublicConfiguration>,
   ) {
     const url = getUrlHof(store, k8sVersion)(params || {});
-    console.log("url", url);
-    const queryString = query ? qs.stringify(query, { skipNulls: true }) : "";
-    const key = [url, queryString];
+    const key = [url, query];
 
-    const swr = useSWR(key, () => fetchHandler.get(url, queryString), options);
+    const swr = useSWR(
+      key,
+      () => fetchHandler.get(url, query, store.kapi),
+      options,
+    );
     const create = async (params: PathParams, body: any) => {
       const createUrl = getUrlHof(store, k8sVersion)(params);
       const res = await fetchHandler.post(createUrl, body);
@@ -88,6 +111,7 @@ export const getCrdStore = (store: Store) => {
     const del = async (params: PathParams, resolve = true) => {
       const deleteUrl = getUrlHof(store, k8sVersion)(params);
       const res = await fetchHandler.delete(deleteUrl);
+      console.log("resolve", resolve);
       if (resolve) {
         swr.mutate();
       } else {
@@ -95,6 +119,15 @@ export const getCrdStore = (store: Store) => {
       }
       return res;
     };
-    return { ...swr, create, update, delete: del };
+    const batchDelete = async (resources: PathParams[]) => {
+      const promises = resources.map((item) => {
+        const deleteUrl = getUrlHof(store, k8sVersion)(item);
+        return fetchHandler.delete(deleteUrl);
+      });
+      const res = await Promise.allSettled(promises);
+      swr.mutate();
+      return res;
+    };
+    return { ...swr, create, update, delete: del, batchDelete };
   };
 };

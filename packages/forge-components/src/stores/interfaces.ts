@@ -21,5 +21,6 @@ export interface PathParams {
   cluster?: string;
   namespace?: string;
   name?: string;
+  workspace?: string;
   [key: string]: string;
 }
