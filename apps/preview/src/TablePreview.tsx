@@ -1,122 +1,150 @@
 import React, { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PageTable } from "@frontend-forge/forge-components";
+import {
+  PageTable,
+  getCrdStore,
+  TableTd,
+  usePageStore,
+  useProjectSelect,
+  buildSearchObject,
+} from "@frontend-forge/forge-components";
 import {
   useBatchActions,
   useItemActions,
   useTableActions,
   getActions,
+  getLocalTime,
 } from "@ks-console/shared";
+import { useParams } from "react-router-dom";
 
-type PreviewRow = {
-  uid: string;
-  name: string;
-  status: string;
-  owner: string;
-  updatedAt: string;
-};
+const useStore = getCrdStore({
+  apiVersion: "v1alpha1",
+  kind: "Demo",
+  plural: "jsbundles",
+  group: "extensions.kubesphere.io",
+  kapi: false,
+});
 
 const pageContext = {
   useTableActions: useTableActions,
   useBatchActions: useBatchActions,
   useItemActions: useItemActions,
   getActions: getActions,
+  getLocalTime: getLocalTime,
 };
 
 export function TablePreview() {
-  const rows = useMemo<PreviewRow[]>(
-    () => [
-      {
-        uid: "ff-001",
-        name: "Aurora Pipeline",
-        status: "Active",
-        owner: "Forge Team",
-        updatedAt: "2026-01-20",
-      },
-      {
-        uid: "ff-002",
-        name: "Nebula Audit",
-        status: "Paused",
-        owner: "Observability",
-        updatedAt: "2026-01-18",
-      },
-      {
-        uid: "ff-003",
-        name: "Vortex Gateway",
-        status: "Draft",
-        owner: "Platform",
-        updatedAt: "2026-01-12",
-      },
-    ],
-    [],
-  );
-
-  const columns = useMemo<ColumnDef<PreviewRow>[]>(
+  const columns = useMemo<ColumnDef<Record<string, any>>[]>(
     () => [
       {
         accessorKey: "name",
-        header: "Name",
-        cell: (info) => info.getValue(),
-        enableHiding: true,
+        header: t("NAME"),
+        cell: (info) => {
+          return (
+            <TableTd
+              meta={{ type: "text", path: "metadata.name", payload: {} }}
+              original={info.row.original}
+            />
+          );
+        },
+        // enableHiding: true,
       },
       {
-        accessorKey: "status",
-        header: "Status",
-        cell: (info) => info.getValue(),
+        accessorKey: "project",
         enableHiding: true,
-      },
-      {
-        accessorKey: "owner",
-        header: "Owner",
-        cell: (info) => info.getValue(),
-        enableHiding: true,
+        header: "Project",
+        cell: (info) => {
+          return (
+            <TableTd
+              meta={{
+                type: "text",
+                path: `metadata.annotations["meta.helm.sh/release-namespace"]`,
+                payload: {},
+              }}
+              original={info.row.original}
+            />
+          );
+        },
       },
       {
         accessorKey: "updatedAt",
-        header: "Updated",
-        cell: (info) => info.getValue(),
+        header: t("UPDATED_AT"),
+        cell: (info) => {
+          return (
+            <TableTd
+              meta={{
+                type: "time",
+                path: "metadata.creationTimestamp",
+                payload: {
+                  format: (time) =>
+                    getLocalTime(time).format("YYYY-MM-DD HH:mm:ss"),
+                },
+              }}
+              original={info.row.original}
+            />
+          );
+        },
         enableHiding: true,
       },
     ],
     [],
   );
 
-  const data = useMemo(
-    () => ({
-      data: rows,
-      total: rows.length,
-    }),
-    [rows],
-  );
+  const pageId = "forge-preview-table";
+  const page = usePageStore({
+    pageId,
+    columns,
+  });
 
-  const [actions, setActions] = React.useState([]);
+  const params = useParams();
 
-  React.useEffect(() => {
-    const actions = getActions({
-      module: "jobs",
-      cluster: "host",
-    });
-    setActions(actions);
-  }, []);
+  const storeQuery = useMemo(() => {
+    return buildSearchObject(page, true);
+  }, [page]);
+
+  const {
+    render: renderProjectSelect,
+    params: { namespace },
+  } = useProjectSelect({
+    cluster: params.cluster,
+  });
+
+  const {
+    data,
+    isLoading,
+    isValidating,
+    mutate: refetch,
+    update,
+    batchDelete: deleteFn,
+    create,
+  } = useStore({
+    params: {
+      ...params,
+      namespace,
+    },
+    query: storeQuery,
+  });
 
   const toolbarLeft = () => {
-    return <div>111</div>;
+    return renderProjectSelect();
   };
 
+  console.log("data", data, isLoading, isValidating);
   return (
     <PageTable
-      tableKey="forge-preview-table"
+      tableKey={pageId}
       title="Table Preview"
       authKey="jobs"
-      params={{
-        cluster: "host",
-      }}
-      refetch={() => {}}
+      params={params}
+      refetch={refetch}
       toolbarLeft={toolbarLeft}
       pageContext={pageContext}
       columns={columns}
       data={data}
-      isLoading={false}
+      isLoading={isLoading || isValidating}
+      update={update}
+      del={deleteFn}
+      create={create}
     />
   );
 }

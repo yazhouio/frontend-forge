@@ -35,12 +35,14 @@ const Table = <TData extends { uid: string }>(
   props: TableProps<TData>,
   ref: ForwardedRef<BaseTableHandle<TData>>,
 ) => {
-  const { columns, data, isLoading, tableMeta } = props;
+  const { columns, data, isLoading, tableMeta, page } = props;
 
-  const page = usePageStore<TData>({
-    pageId: tableMeta.tableName,
-    columns,
-  });
+  // const page = usePageStore<TData>({
+  //   pageId: tableMeta.tableName,
+  //   columns,
+  // });
+
+  // console.log("page", page);
 
   const table = usePageTable<TData>({
     data: data?.data ?? [],
@@ -50,7 +52,7 @@ const Table = <TData extends { uid: string }>(
     tableOptions: {
       getRowId: useCallback((row) => row.uid, []),
       loading: isLoading,
-      rowCount: data?.total ?? 0,
+      rowCount: data?.total || 0,
     },
   });
 
@@ -58,6 +60,7 @@ const Table = <TData extends { uid: string }>(
     ref,
     () => ({
       getSelectedRowModel: table.getSelectedRowModel,
+      resetRowSelection: table.resetRowSelection,
     }),
     [table],
   );
@@ -70,3 +73,5 @@ type BaseTableComponent = <TData extends { uid: string }>(
 ) => ReactElement | null;
 
 export const BaseTable = React.forwardRef(Table) as BaseTableComponent;
+
+export { TableTd } from "./TableTd";
