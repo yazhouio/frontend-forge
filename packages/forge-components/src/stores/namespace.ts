@@ -22,7 +22,9 @@ export const useNamespaceStoreInfinite = (
     params: PathParams;
     search?: Record<string, any>;
   },
-  swrOptions?: Partial<PublicConfiguration>,
+  swrOptions: Partial<PublicConfiguration> & {
+    enabled?: boolean;
+  } = { enabled: true },
 ) => {
   const url = getUrlHof(store)(params);
   console.log("url", url, params, search);
