@@ -82,6 +82,7 @@ export const useProjectSelect = (
         style={{ width: 200 }}
         showSearch
         options={projectOptions}
+        prefix={t("PROJECT_VALUE", { value: "" })}
         onPopupScroll={debounce(onUserScroll, 500)}
         onSearch={onSearch}
         onChange={handleChangeProject}
