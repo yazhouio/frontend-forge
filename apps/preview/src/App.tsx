@@ -1,3 +1,4 @@
+import { Notify } from "@kubed/components";
 import { NavLink, Outlet } from "react-router-dom";
 
 export function HomePanels() {
@@ -61,6 +62,7 @@ export function App() {
         </nav>
       </header>
       <Outlet />
+      <Notify position="top-right" />
     </div>
   );
 }

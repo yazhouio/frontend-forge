@@ -2,11 +2,29 @@ import * as React from "react";
 import { Card, notify, Checkbox, Center } from "@kubed/components";
 import { BaseTable } from "../Table";
 import { Container, PageLayout, PageTitle } from "./index.styles";
-import { useModalAction, wrapperComponentModal } from "../../hooks";
+import {
+  useModalAction,
+  usePageStoreState,
+  usePageStoreTable,
+  wrapperComponentModal,
+} from "../../hooks";
 import { YamlModal } from "./YamlModal";
 import { Pen, Trash } from "@kubed/icons";
 import { DeleteConfirmModal } from "../DeleteConfirm";
-import { Row, Table } from "@tanstack/react-table";
+import { Row, RowData, Table } from "@tanstack/react-table";
+
+import "@tanstack/react-table"; //or vue, svelte, solid, qwik, etc.
+import { get } from "es-toolkit/compat";
+
+declare module "@tanstack/react-table" {
+  interface ColumnMeta<TData extends RowData, TValue> {
+    renderCell?: {
+      type: string;
+      path: string;
+      payload: { link: string } | Record<string, any>;
+    };
+  }
+}
 
 export const defaultCheckboxColumn = {
   id: "_selector",
@@ -70,11 +88,11 @@ function BasePageTable(props) {
   const tableRef = React.useRef<Table<Record<string, unknown>>>(null);
   const resolvedParams = params ?? {};
 
+  const pageTableController = usePageStoreTable(tableKey);
   const { open: createYaml, close: closeYaml } = useModalAction({
     id: tableKey + "-create",
     modal: YamlModal,
     deps: {
-      onOk: () => {},
       title: title,
       initialValue: "",
     },
@@ -110,6 +128,10 @@ function BasePageTable(props) {
         onClick: () => {
           createYaml({
             onCancel: closeYaml,
+            onOk: async (data) => {
+              await create(params, data);
+              notify.success(t("CREATE_SUCCESSFUL"));
+            },
           });
         },
       },
@@ -129,12 +151,18 @@ function BasePageTable(props) {
           if (!selectedRows) {
             return;
           }
-          const resource = selectedRows.map(
-            (row) => row.original.name,
+          const resource = selectedRows.map((row) =>
+            get(row.original, "metadata.name"),
           ) as string[];
           delYaml({
             onCancel: closeDelYaml,
             resource,
+            onOk: async () => {
+              await del(resource.map((name) => ({ ...params, name })));
+              tableRef.current?.resetRowSelection(true);
+              notify.success(t("DELETE_SUCCESSFUL"));
+              closeDelYaml();
+            },
           });
         },
         props: {
@@ -158,6 +186,13 @@ function BasePageTable(props) {
             onCancel: closeUpdateYaml,
             initialValue: record,
             title: t("EDIT_YAML"),
+            onOk: async (data) => {
+              await update(
+                { ...params, name: get(data, "metadata.name") },
+                data,
+              );
+              notify.success(t("UPDATE_SUCCESSFUL"));
+            },
           });
         },
       },
@@ -167,10 +202,16 @@ function BasePageTable(props) {
         text: t("DELETE"),
         // action: "delete",
         onClick: (_, record) => {
-          console.log("record", record);
+          const name = get(record, "metadata.name");
           delYaml({
             onCancel: closeDelYaml,
-            resource: [record.name],
+            resource: [name],
+            onOk: async () => {
+              await del([{ ...params, name }]);
+              tableRef.current?.resetRowSelection(true);
+              notify.success(t("DELETE_SUCCESSFUL"));
+              closeDelYaml();
+            },
           });
         },
       },
@@ -223,7 +264,6 @@ function BasePageTable(props) {
     },
   ];
 
-  console.log("wwwxxxxww", tableMeta, tableRef.current);
   return (
     <PageLayout>
       <PageTitle>{title}</PageTitle>
@@ -234,6 +274,7 @@ function BasePageTable(props) {
             ref={tableRef}
             tableMeta={tableMeta}
             columns={tableColumns}
+            page={pageTableController}
           />
         </Card>
       </Container>

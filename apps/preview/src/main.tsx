@@ -27,6 +27,10 @@ const router = createBrowserRouter([
       { index: true, element: <HomePanels /> },
       { path: "table", element: <TablePreview /> },
       { path: "crd", element: <CrdStoreTest /> },
+      {
+        path: "/clusters/:cluster/table",
+        element: <TablePreview />,
+      },
     ],
   },
 ]);
