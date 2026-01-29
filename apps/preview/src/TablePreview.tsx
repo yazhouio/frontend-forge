@@ -22,9 +22,10 @@ const useStore = getCrdStore({
   kind: "Demo",
   plural: "jsbundles",
   group: "extensions.kubesphere.io",
-  kapi: false,
+  kapi: true,
 });
 
+const scope = "namespace";
 const pageContext = {
   useTableActions: useTableActions,
   useBatchActions: useBatchActions,
@@ -105,9 +106,14 @@ export function TablePreview() {
   const {
     render: renderProjectSelect,
     params: { namespace },
-  } = useProjectSelect({
-    cluster: params.cluster,
-  });
+  } = useProjectSelect(
+    {
+      cluster: params.cluster,
+    },
+    {
+      enabled: scope === "namespace",
+    },
+  );
 
   const {
     data,
@@ -126,7 +132,10 @@ export function TablePreview() {
   });
 
   const toolbarLeft = () => {
-    return renderProjectSelect();
+    if (scope === "namespace") {
+      return renderProjectSelect();
+    }
+    return null;
   };
 
   console.log("data", data, isLoading, isValidating);
