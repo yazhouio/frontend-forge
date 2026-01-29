@@ -60,7 +60,10 @@ const parseResponseData = async (resp: Response, kapi?: boolean) => {
   const data = await resp.json();
   console.log("parseResponseData", data, kapi);
   if (kapi) {
-    return { data: get(data, "items"), total: get(data, "totalItems") };
+    return {
+      data: get(data, "items"),
+      total: get(data, "totalItems") || get(data, "metadata.continue"),
+    };
   }
   const items = get(data, "items");
   const remainingItemCount = get(data, "metadata.remainingItemCount", 0);
