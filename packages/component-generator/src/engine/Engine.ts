@@ -1050,13 +1050,17 @@ export class Engine {
         return;
       }
       fragment.stats = fragment.stats ?? [];
+      const bindingStats: Stat[] = [];
       sources.forEach((outputs, sourceId) => {
         const info = dataSourceInfo.get(sourceId);
         if (!info) {
           return;
         }
-        fragment.stats.push(this.buildHookBindingStat(boundaryId, info, outputs));
+        bindingStats.push(this.buildHookBindingStat(boundaryId, info, outputs));
       });
+      if (bindingStats.length) {
+        fragment.stats = [...bindingStats, ...fragment.stats];
+      }
     });
   }
 
