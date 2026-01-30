@@ -306,8 +306,14 @@ export class HookCollector {
         ) {
           hookName = callee.property.name;
         }
-        if (hookName && HOOK_PRIORITY_MAP[hookName as 'useState']) {
-          priority = HOOK_PRIORITY_MAP[hookName as 'useState'];
+        if (!hookName) return;
+        if (HOOK_PRIORITY_MAP[hookName as "useState"]) {
+          priority = HOOK_PRIORITY_MAP[hookName as "useState"];
+          path.stop();
+          return;
+        }
+        if (hookName.startsWith("use")) {
+          priority = HookPriority.CUSTOM;
           path.stop();
         }
       },
