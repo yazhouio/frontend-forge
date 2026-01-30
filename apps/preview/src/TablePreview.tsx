@@ -34,61 +34,50 @@ const pageContext = {
   getLocalTime: getLocalTime,
 };
 
+const columnsConfig = [
+  {
+    key: "name",
+    title: "NAME",
+    render: { type: "text", path: "metadata.name", payload: {} },
+  },
+  {
+    key: "project",
+    title: "Project",
+    render: {
+      type: "text",
+      path: `metadata.annotations["meta.helm.sh/release-namespace"]`,
+      payload: {},
+    },
+  },
+  {
+    key: "updatedAt",
+    title: "UPDATED_AT",
+    render: {
+      type: "time",
+      path: "metadata.creationTimestamp",
+      payload: {
+        format: (time) => getLocalTime(time).format("YYYY-MM-DD HH:mm:ss"),
+      },
+    },
+  },
+];
+
+const columnsMap = (columns: { key: string; title: string; render: any }[]) => {
+  return columns.map((column) => {
+    return {
+      accessorKey: column.key,
+      header: t(column.title),
+      cell: (info) => {
+        return <TableTd meta={column.render} original={info.row.original} />;
+      },
+    };
+  });
+};
+
 export function TablePreview() {
   const columns = useMemo<ColumnDef<Record<string, any>>[]>(
-    () => [
-      {
-        accessorKey: "name",
-        header: t("NAME"),
-        cell: (info) => {
-          return (
-            <TableTd
-              meta={{ type: "text", path: "metadata.name", payload: {} }}
-              original={info.row.original}
-            />
-          );
-        },
-        // enableHiding: true,
-      },
-      {
-        accessorKey: "project",
-        enableHiding: true,
-        header: "Project",
-        cell: (info) => {
-          return (
-            <TableTd
-              meta={{
-                type: "text",
-                path: `metadata.annotations["meta.helm.sh/release-namespace"]`,
-                payload: {},
-              }}
-              original={info.row.original}
-            />
-          );
-        },
-      },
-      {
-        accessorKey: "updatedAt",
-        header: t("UPDATED_AT"),
-        cell: (info) => {
-          return (
-            <TableTd
-              meta={{
-                type: "time",
-                path: "metadata.creationTimestamp",
-                payload: {
-                  format: (time) =>
-                    getLocalTime(time).format("YYYY-MM-DD HH:mm:ss"),
-                },
-              }}
-              original={info.row.original}
-            />
-          );
-        },
-        enableHiding: true,
-      },
-    ],
-    [],
+    () => columnsMap(columnsConfig),
+    [columnsConfig],
   );
 
   const pageId = "forge-preview-table";
