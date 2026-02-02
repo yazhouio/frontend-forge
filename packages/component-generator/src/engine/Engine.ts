@@ -30,8 +30,8 @@ import {
 import {
   BindingOutputKind,
   DataSourceBindingInfo,
-  getBindingOutputVarName,
   isBindingOutputDefined,
+  resolveBindingOutputVarName,
   resolveDefaultBindingOutput,
 } from "./bindingTypes.js";
 
@@ -389,7 +389,8 @@ export class Engine {
 
   private getDataSourceBindingInfo(
     dataSource: DataSourceNode,
-    outputNames: string[]
+    outputNames: string[],
+    dataSourceDef?: DataSourceDefinitionWithParseTemplate
   ): DataSourceBindingInfo {
     const baseName = this.toCamelCase(dataSource.id);
     const pascalName = this.toPascalCase(dataSource.id);
@@ -401,12 +402,14 @@ export class Engine {
       typeof dataSource.config?.FETCHER_NAME === "string"
         ? dataSource.config.FETCHER_NAME
         : `fetch${pascalName}`;
+    const callMode = dataSourceDef?.generateCode.meta?.callMode ?? "hook";
     return {
       id: dataSource.id,
       hookName,
       fetcherName,
       baseName,
       outputNames,
+      callMode,
       defaultOutput: resolveDefaultBindingOutput(outputNames),
     };
   }
@@ -416,10 +419,13 @@ export class Engine {
   ): Map<string, DataSourceBindingInfo> {
     const map = new Map<string, DataSourceBindingInfo>();
     (dataSources ?? []).forEach((dataSource) => {
+      const dataSourceDef = this.dataSourceRegistry?.getDataSource(
+        dataSource.type
+      );
       const outputNames = this.getDataSourceOutputNames(dataSource);
       map.set(
         dataSource.id,
-        this.getDataSourceBindingInfo(dataSource, outputNames)
+        this.getDataSourceBindingInfo(dataSource, outputNames, dataSourceDef)
       );
     });
     return map;
@@ -595,7 +601,7 @@ export class Engine {
       dataSourceInfo
     );
     let expr: t.Expression = t.identifier(
-      getBindingOutputVarName(dataSourceInfo.baseName, outputName)
+      resolveBindingOutputVarName(dataSourceInfo, outputName)
     );
     if (pathParts.length) {
       expr = t.callExpression(t.identifier("get"), [
@@ -1071,15 +1077,16 @@ export class Engine {
           return;
         }
         const meta = dataSourceArgsMeta.get(sourceId);
-        bindingStats.push(
-          this.buildHookBindingStat(
-            boundaryId,
-            info,
-            outputs,
-            meta?.args,
-            meta?.dependsOn
-          )
+        const stat = this.buildHookBindingStat(
+          boundaryId,
+          info,
+          outputs,
+          meta?.args,
+          meta?.dependsOn
         );
+        if (stat) {
+          bindingStats.push(stat);
+        }
       });
       if (bindingStats.length) {
         fragment.stats = [...bindingStats, ...fragment.stats];
@@ -1106,7 +1113,7 @@ export class Engine {
     outputs: Set<BindingOutputKind>,
     args?: t.Expression[],
     dependsOn?: Set<string>
-  ): Stat {
+  ): Stat | null {
     const properties: t.ObjectProperty[] = [];
     const outputNames: string[] = [];
     const addProperty = (key: string, name: string) => {
@@ -1133,9 +1140,13 @@ export class Engine {
     outputList.forEach((outputName) => {
       addProperty(
         outputName,
-        getBindingOutputVarName(info.baseName, outputName)
+        resolveBindingOutputVarName(info, outputName)
       );
     });
+
+    if (info.callMode === "value") {
+      return null;
+    }
 
     const pattern = t.objectPattern(properties);
     const init = t.callExpression(

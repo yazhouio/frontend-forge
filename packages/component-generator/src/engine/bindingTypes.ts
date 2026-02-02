@@ -7,6 +7,7 @@ export type DataSourceBindingInfo = {
   baseName: string;
   outputNames: string[];
   defaultOutput?: string;
+  callMode?: "hook" | "value";
 };
 
 const toPascalCase = (value: string): string => {
@@ -35,6 +36,16 @@ export const getBindingOutputVarName = (
     default:
       return `${baseName}${toPascalCase(outputName)}`;
   }
+};
+
+export const resolveBindingOutputVarName = (
+  info: DataSourceBindingInfo,
+  outputName: string
+): string => {
+  if (info.callMode === "value") {
+    return info.hookName;
+  }
+  return getBindingOutputVarName(info.baseName, outputName);
 };
 
 export const resolveDefaultBindingOutput = (
