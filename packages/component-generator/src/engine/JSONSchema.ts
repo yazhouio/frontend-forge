@@ -44,6 +44,7 @@ export interface DataSourceNode {
   id: string;
   type: string;
   config: Record<string, any>; // todo: 根据 type 不同，config 的类型不同
+  args?: PropValue[];
   autoLoad?: boolean;
   polling?: {
     enabled: boolean;
@@ -88,6 +89,26 @@ export interface BindingValue {
 export interface ExpressionValue {
   type: "expression";
   code: string;
+  /**
+   * Optional dependency hints for lint/analysis only.
+   * Does NOT restrict runtime access.
+   */
+  deps?: ExpressionDeps;
+}
+
+export interface ExpressionDeps {
+  /**
+   * Expected dataSource ids this expression depends on (advisory only).
+   */
+  dataSources?: string[];
+  /**
+   * Whether this expression reads from runtime (advisory only).
+   */
+  runtime?: true;
+  /**
+   * Optional capability names for documentation/lint (no runtime guarantee).
+   */
+  capabilities?: string[];
 }
 
 export type ActionGraphSchema = {

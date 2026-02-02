@@ -6,6 +6,7 @@ import {
   HookPriority,
   HOOK_PRIORITY_MAP,
   JSX_TEMPLATE_OPTIONS,
+  StatementScope,
 } from "../constants.js";
 
 type TraverseFn = typeof import("@babel/traverse").default;
@@ -140,6 +141,7 @@ export class HookCollector {
         this.injectJsxChildren(fragment.jsx, "__ENGINE_CHILDREN__", childJsx);
       }
     }
+    this.hoistIifeExpressions(fragment, stats, usedNames);
 
     const result = { fragment, stats };
     prepared.set(fragment.meta.id, result);
@@ -188,6 +190,7 @@ export class HookCollector {
         this.injectJsxChildren(fragment.jsx, "__ENGINE_CHILDREN__", childJsx);
       }
     }
+    this.hoistIifeExpressions(fragment, stats, usedNames);
 
     return { fragment, stats };
   }
@@ -320,6 +323,95 @@ export class HookCollector {
     });
 
     return priority;
+  }
+
+  private hoistIifeExpressions(
+    fragment: CodeFragment,
+    stats: Stat[],
+    usedNames: Set<string>
+  ) {
+    if (!fragment.jsx) {
+      return;
+    }
+    const hoisted: Stat[] = [];
+    let index = 0;
+    traverse(t.file(t.program([t.expressionStatement(fragment.jsx)])), {
+      JSXExpressionContainer: (path) => {
+        const expr = path.node.expression;
+        if (!this.isIifeExpression(expr)) {
+          return;
+        }
+        const name = this.buildUniqueLocalName(
+          "expr",
+          fragment.meta.id,
+          usedNames,
+          index
+        );
+        usedNames.add(name);
+        hoisted.push(
+          this.buildHoistedExpressionStat(fragment.meta.id, name, expr, index)
+        );
+        path.node.expression = t.identifier(name);
+        index += 1;
+      },
+    });
+    if (hoisted.length) {
+      stats.push(...hoisted);
+    }
+  }
+
+  private isIifeExpression(expr: t.Expression): expr is t.CallExpression {
+    if (!t.isCallExpression(expr)) {
+      return false;
+    }
+    if (expr.arguments.length) {
+      return false;
+    }
+    return (
+      t.isArrowFunctionExpression(expr.callee) ||
+      t.isFunctionExpression(expr.callee)
+    );
+  }
+
+  private buildUniqueLocalName(
+    prefix: string,
+    fragmentId: string,
+    usedNames: Set<string>,
+    index: number
+  ): string {
+    const suffix = this.toIdentifierSuffix(fragmentId);
+    let candidateBase = `${prefix}_${suffix}_${index + 1}`;
+    if (!t.isValidIdentifier(candidateBase)) {
+      candidateBase = `_${candidateBase.replace(/[^a-zA-Z0-9_]/g, "_")}`;
+    }
+    let candidate = candidateBase;
+    let seq = 1;
+    while (usedNames.has(candidate)) {
+      candidate = `${candidateBase}_${seq}`;
+      seq += 1;
+    }
+    return candidate;
+  }
+
+  private buildHoistedExpressionStat(
+    fragmentId: string,
+    name: string,
+    expr: t.Expression,
+    index: number
+  ): Stat {
+    const declaration = t.variableDeclaration("const", [
+      t.variableDeclarator(t.identifier(name), expr),
+    ]);
+    return {
+      id: `${fragmentId}:expression:${index}`,
+      source: `const ${name} = <expression>;`,
+      scope: StatementScope.FunctionBody,
+      stat: declaration,
+      meta: {
+        output: [name],
+        depends: [],
+      },
+    };
   }
 
   private injectJsxChildren(

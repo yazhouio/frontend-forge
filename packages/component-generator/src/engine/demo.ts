@@ -263,6 +263,9 @@ const pageSchemaLayout: PageConfig = {
                   mapper: {
                     type: "expression",
                     code: '(value) => (value ? String(value).toUpperCase() : "-")',
+                    deps: {
+                      dataSources: ["user-list"],
+                    },
                   },
                 },
                 {
@@ -552,6 +555,29 @@ const pageSchemaHooks: PageConfig = {
         props: {
           TEXT: "Another text",
           DEFAULT_VALUE: 5,
+        },
+        meta: {
+          title: "Text",
+          scope: false,
+        },
+      },
+      {
+        id: "text-runtime-3",
+        type: "Text",
+        props: {
+          TEXT: {
+            type: "expression",
+            code: `(() => {
+  const cap = runtime.capabilities;
+  const pageId = runtime.page.id;
+  return cap && cap.formatTitle ? cap.formatTitle(pageId) : pageId;
+})()`,
+            deps: {
+              runtime: true,
+              capabilities: ["formatTitle"],
+            },
+          },
+          DEFAULT_VALUE: 13,
         },
         meta: {
           title: "Text",

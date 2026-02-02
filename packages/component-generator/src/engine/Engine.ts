@@ -41,6 +41,11 @@ type BindingTargets = {
   runtime: Set<string>;
 };
 
+type DataSourceArgsMeta = {
+  args: t.Expression[];
+  dependsOn: Set<string>;
+};
+
 export class Engine {
   nodeRegistry: NodeRegistry;
   dataSourceRegistry?: DataSourceRegistry;
@@ -82,6 +87,13 @@ export class Engine {
       actionGraphInfo,
       actionGraphEvents
     );
+    const dataSourceArgsMeta = this.collectDataSourceArgsMeta(
+      schema,
+      nodeFragments,
+      bindingTargets,
+      dataSourceInfo,
+      actionGraphInfo
+    );
     applyActionGraphDataSourceDependencies(
       bindingTargets.dataSources,
       bindingTargets.actionGraphs,
@@ -97,7 +109,8 @@ export class Engine {
     this.applyBindingStats(
       nodeFragments,
       bindingTargets.dataSources,
-      dataSourceInfo
+      dataSourceInfo,
+      dataSourceArgsMeta
     );
     applyActionGraphStats(
       nodeFragments,
@@ -1042,7 +1055,8 @@ export class Engine {
   private applyBindingStats(
     nodeFragments: Map<string, CodeFragment>,
     bindingTargets: Map<string, Map<string, Set<BindingOutputKind>>>,
-    dataSourceInfo: Map<string, DataSourceBindingInfo>
+    dataSourceInfo: Map<string, DataSourceBindingInfo>,
+    dataSourceArgsMeta: Map<string, DataSourceArgsMeta>
   ) {
     bindingTargets.forEach((sources, boundaryId) => {
       const fragment = nodeFragments.get(boundaryId);
@@ -1056,7 +1070,16 @@ export class Engine {
         if (!info) {
           return;
         }
-        bindingStats.push(this.buildHookBindingStat(boundaryId, info, outputs));
+        const meta = dataSourceArgsMeta.get(sourceId);
+        bindingStats.push(
+          this.buildHookBindingStat(
+            boundaryId,
+            info,
+            outputs,
+            meta?.args,
+            meta?.dependsOn
+          )
+        );
       });
       if (bindingStats.length) {
         fragment.stats = [...bindingStats, ...fragment.stats];
@@ -1080,7 +1103,9 @@ export class Engine {
   private buildHookBindingStat(
     boundaryId: string,
     info: DataSourceBindingInfo,
-    outputs: Set<BindingOutputKind>
+    outputs: Set<BindingOutputKind>,
+    args?: t.Expression[],
+    dependsOn?: Set<string>
   ): Stat {
     const properties: t.ObjectProperty[] = [];
     const outputNames: string[] = [];
@@ -1113,10 +1138,18 @@ export class Engine {
     });
 
     const pattern = t.objectPattern(properties);
-    const init = t.callExpression(t.identifier(info.hookName), []);
+    const init = t.callExpression(
+      t.identifier(info.hookName),
+      args?.length ? args : []
+    );
     const declaration = t.variableDeclaration("const", [
       t.variableDeclarator(pattern, init),
     ]);
+    const depends = dependsOn
+      ? Array.from(dependsOn).map(
+          (sourceId) => `${boundaryId}:binding:${sourceId}`
+        )
+      : [];
 
     return {
       id: `${boundaryId}:binding:${info.id}`,
@@ -1125,8 +1158,72 @@ export class Engine {
       stat: declaration,
       meta: {
         output: outputNames,
-        depends: [],
+        depends,
       },
     };
+  }
+
+  private collectDataSourceArgsMeta(
+    schema: PageConfig,
+    nodeFragments: Map<string, CodeFragment>,
+    bindingTargets: BindingTargets,
+    dataSourceInfo: Map<string, DataSourceBindingInfo>,
+    actionGraphInfo: Map<string, ActionGraphInfo>
+  ): Map<string, DataSourceArgsMeta> {
+    const meta = new Map<string, DataSourceArgsMeta>();
+    if (!schema.dataSources?.length) {
+      return meta;
+    }
+    const boundaryId = this.resolveDataSourceTarget(
+      schema.root.id,
+      nodeFragments
+    );
+    if (!boundaryId) {
+      return meta;
+    }
+    schema.dataSources.forEach((dataSource) => {
+      if (!dataSource.args?.length) {
+        return;
+      }
+      const args = dataSource.args.map((arg) => this.toAstValue(arg));
+      const deps = new Set<string>();
+      const bindings = this.collectBindingsFromProps({ args: dataSource.args });
+      bindings.forEach((binding) => {
+        const sourceId = binding.source;
+        const info = sourceId ? dataSourceInfo.get(sourceId) : undefined;
+        const graphInfo = sourceId ? actionGraphInfo.get(sourceId) : undefined;
+        const target = this.resolveBindingTarget(binding, info, graphInfo);
+        if (target === "runtime") {
+          bindingTargets.runtime.add(boundaryId);
+          return;
+        }
+        if (target === "dataSource") {
+          if (!info || !sourceId) {
+            throw new Error(`Binding source ${binding.source ?? ""} not found`);
+          }
+          const { outputName } = this.resolveDataSourceBindingOutput(
+            binding,
+            info
+          );
+          const bySource = bindingTargets.dataSources.get(boundaryId) ?? new Map();
+          const outputSet = bySource.get(sourceId) ?? new Set();
+          outputSet.add(outputName);
+          bySource.set(sourceId, outputSet);
+          bindingTargets.dataSources.set(boundaryId, bySource);
+          deps.add(sourceId);
+          return;
+        }
+        if (!sourceId) {
+          throw new Error(
+            "Binding target context requires actionGraph source."
+          );
+        }
+        const graphSet = bindingTargets.actionGraphs.get(boundaryId) ?? new Set();
+        graphSet.add(sourceId);
+        bindingTargets.actionGraphs.set(boundaryId, graphSet);
+      });
+      meta.set(dataSource.id, { args, dependsOn: deps });
+    });
+    return meta;
   }
 }

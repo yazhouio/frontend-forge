@@ -56,6 +56,10 @@ const pageConfigSchema = {
         id: { type: "string" },
         type: { type: "string" },
         config: { type: "object", additionalProperties: true },
+        args: {
+          type: "array",
+          items: { $ref: "#/$defs/propValue" },
+        },
         autoLoad: { type: "boolean" },
         polling: {
           type: "object",
@@ -123,10 +127,19 @@ const pageConfigSchema = {
     expressionValue: {
       type: "object",
       required: ["type", "code"],
-            properties: {
-                type: { const: "expression" },
-                code: { type: "string" },
-            },
+      properties: {
+        type: { const: "expression" },
+        code: { type: "string" },
+        deps: {
+          type: "object",
+          properties: {
+            dataSources: { type: "array", items: { type: "string" } },
+            runtime: { const: true },
+            capabilities: { type: "array", items: { type: "string" } },
+          },
+          additionalProperties: false,
+        },
+      },
       additionalProperties: true,
     },
     componentNode: {
@@ -257,6 +270,15 @@ const expressionValueSchema = {
   properties: {
     type: { const: "expression" },
     code: { type: "string" },
+    deps: {
+      type: "object",
+      properties: {
+        dataSources: { type: "array", items: { type: "string" } },
+        runtime: { const: true },
+        capabilities: { type: "array", items: { type: "string" } },
+      },
+      additionalProperties: false,
+    },
   },
   additionalProperties: true,
 } as const;
