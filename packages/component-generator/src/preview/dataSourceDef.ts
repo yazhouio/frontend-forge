@@ -143,10 +143,6 @@ export const WorkspaceProjectSelectDataSource: DataSourceDefinition = {
   id: "workspace-project-select",
   schema: {
     templateInputs: {
-      SCOPE: {
-        type: "string",
-        description: "Scope name",
-      },
       HOOK_NAME: {
         type: "string",
         description: "Hook name",
@@ -173,8 +169,6 @@ export const WorkspaceProjectSelectDataSource: DataSourceDefinition = {
   const cap = runtime?.capabilities || {};
   const useWorkspaceProjectSelect =
     cap.useWorkspaceProjectSelect || (() => ({ render: null, params: {} }));
-  const scope = %%SCOPE%%;
-  const enabled = scope === "namespace";
   const projectSelect = useWorkspaceProjectSelect({ workspace: params.workspace });
   const cluster = projectSelect.params?.cluster;
   const namespace = projectSelect.params?.namespace;
@@ -182,7 +176,7 @@ export const WorkspaceProjectSelectDataSource: DataSourceDefinition = {
     params: { cluster, namespace },
     namespace,
     cluster,
-    toolbarLeft: enabled ? projectSelect.render : null,
+    toolbarLeft: projectSelect.render,
   };
 };`,
         output: ["HOOK_NAME"],
@@ -191,7 +185,7 @@ export const WorkspaceProjectSelectDataSource: DataSourceDefinition = {
     ],
     meta: {
       inputPaths: {
-        hookDecl: ["SCOPE", "HOOK_NAME"],
+        hookDecl: ["HOOK_NAME"],
       },
     },
   },
