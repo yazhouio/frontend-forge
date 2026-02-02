@@ -25,7 +25,7 @@ export function TablePreview() {
       value={{
         ...route,
         page: {
-          id: "table-preview",
+          id: "workspace-table-preview",
         },
         capabilities: pageContext,
       }}
