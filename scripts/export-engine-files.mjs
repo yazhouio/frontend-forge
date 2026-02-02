@@ -3,8 +3,8 @@ import path from "node:path";
 
 function parseArgs(argv) {
   const args = {
-    dir: "packages/component-generator/src/engine",
-    out: ".tmp/engine-files.json",
+    dir: "packages/component-generator/src/preview",
+    out: ".tmp/preview-files.json",
     skip: new Set(["demo.ts", "demo.js"]),
   };
 
