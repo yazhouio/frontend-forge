@@ -17,6 +17,17 @@ export interface RuntimeContextInfo {
     navigate: (to: string | number) => void;
     goBack: () => void;
   };
+  capabilities?: {
+    useTableActions?: any;
+    useBatchActions?: any;
+    useItemActions?: any;
+    getActions?: any;
+    getLocalTime?: (value: string) => {
+      format: (pattern: string) => string;
+    };
+    useWorkspaceProjectSelect?: any;
+    [key: string]: any;
+  };
   permissions?: Record<string, boolean>;
   features?: Record<string, boolean>;
   meta?: Record<string, any>;

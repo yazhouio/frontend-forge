@@ -1,6 +1,7 @@
 import { get, isObject } from "es-toolkit/compat";
 import * as React from "react";
 import { Link } from "react-router-dom";
+import { useRuntimeContext } from "../../hooks";
 
 import "@tanstack/react-table"; //or vue, svelte, solid, qwik, etc.
 import { RowData } from "@tanstack/react-table";
@@ -48,13 +49,33 @@ export function TableTdText(props: { value: unknown }) {
 
 export function TableTdTime(props: {
   value: string;
-  format: (time: string) => string;
+  format?: "local-datetime" | "utc";
+  pattern?: string;
 }) {
-  const { value, format } = props;
+  const { value, format, pattern } = props;
+  const runtime = useRuntimeContext();
+  const getLocalTime = runtime?.capabilities?.getLocalTime;
+
   if (!value) {
     return "-";
   }
-  return <div>{format(value)}</div>;
+
+  if (format === "local-datetime") {
+    if (getLocalTime) {
+      return (
+        <div>
+          {getLocalTime(value).format(pattern ?? "YYYY-MM-DD HH:mm:ss")}
+        </div>
+      );
+    }
+    return <div>{value}</div>;
+  }
+
+  if (format === "utc") {
+    return <div>{new Date(value).toISOString()}</div>;
+  }
+
+  return <div>{value}</div>;
 }
 
 export function TableTdLink(props: { value: unknown; link: string }) {
