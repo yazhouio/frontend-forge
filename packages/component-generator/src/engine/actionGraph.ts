@@ -10,8 +10,8 @@ import { CodeFragment, Stat } from "./interfaces.js";
 import {
   BindingOutputKind,
   DataSourceBindingInfo,
-  getBindingOutputVarName,
   isBindingOutputDefined,
+  resolveBindingOutputVarName,
 } from "./bindingTypes.js";
 
 export type ActionGraphInfo = {
@@ -507,7 +507,7 @@ const buildActionGraphCallDataSourceStats = (
       t.objectProperty(
         t.stringLiteral(dataSourceId),
         t.identifier(
-          getBindingOutputVarName(bindingInfo.baseName, "mutate")
+          resolveBindingOutputVarName(bindingInfo, "mutate")
         )
       )
     );

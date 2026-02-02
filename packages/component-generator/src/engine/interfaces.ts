@@ -43,6 +43,7 @@ export type DataSourceDefinition = {
     }[];
     meta?: {
       inputPaths: Record<string, string[]>;
+      callMode?: "hook" | "value";
     };
   };
 };

@@ -54,6 +54,7 @@ const dataSourceDefinitionSchema = z
         meta: z
           .object({
             inputPaths: z.record(z.array(z.string())),
+            callMode: z.enum(["hook", "value"]).optional(),
           })
           .strict()
           .optional(),
