@@ -368,6 +368,7 @@ export const CrdStoreFactoryDataSource: DataSourceDefinition = {
       inputPaths: {
         hookDecl: ["CRD_CONFIG", "HOOK_NAME"],
       },
+      callMode: "value",
     },
   },
 };
