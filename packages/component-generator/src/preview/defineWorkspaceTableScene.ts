@@ -71,11 +71,15 @@ const buildColumnRender = (render: CrdTableColumnRender) => {
 export const defineWorkspaceTableScene = (
   scene: WorkspaceTableSceneConfig,
 ): PageConfig => {
-  const columnsConfig = scene.columns.map((column) => ({
-    key: column.key,
-    title: column.title,
-    render: buildColumnRender(column.render),
-  }));
+  const columnsConfig = scene.columns.map((column) => {
+    const { key, title, render, ...rest } = column;
+    return {
+      key,
+      title,
+      render: buildColumnRender(render),
+      ...rest,
+    };
+  });
 
   return {
     meta: {
@@ -135,7 +139,7 @@ export const defineWorkspaceTableScene = (
           },
         ],
         config: {
-          HOOK_NAME: "useWorkspaceProjectSelect",
+          HOOK_NAME: "useWorkspaceProjectSelectHook",
         },
       },
       {

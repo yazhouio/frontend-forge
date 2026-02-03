@@ -29,6 +29,7 @@ export const WorkspaceTableScene = {
     {
       key: "project",
       title: "Project",
+      enableHiding: true,
       render: {
         type: "text",
         path: `metadata.annotations["meta.helm.sh/release-namespace"]`,
@@ -37,6 +38,7 @@ export const WorkspaceTableScene = {
     {
       key: "updatedAt",
       title: "UPDATED_AT",
+      enableHiding: true,
       render: {
         type: "time",
         path: "metadata.creationTimestamp",
