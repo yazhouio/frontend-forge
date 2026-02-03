@@ -69,185 +69,18 @@ export const CrdColumnsDataSource: DataSourceDefinition = {
   },
 };
 
-export const CrdPageStoreDataSource: DataSourceDefinition = {
-  id: "crd-page-store",
+export const CrdPageStateDataSource: DataSourceDefinition = {
+  id: "crd-page-state",
   schema: {
     templateInputs: {
       PAGE_ID: {
         type: "string",
         description: "Page id",
       },
-      HOOK_NAME: {
-        type: "string",
-        description: "Hook name",
+      CRD_CONFIG: {
+        type: "object",
+        description: "CRD store config",
       },
-    },
-    outputs: {
-      page: { type: "object" },
-      storeQuery: { type: "object" },
-    },
-  },
-  generateCode: {
-    imports: [
-      'import * as React from "react"',
-      'import { useMemo } from "react"',
-      'import { usePageStore, buildSearchObject } from "@frontend-forge/forge-components"',
-    ],
-    stats: [
-      {
-        id: "hookDecl",
-        scope: StatementScope.ModuleDecl,
-        code: `const %%HOOK_NAME%% = (columns) => {
-  const pageId = %%PAGE_ID%%;
-  const page = usePageStore({ pageId, columns });
-  const storeQuery = useMemo(() => buildSearchObject(page, true), [page]);
-  return { page, storeQuery };
-};`,
-        output: ["HOOK_NAME"],
-        depends: [],
-      },
-    ],
-    meta: {
-      inputPaths: {
-        hookDecl: ["PAGE_ID", "HOOK_NAME"],
-      },
-    },
-  },
-};
-
-export const CrdRuntimeParamsDataSource: DataSourceDefinition = {
-  id: "crd-runtime-params",
-  schema: {
-    templateInputs: {
-      HOOK_NAME: {
-        type: "string",
-        description: "Hook name",
-      },
-    },
-    outputs: {
-      params: { type: "object" },
-    },
-  },
-  generateCode: {
-    imports: [
-      'import * as React from "react"',
-      'import { useRuntimeContext } from "@frontend-forge/forge-components"',
-    ],
-    stats: [
-      {
-        id: "hookDecl",
-        scope: StatementScope.ModuleDecl,
-        code: `const %%HOOK_NAME%% = () => {
-  const runtime = useRuntimeContext();
-  return { params: runtime?.route?.params || {} };
-};`,
-        output: ["HOOK_NAME"],
-        depends: [],
-      },
-    ],
-    meta: {
-      inputPaths: {
-        hookDecl: ["HOOK_NAME"],
-      },
-    },
-  },
-};
-
-export const WorkspaceProjectSelectDataSource: DataSourceDefinition = {
-  id: "workspace-project-select",
-  schema: {
-    templateInputs: {
-      HOOK_NAME: {
-        type: "string",
-        description: "Hook name",
-      },
-    },
-    outputs: {
-      params: { type: "object" },
-      namespace: { type: "string" },
-      cluster: { type: "string" },
-      toolbarLeft: { type: "object" },
-    },
-  },
-  generateCode: {
-    imports: [
-      'import * as React from "react"',
-      'import { useRuntimeContext } from "@frontend-forge/forge-components"',
-    ],
-    stats: [
-      {
-        id: "hookDecl",
-        scope: StatementScope.ModuleDecl,
-        code: `const %%HOOK_NAME%% = (params) => {
-  const runtime = useRuntimeContext();
-  const cap = runtime?.capabilities || {};
-  const useWorkspaceProjectSelect =
-    cap.useWorkspaceProjectSelect || (() => ({ render: null, params: {} }));
-  const projectSelect = useWorkspaceProjectSelect({ workspace: params.workspace, showAll: false });
-  const cluster = projectSelect.params?.cluster;
-  const namespace = projectSelect.params?.namespace;
-  return {
-    params: { cluster, namespace },
-    namespace,
-    cluster,
-    toolbarLeft: projectSelect.render,
-  };
-};`,
-        output: ["HOOK_NAME"],
-        depends: [],
-      },
-    ],
-    meta: {
-      inputPaths: {
-        hookDecl: ["HOOK_NAME"],
-      },
-    },
-  },
-};
-
-export const MergeParamsDataSource: DataSourceDefinition = {
-  id: "merge-params",
-  schema: {
-    templateInputs: {
-      HOOK_NAME: {
-        type: "string",
-        description: "Hook name",
-      },
-    },
-    outputs: {
-      params: { type: "object" },
-    },
-  },
-  generateCode: {
-    imports: ['import * as React from "react"'],
-    stats: [
-      {
-        id: "hookDecl",
-        scope: StatementScope.ModuleDecl,
-        code: `const %%HOOK_NAME%% = (baseParams, extraParams) => {
-  return {
-    params: {
-      ...(baseParams || {}),
-      ...(extraParams || {}),
-    },
-  };
-};`,
-        output: ["HOOK_NAME"],
-        depends: [],
-      },
-    ],
-    meta: {
-      inputPaths: {
-        hookDecl: ["HOOK_NAME"],
-      },
-    },
-  },
-};
-
-export const CrdProjectSelectDataSource: DataSourceDefinition = {
-  id: "crd-project-select",
-  schema: {
-    templateInputs: {
       SCOPE: {
         type: "string",
         description: "Scope name",
@@ -259,78 +92,187 @@ export const CrdProjectSelectDataSource: DataSourceDefinition = {
     },
     outputs: {
       params: { type: "object" },
-      namespace: { type: "string" },
+      refetch: { type: "object" },
       toolbarLeft: { type: "object" },
-    },
-  },
-  generateCode: {
-    imports: [
-      'import * as React from "react"',
-      'import { useProjectSelect } from "@frontend-forge/forge-components"',
-    ],
-    stats: [
-      {
-        id: "hookDecl",
-        scope: StatementScope.ModuleDecl,
-        code: `const %%HOOK_NAME%% = (params) => {
-  const scope = %%SCOPE%%;
-  const enabled = scope === "namespace";
-  const projectSelect = useProjectSelect(
-    { cluster: params.cluster },
-    { enabled },
-  );
-  const namespace = enabled ? projectSelect.params?.namespace : undefined;
-  return {
-    params: { cluster: params.cluster, namespace },
-    namespace,
-    toolbarLeft: enabled ? projectSelect.render : null,
-  };
-};`,
-        output: ["HOOK_NAME"],
-        depends: [],
-      },
-    ],
-    meta: {
-      inputPaths: {
-        hookDecl: ["SCOPE", "HOOK_NAME"],
-      },
-    },
-  },
-};
-
-export const CrdStoreDataSource: DataSourceDefinition = {
-  id: "crd-store",
-  schema: {
-    templateInputs: {
-      HOOK_NAME: {
-        type: "string",
-        description: "Hook name",
-      },
-    },
-    outputs: {
+      pageContext: { type: "object" },
       data: { type: "object" },
       loading: { type: "boolean" },
-      refetch: { type: "object" },
       update: { type: "object" },
       del: { type: "object" },
       create: { type: "object" },
     },
   },
   generateCode: {
-    imports: ['import * as React from "react"'],
+    imports: [
+      'import * as React from "react"',
+      'import { useMemo } from "react"',
+      'import { buildSearchObject, getCrdStore, usePageStore, useProjectSelect } from "@frontend-forge/forge-components"',
+    ],
     stats: [
+      {
+        id: "storeDecl",
+        scope: StatementScope.ModuleDecl,
+        code: "const useStore = getCrdStore(%%CRD_CONFIG%%);",
+        output: ["useStore"],
+        depends: [],
+      },
       {
         id: "hookDecl",
         scope: StatementScope.ModuleDecl,
-        code: `const %%HOOK_NAME%% = (storeHook, params, namespace, storeQuery, options) => {
-  const store = storeHook(
+        code: `const %%HOOK_NAME%% = (columns, storeOptions = undefined) => {
+  const pageId = %%PAGE_ID%%;
+  const page = usePageStore({
+    pageId,
+    columns,
+  });
+
+  const runtime = useRuntimeContext();
+  const params = runtime?.route?.params || {};
+  const pageContext = runtime?.capabilities;
+  const storeQuery = useMemo(() => buildSearchObject(page, true), [page]);
+
+  const scope = %%SCOPE%%;
+  const {
+    render: renderProjectSelect,
+    params: { namespace: selectNamespace },
+  } = useProjectSelect(
     {
-      params: { ...params, namespace },
+      cluster: params.cluster,
+    },
+    {
+      enabled: scope === "namespace",
+    },
+  );
+  const namespace = scope === "namespace" ? selectNamespace : undefined;
+  const toolbarLeft = () => {
+    if (scope === "namespace") {
+      return renderProjectSelect();
+    }
+    return null;
+  };
+
+  const storeParams = { ...params, namespace };
+
+  const store = useStore(
+    {
+      params: storeParams,
       query: storeQuery,
     },
-    options,
+    storeOptions,
   );
+
   return {
+    params,
+    toolbarLeft,
+    pageContext,
+    data: store.data,
+    loading: Boolean(store.isLoading || store.isValidating),
+    refetch: store.mutate,
+    update: store.update,
+    del: store.batchDelete,
+    create: store.create,
+  };
+  };`,
+        output: ["HOOK_NAME"],
+        depends: [],
+      },
+    ],
+    meta: {
+      inputPaths: {
+        storeDecl: ["CRD_CONFIG"],
+        hookDecl: ["HOOK_NAME", "PAGE_ID", "SCOPE"],
+      },
+    },
+  },
+};
+
+export const WorkspaceCrdPageStateDataSource: DataSourceDefinition = {
+  id: "workspace-crd-page-state",
+  schema: {
+    templateInputs: {
+      PAGE_ID: {
+        type: "string",
+        description: "Page id",
+      },
+      CRD_CONFIG: {
+        type: "object",
+        description: "CRD store config",
+      },
+      HOOK_NAME: {
+        type: "string",
+        description: "Hook name",
+      },
+    },
+    outputs: {
+      params: { type: "object" },
+      refetch: { type: "object" },
+      toolbarLeft: { type: "object" },
+      pageContext: { type: "object" },
+      data: { type: "object" },
+      loading: { type: "boolean" },
+      update: { type: "object" },
+      del: { type: "object" },
+      create: { type: "object" },
+    },
+  },
+  generateCode: {
+    imports: [
+      'import * as React from "react"',
+      'import { useMemo } from "react"',
+      'import { buildSearchObject, getCrdStore, usePageStore } from "@frontend-forge/forge-components"',
+    ],
+    stats: [
+      {
+        id: "storeDecl",
+        scope: StatementScope.ModuleDecl,
+        code: "const useStore = getCrdStore(%%CRD_CONFIG%%);",
+        output: ["useStore"],
+        depends: [],
+      },
+      {
+        id: "hookDecl",
+        scope: StatementScope.ModuleDecl,
+        code: `const %%HOOK_NAME%% = (columns, storeOptions = undefined) => {
+  const pageId = %%PAGE_ID%%;
+  const page = usePageStore({
+    pageId,
+    columns,
+  });
+
+  const runtime = useRuntimeContext();
+  const params = runtime?.route?.params || {};
+  const pageContext = runtime?.capabilities;
+
+  const storeQuery = useMemo(() => buildSearchObject(page, true), [page]);
+
+  const useWorkspaceProjectSelectHook = useMemo(() => pageContext?.useWorkspaceProjectSelect || (() => ({})), [pageContext]);
+  const {
+    render: renderProjectSelect,
+    params: { cluster, namespace },
+  } = useWorkspaceProjectSelectHook({
+    workspace: params.workspace,
+  });
+
+  const resolvedOptions =
+    storeOptions && Object.prototype.hasOwnProperty.call(storeOptions, "enabled")
+      ? storeOptions
+      : {
+          ...(storeOptions || {}),
+          enabled: Boolean(namespace),
+        };
+
+  const store = useStore(
+    {
+      params: { ...params, namespace, cluster },
+      query: storeQuery,
+    },
+    resolvedOptions,
+  );
+
+  return {
+    params: { ...params, namespace, cluster },
+    toolbarLeft: renderProjectSelect,
+    pageContext,
     data: store.data,
     loading: Boolean(store.isLoading || store.isValidating),
     refetch: store.mutate,
@@ -345,91 +287,8 @@ export const CrdStoreDataSource: DataSourceDefinition = {
     ],
     meta: {
       inputPaths: {
-        hookDecl: ["HOOK_NAME"],
-      },
-    },
-  },
-};
-
-export const CrdStoreFactoryDataSource: DataSourceDefinition = {
-  id: "crd-store-factory",
-  schema: {
-    templateInputs: {
-      CRD_CONFIG: {
-        type: "object",
-        description: "CRD store config",
-      },
-      HOOK_NAME: {
-        type: "string",
-        description: "Hook name",
-      },
-    },
-    outputs: {
-      useStore: { type: "object" },
-    },
-  },
-  generateCode: {
-    imports: ['import { getCrdStore } from "@frontend-forge/forge-components"'],
-    stats: [
-      {
-        id: "hookDecl",
-        scope: StatementScope.ModuleDecl,
-        code: `const %%HOOK_NAME%% = getCrdStore(%%CRD_CONFIG%%);`,
-        output: ["HOOK_NAME"],
-        depends: [],
-      },
-    ],
-    meta: {
-      inputPaths: {
-        hookDecl: ["CRD_CONFIG", "HOOK_NAME"],
-      },
-      callMode: "value",
-    },
-  },
-};
-
-export const CrdPageContextDataSource: DataSourceDefinition = {
-  id: "crd-page-context",
-  schema: {
-    templateInputs: {
-      HOOK_NAME: {
-        type: "string",
-        description: "Hook name",
-      },
-    },
-    outputs: {
-      pageContext: { type: "object" },
-    },
-  },
-  generateCode: {
-    imports: [
-      'import * as React from "react"',
-      'import { useRuntimeContext } from "@frontend-forge/forge-components"',
-    ],
-    stats: [
-      {
-        id: "hookDecl",
-        scope: StatementScope.ModuleDecl,
-        code: `const %%HOOK_NAME%% = () => {
-  const runtime = useRuntimeContext();
-  const cap = runtime?.capabilities || {};
-  return {
-    pageContext: {
-      useTableActions: cap.useTableActions,
-      useBatchActions: cap.useBatchActions,
-      useItemActions: cap.useItemActions,
-      getActions: cap.getActions,
-      getLocalTime: cap.getLocalTime,
-    },
-  };
-};`,
-        output: ["HOOK_NAME"],
-        depends: [],
-      },
-    ],
-    meta: {
-      inputPaths: {
-        hookDecl: ["HOOK_NAME"],
+        storeDecl: ["CRD_CONFIG"],
+        hookDecl: ["HOOK_NAME", "PAGE_ID"],
       },
     },
   },

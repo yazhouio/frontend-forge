@@ -81,30 +81,15 @@ export const defineWorkspaceTableScene = (
       ...rest,
     };
   });
-  const storeArgs = [
+  const pageStateArgs = [
     {
       type: "binding",
-      source: "crdStoreFactory",
-      bind: "useStore",
-    },
-    {
-      type: "binding",
-      source: "mergedParams",
-      bind: "params",
-    },
-    {
-      type: "binding",
-      source: "workspaceProjectSelect",
-      bind: "namespace",
-    },
-    {
-      type: "binding",
-      source: "pageStore",
-      bind: "storeQuery",
+      source: "columns",
+      bind: "columns",
     },
   ];
   if (scene.storeOptions !== undefined) {
-    storeArgs.push(scene.storeOptions);
+    pageStateArgs.push(scene.storeOptions);
   }
 
   return {
@@ -117,21 +102,6 @@ export const defineWorkspaceTableScene = (
     context: {},
     dataSources: [
       {
-        id: "crdStoreFactory",
-        type: "crd-store-factory",
-        config: {
-          CRD_CONFIG: scene.crd,
-          HOOK_NAME: "useCrdStoreFactory",
-        },
-      },
-      {
-        id: "runtimeParams",
-        type: "crd-runtime-params",
-        config: {
-          HOOK_NAME: "useCrdRuntimeParams",
-        },
-      },
-      {
         id: "columns",
         type: "crd-columns",
         config: {
@@ -140,66 +110,13 @@ export const defineWorkspaceTableScene = (
         },
       },
       {
-        id: "pageStore",
-        type: "crd-page-store",
-        args: [
-          {
-            type: "binding",
-            source: "columns",
-            bind: "columns",
-          },
-        ],
+        id: "pageState",
+        type: "workspace-crd-page-state",
+        args: pageStateArgs,
         config: {
           PAGE_ID: scene.page.id,
-          HOOK_NAME: "useCrdPageStore",
-        },
-      },
-      {
-        id: "workspaceProjectSelect",
-        type: "workspace-project-select",
-        args: [
-          {
-            type: "binding",
-            source: "runtimeParams",
-            bind: "params",
-          },
-        ],
-        config: {
-          HOOK_NAME: "useWorkspaceProjectSelectHook",
-        },
-      },
-      {
-        id: "mergedParams",
-        type: "merge-params",
-        args: [
-          {
-            type: "binding",
-            source: "runtimeParams",
-            bind: "params",
-          },
-          {
-            type: "binding",
-            source: "workspaceProjectSelect",
-            bind: "params",
-          },
-        ],
-        config: {
-          HOOK_NAME: "useMergedParams",
-        },
-      },
-      {
-        id: "store",
-        type: "crd-store",
-        args: storeArgs,
-        config: {
-          HOOK_NAME: "useCrdStore",
-        },
-      },
-      {
-        id: "pageContext",
-        type: "crd-page-context",
-        config: {
-          HOOK_NAME: "useCrdPageContext",
+          CRD_CONFIG: scene.crd,
+          HOOK_NAME: "useCrdPageState",
         },
       },
     ],
@@ -212,22 +129,22 @@ export const defineWorkspaceTableScene = (
         AUTH_KEY: scene.page.authKey,
         PARAMS: {
           type: "binding",
-          source: "mergedParams",
+          source: "pageState",
           bind: "params",
         },
         REFETCH: {
           type: "binding",
-          source: "store",
+          source: "pageState",
           bind: "refetch",
         },
         TOOLBAR_LEFT: {
           type: "binding",
-          source: "workspaceProjectSelect",
+          source: "pageState",
           bind: "toolbarLeft",
         },
         PAGE_CONTEXT: {
           type: "binding",
-          source: "pageContext",
+          source: "pageState",
           bind: "pageContext",
         },
         COLUMNS: {
@@ -237,28 +154,28 @@ export const defineWorkspaceTableScene = (
         },
         DATA: {
           type: "binding",
-          source: "store",
+          source: "pageState",
           bind: "data",
         },
         IS_LOADING: {
           type: "binding",
-          source: "store",
+          source: "pageState",
           bind: "loading",
           defaultValue: false,
         },
         UPDATE: {
           type: "binding",
-          source: "store",
+          source: "pageState",
           bind: "update",
         },
         DEL: {
           type: "binding",
-          source: "store",
+          source: "pageState",
           bind: "del",
         },
         CREATE: {
           type: "binding",
-          source: "store",
+          source: "pageState",
           bind: "create",
         },
       },
