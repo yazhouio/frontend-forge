@@ -1,14 +1,16 @@
 import { useMemo } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 export function usePageRuntimeRouter() {
   const location = useLocation();
   const navigate = useNavigate();
+  const params = useParams();
 
   return useMemo(() => {
     return {
       route: {
         current: location.pathname,
+        params,
       },
       navigation: {
         navigate: (to: string | number) => {
