@@ -17,12 +17,6 @@ export const WorkspaceTableScene = {
     title: "Table Preview",
     authKey: "jobs",
   },
-  storeOptions: {
-    enabled: {
-      type: "expression",
-      code: "Boolean(workspaceProjectSelectParams.namespace)",
-    },
-  },
   columns: [
     {
       key: "name",

@@ -5,14 +5,8 @@ import { NodeRegistry } from "../engine/NodeRegistry.js";
 import { SchemaValidator } from "../engine/SchemaValidator.js";
 import {
   CrdColumnsDataSource,
-  CrdPageStoreDataSource,
-  CrdRuntimeParamsDataSource,
-  CrdProjectSelectDataSource,
-  WorkspaceProjectSelectDataSource,
-  MergeParamsDataSource,
-  CrdStoreDataSource,
-  CrdStoreFactoryDataSource,
-  CrdPageContextDataSource,
+  CrdPageStateDataSource,
+  WorkspaceCrdPageStateDataSource,
 } from "./dataSourceDef.js";
 import { CrdTableNode } from "./nodeDef.js";
 import { crdTablePageConfig } from "./crdTablePageConfig.js";
@@ -23,14 +17,8 @@ nodeRegistry.registerNode(CrdTableNode);
 
 const dataSourceRegistry = new DataSourceRegistry();
 dataSourceRegistry.registerDataSource(CrdColumnsDataSource);
-dataSourceRegistry.registerDataSource(CrdPageStoreDataSource);
-dataSourceRegistry.registerDataSource(CrdRuntimeParamsDataSource);
-dataSourceRegistry.registerDataSource(CrdProjectSelectDataSource);
-dataSourceRegistry.registerDataSource(WorkspaceProjectSelectDataSource);
-dataSourceRegistry.registerDataSource(MergeParamsDataSource);
-dataSourceRegistry.registerDataSource(CrdStoreDataSource);
-dataSourceRegistry.registerDataSource(CrdStoreFactoryDataSource);
-dataSourceRegistry.registerDataSource(CrdPageContextDataSource);
+dataSourceRegistry.registerDataSource(CrdPageStateDataSource);
+dataSourceRegistry.registerDataSource(WorkspaceCrdPageStateDataSource);
 
 const schemaValidator = new SchemaValidator();
 const engine = new Engine(nodeRegistry, schemaValidator, dataSourceRegistry);
