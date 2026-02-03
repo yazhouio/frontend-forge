@@ -22,23 +22,36 @@ export const CrdColumnsDataSource: DataSourceDefinition = {
     imports: [
       'import * as React from "react"',
       'import { useMemo } from "react"',
-      'import { TableTd } from "@frontend-forge/forge-components"',
+      'import { TableTd, useRuntimeContext } from "@frontend-forge/forge-components"',
     ],
     stats: [
+      {
+        id: "columnsConfigDecl",
+        scope: StatementScope.ModuleDecl,
+        code: "const columnsConfig = %%COLUMNS_CONFIG%%;",
+        output: ["columnsConfig"],
+        depends: [],
+      },
       {
         id: "hookDecl",
         scope: StatementScope.ModuleDecl,
         code: `const %%HOOK_NAME%% = () => {
-  const columnsConfig = %%COLUMNS_CONFIG%%;
+  const runtime = useRuntimeContext();
+  const cap = runtime?.capabilities || {};
+  const t = cap.t ?? ((d) => d);
   const columns = useMemo(
     () =>
-      columnsConfig.map((column) => ({
-        accessorKey: column.key,
-        header: column.title,
-        cell: (info) => (
-          <TableTd meta={column.render} original={info.row.original} />
-        ),
-      })),
+      columnsConfig.map((column) => {
+        const { key, title, render, ...rest } = column;
+        return {
+          accessorKey: key,
+          header: t(title),
+          cell: (info) => (
+            <TableTd meta={render} original={info.row.original} />
+          ),
+          ...rest,
+        };
+      }),
     [columnsConfig],
   );
   return { columns };
@@ -49,7 +62,8 @@ export const CrdColumnsDataSource: DataSourceDefinition = {
     ],
     meta: {
       inputPaths: {
-        hookDecl: ["COLUMNS_CONFIG", "HOOK_NAME"],
+        columnsConfigDecl: ["COLUMNS_CONFIG"],
+        hookDecl: ["HOOK_NAME"],
       },
     },
   },
@@ -169,7 +183,7 @@ export const WorkspaceProjectSelectDataSource: DataSourceDefinition = {
   const cap = runtime?.capabilities || {};
   const useWorkspaceProjectSelect =
     cap.useWorkspaceProjectSelect || (() => ({ render: null, params: {} }));
-  const projectSelect = useWorkspaceProjectSelect({ workspace: params.workspace });
+  const projectSelect = useWorkspaceProjectSelect({ workspace: params.workspace, showAll: false });
   const cluster = projectSelect.params?.cluster;
   const namespace = projectSelect.params?.namespace;
   return {
@@ -352,9 +366,7 @@ export const CrdStoreFactoryDataSource: DataSourceDefinition = {
     },
   },
   generateCode: {
-    imports: [
-      'import { getCrdStore } from "@frontend-forge/forge-components"',
-    ],
+    imports: ['import { getCrdStore } from "@frontend-forge/forge-components"'],
     stats: [
       {
         id: "hookDecl",
