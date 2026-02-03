@@ -1,162 +1,51 @@
-import React, { useMemo } from "react";
-import type { ColumnDef } from "@tanstack/react-table";
+import { getCrdStore, RuntimeProvider } from "@frontend-forge/forge-components";
 import {
-  PageTable,
-  getCrdStore,
-  TableTd,
-  usePageStore,
-  useProjectSelect,
-  buildSearchObject,
-} from "@frontend-forge/forge-components";
-import {
+  buildCreateActionGuard,
+  getActions,
+  getLocalTime,
   useBatchActions,
   useItemActions,
   useTableActions,
-  getActions,
-  getLocalTime,
   useWorkspaceProjectSelect,
 } from "@ks-console/shared";
-import { useParams } from "react-router-dom";
+import { usePageRuntimeRouter } from "./routerHook";
+import WorkspaceTablePreviewItem from "./WorkspaceTablePreviewItem";
 
-const useStore = getCrdStore({
-  apiVersion: "v1alpha1",
-  kind: "Demo",
-  plural: "jsbundles",
-  group: "extensions.kubesphere.io",
-  kapi: true,
-});
-
-const scope = "namespace";
 const pageContext = {
-  useTableActions: useTableActions,
+  useTableActions: (config) =>
+    useTableActions({
+      ...config,
+      actions: config.actions.map((item) => {
+        return {
+          ...item,
+          ...buildCreateActionGuard({
+            params: item.params,
+          }),
+        };
+      }),
+    }),
   useBatchActions: useBatchActions,
   useItemActions: useItemActions,
   getActions: getActions,
   getLocalTime: getLocalTime,
   useWorkspaceProjectSelect: useWorkspaceProjectSelect,
+  t: (d) => "xx" + d,
 };
 
 export function WorkspaceTablePreview() {
-  const params = useParams();
+  const route = usePageRuntimeRouter();
 
-  const columns = useMemo<ColumnDef<Record<string, any>>[]>(
-    () => [
-      {
-        accessorKey: "name",
-        header: t("NAME"),
-        cell: (info) => {
-          return (
-            <TableTd
-              meta={{ type: "text", path: "metadata.name", payload: {} }}
-              original={info.row.original}
-            />
-          );
-        },
-        // enableHiding: true,
-      },
-      {
-        accessorKey: "project",
-        enableHiding: true,
-        header: "Project",
-        cell: (info) => {
-          return (
-            <TableTd
-              meta={{
-                type: "text",
-                path: `metadata.annotations["meta.helm.sh/release-namespace"]`,
-                payload: {},
-              }}
-              original={info.row.original}
-            />
-          );
-        },
-      },
-      {
-        accessorKey: "updatedAt",
-        header: t("UPDATED_AT"),
-        cell: (info) => {
-          return (
-            <TableTd
-              meta={{
-                type: "time",
-                path: "metadata.creationTimestamp",
-                payload: {
-                  format: (time) =>
-                    getLocalTime(time).format("YYYY-MM-DD HH:mm:ss"),
-                },
-              }}
-              original={info.row.original}
-            />
-          );
-        },
-        enableHiding: true,
-      },
-    ],
-    [],
-  );
-
-  const pageId = "workspace-forge-preview-table";
-  const page = usePageStore({
-    pageId,
-    columns,
-  });
-
-  const storeQuery = useMemo(() => {
-    return buildSearchObject(page, true);
-  }, [page]);
-
-  const {
-    render: renderProjectSelect,
-    params: { cluster, namespace },
-  } = useWorkspaceProjectSelect({
-    workspace: params.workspace,
-  });
-
-  console.log("params", params, cluster, namespace);
-  const {
-    data,
-    isLoading,
-    isValidating,
-    mutate: refetch,
-    update,
-    batchDelete: deleteFn,
-    create,
-  } = useStore({
-    params: {
-      ...params,
-      namespace,
-      cluster,
-    },
-    query: storeQuery,
-  });
-
-  const toolbarLeft = () => {
-    if (scope === "namespace") {
-      return renderProjectSelect();
-    }
-    return null;
-  };
-
-  console.log("data", data, isLoading, isValidating);
   return (
-    <PageTable
-      tableKey={pageId}
-      title="Table Preview"
-      authKey="jobs"
-      params={{
-        namespace,
-        cluster,
-        workspace: params.workspace,
+    <RuntimeProvider
+      value={{
+        ...route,
+        page: {
+          id: "workspace-table-preview",
+        },
+        capabilities: pageContext,
       }}
-      refetch={refetch}
-      toolbarLeft={toolbarLeft}
-      pageContext={pageContext}
-      columns={columns}
-      data={data}
-      isLoading={isLoading || isValidating}
-      update={update}
-      del={deleteFn}
-      create={create}
-    />
+    >
+      <WorkspaceTablePreviewItem />
+    </RuntimeProvider>
   );
 }
