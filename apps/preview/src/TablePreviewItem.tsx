@@ -1,27 +1,21 @@
 import {
   PageTable,
-  getCrdStore,
-  useRuntimeContext,
   TableTd,
-  usePageStore,
+  useRuntimeContext,
   buildSearchObject,
+  getCrdStore,
+  usePageStore,
   useProjectSelect,
 } from "@frontend-forge/forge-components";
+import {
+  getActions,
+  getLocalTime,
+  useBatchActions,
+  useItemActions,
+  useTableActions,
+} from "@ks-console/shared";
 import * as React from "react";
 import { useMemo } from "react";
-const useCrdStoreFactory = getCrdStore({
-  apiVersion: "v1alpha1",
-  kind: "Demo",
-  plural: "jsbundles",
-  group: "extensions.kubesphere.io",
-  kapi: true,
-});
-const useCrdRuntimeParams = () => {
-  const runtime = useRuntimeContext();
-  return {
-    params: runtime?.route?.params || {},
-  };
-};
 const columnsConfig = [
   {
     key: "name",
@@ -76,48 +70,63 @@ const useCrdColumns = () => {
     columns,
   };
 };
-const useCrdPageStore = (columns) => {
+const useStore = getCrdStore({
+  apiVersion: "v1alpha1",
+  kind: "Demo",
+  plural: "jsbundles",
+  group: "extensions.kubesphere.io",
+  kapi: true,
+});
+const pageContext = {
+  useTableActions: useTableActions,
+  useBatchActions: useBatchActions,
+  useItemActions: useItemActions,
+  getActions: getActions,
+  getLocalTime: getLocalTime,
+};
+const useCrdPageState = (columns, storeOptions = undefined) => {
   const pageId = "forge-preview-table";
   const page = usePageStore({
     pageId,
     columns,
   });
+  const runtime = useRuntimeContext();
+  const params = runtime?.params || {};
   const storeQuery = useMemo(() => buildSearchObject(page, true), [page]);
-  return {
-    page,
-    storeQuery,
-  };
-};
-const useCrdProjectSelect = (params) => {
   const scope = "namespace";
-  const enabled = scope === "namespace";
-  const projectSelect = useProjectSelect(
+  const {
+    render: renderProjectSelect,
+    params: { namespace: selectNamespace },
+  } = useProjectSelect(
     {
       cluster: params.cluster,
     },
     {
-      enabled,
+      enabled: scope === "namespace",
     },
   );
-  const namespace = enabled ? projectSelect.params?.namespace : undefined;
-  return {
-    params: {
-      cluster: params.cluster,
-      namespace,
-    },
-    namespace,
-    toolbarLeft: enabled ? projectSelect.render : null,
+  const namespace = scope === "namespace" ? selectNamespace : undefined;
+  const toolbarLeft = () => {
+    if (scope === "namespace") {
+      return renderProjectSelect();
+    }
+    return null;
   };
-};
-const useCrdStore = (storeHook, params, namespace, storeQuery) => {
-  const store = storeHook({
-    params: {
-      ...params,
-      namespace,
+  const storeParams = {
+    ...params,
+    namespace,
+  };
+  const store = useStore(
+    {
+      params: storeParams,
+      query: storeQuery,
     },
-    query: storeQuery,
-  });
+    storeOptions,
+  );
   return {
+    params,
+    toolbarLeft,
+    pageContext,
     data: store.data,
     loading: Boolean(store.isLoading || store.isValidating),
     refetch: store.mutate,
@@ -126,56 +135,34 @@ const useCrdStore = (storeHook, params, namespace, storeQuery) => {
     create: store.create,
   };
 };
-const useCrdPageContext = () => {
-  const runtime = useRuntimeContext();
-  const cap = runtime?.capabilities || {};
-  return {
-    pageContext: {
-      useTableActions: cap.useTableActions,
-      useBatchActions: cap.useBatchActions,
-      useItemActions: cap.useItemActions,
-      getActions: cap.getActions,
-      getLocalTime: cap.getLocalTime,
-    },
-  };
-};
 function CrdTable(props) {
-  const { params: runtimeParamsParams } = useCrdRuntimeParams();
-  const {
-    toolbarLeft: projectSelectToolbarLeft,
-    namespace: projectSelectNamespace,
-  } = useCrdProjectSelect(runtimeParamsParams);
-  const { pageContext: pageContextPageContext } = useCrdPageContext();
   const { columns: columnsColumns } = useCrdColumns();
-  const { storeQuery: pageStoreStoreQuery } = useCrdPageStore(columnsColumns);
   const {
-    refetch: storeRefetch,
-    data: storeData,
-    loading: storeLoading,
-    update: storeUpdate,
-    del: storeDel,
-    create: storeCreate,
-  } = useCrdStore(
-    useCrdStoreFactory,
-    runtimeParamsParams,
-    projectSelectNamespace,
-    pageStoreStoreQuery,
-  );
+    params: pageStateParams,
+    refetch: pageStateRefetch,
+    toolbarLeft: pageStateToolbarLeft,
+    pageContext: pageStatePageContext,
+    data: pageStateData,
+    loading: pageStateLoading,
+    update: pageStateUpdate,
+    del: pageStateDel,
+    create: pageStateCreate,
+  } = useCrdPageState(columnsColumns);
   return (
     <PageTable
       tableKey={"forge-preview-table"}
       title={"Table Preview"}
       authKey={"jobs"}
-      params={runtimeParamsParams}
-      refetch={storeRefetch}
-      toolbarLeft={projectSelectToolbarLeft}
-      pageContext={pageContextPageContext}
+      params={pageStateParams}
+      refetch={pageStateRefetch}
+      toolbarLeft={pageStateToolbarLeft}
+      pageContext={pageStatePageContext}
       columns={columnsColumns}
-      data={storeData}
-      isLoading={storeLoading ?? false}
-      update={storeUpdate}
-      del={storeDel}
-      create={storeCreate}
+      data={pageStateData}
+      isLoading={pageStateLoading ?? false}
+      update={pageStateUpdate}
+      del={pageStateDel}
+      create={pageStateCreate}
     />
   );
 }
