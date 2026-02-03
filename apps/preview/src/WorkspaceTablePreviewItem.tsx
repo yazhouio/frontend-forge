@@ -122,14 +122,17 @@ const useMergedParams = (baseParams, extraParams) => {
     },
   };
 };
-const useCrdStore = (storeHook, params, namespace, storeQuery) => {
-  const store = storeHook({
-    params: {
-      ...params,
-      namespace,
+const useCrdStore = (storeHook, params, namespace, storeQuery, options) => {
+  const store = storeHook(
+    {
+      params: {
+        ...params,
+        namespace,
+      },
+      query: storeQuery,
     },
-    query: storeQuery,
-  });
+    options,
+  );
   return {
     data: store.data,
     loading: Boolean(store.isLoading || store.isValidating),
@@ -178,6 +181,9 @@ function CrdTable(props) {
     mergedParamsParams,
     workspaceProjectSelectNamespace,
     pageStoreStoreQuery,
+    {
+      enabled: Boolean(workspaceProjectSelectParams.namespace),
+    },
   );
   return (
     <PageTable
