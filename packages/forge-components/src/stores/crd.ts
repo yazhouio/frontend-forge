@@ -85,15 +85,16 @@ export const getCrdStore = (store: Store) => {
       query?: Record<string, any>;
       k8sVersion?: string;
     },
-    options?: Partial<PublicConfiguration>,
+    options?: Partial<PublicConfiguration> & { enabled?: boolean },
   ) {
+    const { enabled = true, ...rest } = options || {};
     const url = getUrlHof(store, k8sVersion)(params || {});
     const key = [url, query];
 
     const swr = useSWR(
-      key,
+      enabled ? key : null,
       () => fetchHandler.get(url, query, store.kapi),
-      options,
+      rest,
     );
     const create = async (params: PathParams, body: any) => {
       const createUrl = getUrlHof(store, k8sVersion)(params);
