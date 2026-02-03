@@ -22,47 +22,54 @@ const useCrdRuntimeParams = () => {
     params: runtime?.route?.params || {},
   };
 };
+const columnsConfig = [
+  {
+    key: "name",
+    title: "NAME",
+    render: {
+      type: "text",
+      path: "metadata.name",
+      payload: {},
+    },
+  },
+  {
+    key: "project",
+    title: "Project",
+    render: {
+      type: "text",
+      path: 'metadata.annotations["meta.helm.sh/release-namespace"]',
+      payload: {},
+    },
+  },
+  {
+    key: "updatedAt",
+    title: "UPDATED_AT",
+    render: {
+      type: "time",
+      path: "metadata.creationTimestamp",
+      payload: {
+        format: "local-datetime",
+      },
+    },
+  },
+];
 const useCrdColumns = () => {
-  const columnsConfig = [
-    {
-      key: "name",
-      title: "NAME",
-      render: {
-        type: "text",
-        path: "metadata.name",
-        payload: {},
-      },
-    },
-    {
-      key: "project",
-      title: "Project",
-      render: {
-        type: "text",
-        path: 'metadata.annotations["meta.helm.sh/release-namespace"]',
-        payload: {},
-      },
-    },
-    {
-      key: "updatedAt",
-      title: "UPDATED_AT",
-      render: {
-        type: "time",
-        path: "metadata.creationTimestamp",
-        payload: {
-          format: "local-datetime",
-        },
-      },
-    },
-  ];
+  const runtime = useRuntimeContext();
+  const cap = runtime?.capabilities || {};
+  const t = cap.t ?? ((d) => d);
   const columns = useMemo(
     () =>
-      columnsConfig.map((column) => ({
-        accessorKey: column.key,
-        header: column.title,
-        cell: (info) => (
-          <TableTd meta={column.render} original={info.row.original} />
-        ),
-      })),
+      columnsConfig.map((column) => {
+        const { key, title, render, ...rest } = column;
+        return {
+          accessorKey: key,
+          header: t(title),
+          cell: (info) => (
+            <TableTd meta={render} original={info.row.original} />
+          ),
+          ...rest,
+        };
+      }),
     [columnsConfig],
   );
   return {
@@ -132,7 +139,7 @@ const useCrdPageContext = () => {
     },
   };
 };
-function TablePreviewItem(props) {
+function CrdTable(props) {
   const { params: runtimeParamsParams } = useCrdRuntimeParams();
   const {
     toolbarLeft: projectSelectToolbarLeft,
@@ -172,4 +179,4 @@ function TablePreviewItem(props) {
     />
   );
 }
-export default TablePreviewItem;
+export default CrdTable;
