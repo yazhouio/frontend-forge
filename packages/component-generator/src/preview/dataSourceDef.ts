@@ -322,11 +322,14 @@ export const CrdStoreDataSource: DataSourceDefinition = {
       {
         id: "hookDecl",
         scope: StatementScope.ModuleDecl,
-        code: `const %%HOOK_NAME%% = (storeHook, params, namespace, storeQuery) => {
-  const store = storeHook({
-    params: { ...params, namespace },
-    query: storeQuery,
-  });
+        code: `const %%HOOK_NAME%% = (storeHook, params, namespace, storeQuery, options) => {
+  const store = storeHook(
+    {
+      params: { ...params, namespace },
+      query: storeQuery,
+    },
+    options,
+  );
   return {
     data: store.data,
     loading: Boolean(store.isLoading || store.isValidating),
