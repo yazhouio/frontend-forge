@@ -3,7 +3,7 @@ import path from "node:path";
 
 function parseArgs(argv) {
   const args = {
-    dir: "packages/component-generator/src/preview",
+    dir: "apps/server/src/preview",
     out: ".tmp/preview-files.json",
     skip: new Set(["demo.ts", "demo.js"]),
   };

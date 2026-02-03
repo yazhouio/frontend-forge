@@ -1,4 +1,4 @@
-import type { PageConfig } from "../engine/JSONSchema.js";
+import type { PageConfig } from "@frontend-forge/component-generator/engine/JSONSchema.js";
 
 type CrdTableScope = "namespace" | "cluster" | string;
 
@@ -18,9 +18,9 @@ type CrdTablePageInfo = {
 };
 
 type CrdTableColumnRender = {
-  type: "text" | "time" | "link";
+  type: "text" | "time" | "link" | string;
   path: string;
-  format?: "local-datetime" | "utc";
+  format?: "local-datetime" | "utc" | string;
   pattern?: string;
   link?: string;
   payload?: Record<string, unknown>;
@@ -32,7 +32,7 @@ type CrdTableColumn = {
   render: CrdTableColumnRender;
 };
 
-export type WorkspaceTableSceneConfig = {
+export type CrdTableSceneConfig = {
   meta: {
     id: string;
     name: string;
@@ -69,18 +69,12 @@ const buildColumnRender = (render: CrdTableColumnRender) => {
   };
 };
 
-export const defineWorkspaceTableScene = (
-  scene: WorkspaceTableSceneConfig,
-): PageConfig => {
-  const columnsConfig = scene.columns.map((column) => {
-    const { key, title, render, ...rest } = column;
-    return {
-      key,
-      title,
-      render: buildColumnRender(render),
-      ...rest,
-    };
-  });
+export const defineCrdTableScene = (scene: CrdTableSceneConfig): PageConfig => {
+  const columnsConfig = scene.columns.map((column) => ({
+    key: column.key,
+    title: column.title,
+    render: buildColumnRender(column.render),
+  }));
   const pageStateArgs = [
     {
       type: "binding",
@@ -111,11 +105,12 @@ export const defineWorkspaceTableScene = (
       },
       {
         id: "pageState",
-        type: "workspace-crd-page-state",
+        type: "crd-page-state",
         args: pageStateArgs,
         config: {
           PAGE_ID: scene.page.id,
           CRD_CONFIG: scene.crd,
+          SCOPE: scene.scope,
           HOOK_NAME: "useCrdPageState",
         },
       },

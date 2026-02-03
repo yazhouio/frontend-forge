@@ -1,8 +1,10 @@
-import { CodeGenerator } from "../engine/CodeGenerator.js";
-import { DataSourceRegistry } from "../engine/DataSourceRegistry.js";
-import { Engine } from "../engine/Engine.js";
-import { NodeRegistry } from "../engine/NodeRegistry.js";
-import { SchemaValidator } from "../engine/SchemaValidator.js";
+import {
+  CodeGenerator,
+  DataSourceRegistry,
+  Engine,
+  NodeRegistry,
+  SchemaValidator,
+} from "@frontend-forge/component-generator/engine/index.js";
 import {
   CrdColumnsDataSource,
   CrdPageStateDataSource,

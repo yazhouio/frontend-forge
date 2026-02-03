@@ -1,5 +1,5 @@
-import { StatementScope } from "../constants.js";
-import type { DataSourceDefinition } from "../engine/interfaces.js";
+import { StatementScope } from "@frontend-forge/component-generator/constants.js";
+import type { DataSourceDefinition } from "@frontend-forge/component-generator/engine/interfaces.js";
 
 export const CrdColumnsDataSource: DataSourceDefinition = {
   id: "crd-columns",
@@ -106,7 +106,7 @@ export const CrdPageStateDataSource: DataSourceDefinition = {
     imports: [
       'import * as React from "react"',
       'import { useMemo } from "react"',
-      'import { buildSearchObject, getCrdStore, usePageStore, useProjectSelect } from "@frontend-forge/forge-components"',
+      'import { buildSearchObject, getCrdStore, usePageStore, useProjectSelect, useRuntimeContext } from "@frontend-forge/forge-components"',
     ],
     stats: [
       {
@@ -128,7 +128,7 @@ export const CrdPageStateDataSource: DataSourceDefinition = {
 
   const runtime = useRuntimeContext();
   const params = runtime?.route?.params || {};
-  const pageContext = runtime?.capabilities;
+  const pageContext = runtime?.capabilities || {};
   const storeQuery = useMemo(() => buildSearchObject(page, true), [page]);
 
   const scope = %%SCOPE%%;
@@ -219,7 +219,7 @@ export const WorkspaceCrdPageStateDataSource: DataSourceDefinition = {
     imports: [
       'import * as React from "react"',
       'import { useMemo } from "react"',
-      'import { buildSearchObject, getCrdStore, usePageStore } from "@frontend-forge/forge-components"',
+      'import { buildSearchObject, getCrdStore, usePageStore, useRuntimeContext } from "@frontend-forge/forge-components"',
     ],
     stats: [
       {
@@ -241,11 +241,16 @@ export const WorkspaceCrdPageStateDataSource: DataSourceDefinition = {
 
   const runtime = useRuntimeContext();
   const params = runtime?.route?.params || {};
-  const pageContext = runtime?.capabilities;
+  const pageContext = runtime?.capabilities || {};
 
   const storeQuery = useMemo(() => buildSearchObject(page, true), [page]);
 
-  const useWorkspaceProjectSelectHook = useMemo(() => pageContext?.useWorkspaceProjectSelect || (() => ({})), [pageContext]);
+  const useWorkspaceProjectSelectHook = useMemo(
+    () =>
+      pageContext?.useWorkspaceProjectSelect ||
+      (() => ({ render: null, params: {} })),
+    [pageContext],
+  );
   const {
     render: renderProjectSelect,
     params: { cluster, namespace },

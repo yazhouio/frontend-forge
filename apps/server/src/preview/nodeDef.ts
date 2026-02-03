@@ -1,4 +1,4 @@
-import type { NodeDefinition } from "../engine/interfaces.js";
+import type { NodeDefinition } from "@frontend-forge/component-generator/engine/interfaces.js";
 
 export const CrdTableNode: NodeDefinition = {
   id: "CrdTable",
