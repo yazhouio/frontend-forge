@@ -43,6 +43,7 @@ export type CrdTableSceneConfig = {
   scope: CrdTableScope;
   page: CrdTablePageInfo;
   columns: CrdTableColumn[];
+  storeOptions?: Record<string, unknown>;
 };
 
 const buildColumnRender = (render: CrdTableColumnRender) => {
@@ -74,6 +75,31 @@ export const defineCrdTableScene = (scene: CrdTableSceneConfig): PageConfig => {
     title: column.title,
     render: buildColumnRender(column.render),
   }));
+  const storeArgs = [
+    {
+      type: "binding",
+      source: "crdStoreFactory",
+      bind: "useStore",
+    },
+    {
+      type: "binding",
+      source: "runtimeParams",
+      bind: "params",
+    },
+    {
+      type: "binding",
+      source: "projectSelect",
+      bind: "namespace",
+    },
+    {
+      type: "binding",
+      source: "pageStore",
+      bind: "storeQuery",
+    },
+  ];
+  if (scene.storeOptions !== undefined) {
+    storeArgs.push(scene.storeOptions);
+  }
 
   return {
     meta: {
@@ -140,28 +166,7 @@ export const defineCrdTableScene = (scene: CrdTableSceneConfig): PageConfig => {
       {
         id: "store",
         type: "crd-store",
-        args: [
-          {
-            type: "binding",
-            source: "crdStoreFactory",
-            bind: "useStore",
-          },
-          {
-            type: "binding",
-            source: "runtimeParams",
-            bind: "params",
-          },
-          {
-            type: "binding",
-            source: "projectSelect",
-            bind: "namespace",
-          },
-          {
-            type: "binding",
-            source: "pageStore",
-            bind: "storeQuery",
-          },
-        ],
+        args: storeArgs,
         config: {
           HOOK_NAME: "useCrdStore",
         },

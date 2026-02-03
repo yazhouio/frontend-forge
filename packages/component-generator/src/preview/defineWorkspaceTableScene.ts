@@ -43,6 +43,7 @@ export type WorkspaceTableSceneConfig = {
   scope: CrdTableScope;
   page: CrdTablePageInfo;
   columns: CrdTableColumn[];
+  storeOptions?: Record<string, unknown>;
 };
 
 const buildColumnRender = (render: CrdTableColumnRender) => {
@@ -80,6 +81,31 @@ export const defineWorkspaceTableScene = (
       ...rest,
     };
   });
+  const storeArgs = [
+    {
+      type: "binding",
+      source: "crdStoreFactory",
+      bind: "useStore",
+    },
+    {
+      type: "binding",
+      source: "mergedParams",
+      bind: "params",
+    },
+    {
+      type: "binding",
+      source: "workspaceProjectSelect",
+      bind: "namespace",
+    },
+    {
+      type: "binding",
+      source: "pageStore",
+      bind: "storeQuery",
+    },
+  ];
+  if (scene.storeOptions !== undefined) {
+    storeArgs.push(scene.storeOptions);
+  }
 
   return {
     meta: {
@@ -164,28 +190,7 @@ export const defineWorkspaceTableScene = (
       {
         id: "store",
         type: "crd-store",
-        args: [
-          {
-            type: "binding",
-            source: "crdStoreFactory",
-            bind: "useStore",
-          },
-          {
-            type: "binding",
-            source: "mergedParams",
-            bind: "params",
-          },
-          {
-            type: "binding",
-            source: "workspaceProjectSelect",
-            bind: "namespace",
-          },
-          {
-            type: "binding",
-            source: "pageStore",
-            bind: "storeQuery",
-          },
-        ],
+        args: storeArgs,
         config: {
           HOOK_NAME: "useCrdStore",
         },
