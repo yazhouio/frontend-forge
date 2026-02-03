@@ -38,7 +38,6 @@ export function usePageTable<T>({
   tableMeta: TableMeta<T>;
   tableOptions?: Partial<TableOptions<T>> & { loading?: boolean };
 }) {
-  console.log("page", page);
   return useReactTable({
     data,
     columns,
