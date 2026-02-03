@@ -5,6 +5,8 @@ import type {
   PageSchemaRequestBody,
   ProjectJsBundleRequestBody,
   ProjectManifestRequestBody,
+  SceneRequestBody,
+  SceneJsBundleRequestBody,
 } from './types.js';
 import { createController } from './controller.js';
 import type { K8sConfig } from './runtimeConfig.js';
@@ -43,7 +45,27 @@ export default async function router(app: FastifyInstance, opts: RouterOptions) 
     return controller.projectBuildTarGz(req.body, reply);
   });
 
+  app.post<{ Body: SceneRequestBody }>('/scene/project/files', async (req, reply) => {
+    return controller.sceneProjectFiles(req.body, reply);
+  });
+
+  app.post<{ Body: SceneRequestBody }>('/scene/project/files.tar.gz', async (req, reply) => {
+    return controller.sceneProjectFilesTarGz(req.body, reply);
+  });
+
+  app.post<{ Body: SceneRequestBody }>('/scene/project/build', async (req, reply) => {
+    return controller.sceneProjectBuild(req.body, reply);
+  });
+
+  app.post<{ Body: SceneRequestBody }>('/scene/project/build.tar.gz', async (req, reply) => {
+    return controller.sceneProjectBuildTarGz(req.body, reply);
+  });
+
   app.post<{ Body: ProjectJsBundleRequestBody }>('/k8s/jsbundles', async (req, reply) => {
     return controller.projectJsBundle(req, reply);
+  });
+
+  app.post<{ Body: SceneJsBundleRequestBody }>('/k8s/jsbundles/scene', async (req, reply) => {
+    return controller.sceneJsBundle(req, reply);
   });
 }

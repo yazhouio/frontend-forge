@@ -9,7 +9,12 @@ KubeSphere v4 插件构建服务：接收 TS/TSX/CSS 源码，通过 esbuild + S
 - POST `/project/files.tar.gz` 打包项目 TS 源码数组（tar.gz）
 - POST `/project/build` 编译项目并返回产物数组（VirtualFile[]）
 - POST `/project/build.tar.gz` 打包编译产物数组（tar.gz）
+- POST `/scene/project/files` 由 Scene 生成项目文件（VirtualFile[]）
+- POST `/scene/project/files.tar.gz` 由 Scene 打包项目文件（tar.gz）
+- POST `/scene/project/build` 由 Scene 构建并返回产物数组（VirtualFile[]）
+- POST `/scene/project/build.tar.gz` 由 Scene 打包构建产物（tar.gz）
 - POST `/k8s/jsbundles` 编译 manifest 并调用 K8s 创建 JSBundle
+- POST `/k8s/jsbundles/scene` 由 Scene 构建并调用 K8s 创建 JSBundle
 - 可选 Tailwind v4 输出 CSS，和 JS 构建解耦
 - 内存 LRU + 磁盘 JSON 缓存，命中即回
 - 并发队列、超时与隔离的临时工作目录，防止资源争用与路径穿越
@@ -74,6 +79,7 @@ pnpm --filter @frontend-forge/server project:debug -- \
 请求体支持两种形式：
 - `/page/code` 接受 `pageSchema` 或直接传 schema
 - `/project/*` 接受 `manifest` 或直接传 manifest
+- `/scene/*` 接受 `scene` 或直接传 scene
 
 JSON 接口成功响应包含 `ok: true`，失败为 `ok: false` 且带 `error` 信息。`*.tar.gz` 接口成功时返回二进制内容。
 
@@ -157,12 +163,51 @@ curl -X POST http://localhost:3000/build \
 - 请求体同 `/project/files`
 - 响应为编译产物的 `tar.gz`
 
+### `POST /scene/project/files`
+```json
+{
+  "scene": {
+    "type": "crdTable",
+    "config": { "meta": { "id": "crd-table", "name": "CRD Table", "path": "/crd-table" }, "crd": {}, "scope": "namespace", "page": { "id": "page-id", "title": "Table", "authKey": "jobs" }, "columns": [] }
+  }
+}
+```
+
+响应（成功）：
+```json
+{ "ok": true, "files": [{ "path": "src/index.ts", "content": "..." }] }
+```
+
+### `POST /scene/project/files.tar.gz`
+- 请求体同 `/scene/project/files`
+- 响应为 `tar.gz` 二进制内容（`Content-Type: application/gzip`）
+
+### `POST /scene/project/build`
+- 请求体同 `/scene/project/files`
+- 返回编译后的 `VirtualFile[]`
+
+### `POST /scene/project/build.tar.gz`
+- 请求体同 `/scene/project/files`
+- 响应为编译产物的 `tar.gz`
+
 ### `POST /k8s/jsbundles`
 请求体：
 ```json
 {
   "params": { "name": "demo-frontend-js-bundle", "extensionName": "devops", "namespace": "kubesphere-system", "cluster": "host" },
   "manifest": { "version": "1.0", "name": "demo", "routes": [], "menus": [], "locales": [], "pages": [] }
+}
+```
+
+### `POST /k8s/jsbundles/scene`
+请求体：
+```json
+{
+  "params": { "name": "demo-frontend-js-bundle", "extensionName": "devops", "namespace": "kubesphere-system", "cluster": "host" },
+  "scene": {
+    "type": "crdTable",
+    "config": { "meta": { "id": "crd-table", "name": "CRD Table", "path": "/crd-table" }, "crd": {}, "scope": "namespace", "page": { "id": "page-id", "title": "Table", "authKey": "jobs" }, "columns": [] }
+  }
 }
 ```
 

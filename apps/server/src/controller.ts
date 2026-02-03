@@ -7,7 +7,17 @@ import type {
   PageSchemaRequestBody,
   ProjectJsBundleRequestBody,
   ProjectManifestRequestBody,
+  SceneConfig,
+  SceneJsBundleRequestBody,
+  SceneRequestBody,
+  SceneType,
 } from './types.js';
+import { createExtensionManifest } from './preview/extensionManifest.js';
+import {
+  buildSceneProjectFiles,
+  buildSceneProjectTarGz,
+  generateSceneProjectFiles,
+} from './preview/sceneArtifacts.js';
 import type { K8sConfig } from './runtimeConfig.js';
 import { joinUrl, normalizeDns1123Label, postJson } from './k8sClient.js';
 
@@ -54,6 +64,23 @@ function requireManifest(body: ProjectManifestRequestBody | unknown): ExtensionM
   return manifest as ExtensionManifest;
 }
 
+function requireScene(body: SceneRequestBody | unknown): { type: SceneType; config: SceneConfig } {
+  if (!body || typeof body !== 'object') {
+    throw new ForgeError('scene is required', 400);
+  }
+  const wrapper = body as { scene?: SceneRequestBody };
+  const raw = Object.prototype.hasOwnProperty.call(wrapper, 'scene')
+    ? (wrapper.scene as SceneRequestBody)
+    : (body as SceneRequestBody);
+  if (raw.type !== 'crdTable' && raw.type !== 'workspaceCrdTable') {
+    throw new ForgeError('scene.type must be "crdTable" or "workspaceCrdTable"', 400);
+  }
+  if (!raw.config || typeof raw.config !== 'object') {
+    throw new ForgeError('scene.config must be an object', 400);
+  }
+  return { type: raw.type, config: raw.config };
+}
+
 function requireJsBundleParams(
   body: ProjectJsBundleRequestBody | unknown
 ): { name: string; extensionName: string; namespace: string | null; cluster: string | null } {
@@ -94,6 +121,82 @@ function requireJsBundleParams(
       : null;
 
   return { name, extensionName, namespace, cluster };
+}
+
+async function createJsBundleFromManifest(args: {
+  forge: ForgeCore;
+  k8s: K8sConfig;
+  token: string;
+  manifest: ExtensionManifest;
+  name: string;
+  extensionName: string;
+  namespace: string | null;
+  cluster: string | null;
+  reply: FastifyReply;
+}) {
+  const { forge, k8s, token, manifest, name, extensionName, namespace, cluster, reply } = args;
+  const files = await forge.buildProject(manifest, { build: true });
+  const row: Record<string, string> = {};
+  for (const f of files) {
+    if (!f || typeof f !== 'object') continue;
+    if (typeof f.path !== 'string' || typeof f.content !== 'string') continue;
+    row[f.path] = Buffer.from(f.content, 'utf8').toString('base64');
+  }
+  if (!row['index.js']) {
+    throw new ForgeError('build output is missing index.js', 500);
+  }
+
+  reply.log.info(
+    {
+      name,
+      extensionName,
+      namespace,
+      cluster,
+      k8sServer: k8s.server,
+      outputFiles: Object.keys(row),
+    },
+    'K8s JSBundle create requested'
+  );
+
+  const manifestJson = JSON.stringify(manifest);
+  if (manifestJson.length > 200_000) {
+    throw new ForgeError('manifest is too large to store in annotations', 400);
+  }
+
+  const annotations: Record<string, string> = {
+    'frontend-forge.io/manifest': manifestJson,
+  };
+  if (namespace) {
+    annotations['meta.helm.sh/release-namespace'] = namespace;
+  }
+
+  const jsBundle = {
+    apiVersion: 'extensions.kubesphere.io/v1alpha1',
+    kind: 'JSBundle',
+    metadata: {
+      name,
+      labels: {
+        'kubesphere.io/extension-ref': extensionName,
+      },
+      annotations,
+    },
+    spec: { row },
+    status: {
+      state: 'Available',
+    }
+  };
+
+  let path = '/apis/extensions.kubesphere.io/v1alpha1/jsbundles';
+  if (cluster) {
+    path = `/clusters/${cluster}${path}`;
+  }
+  const url = joinUrl(k8s.server, path);
+  const result = await postJson(url, { token: token.trim(), body: jsBundle });
+  reply.log.info(
+    { name, extensionName, namespace, cluster, status: result.status },
+    'K8s JSBundle create completed'
+  );
+  return { ok: true, name, extensionName, namespace, cluster, result: result.body };
 }
 
 function handleKnownError(err: unknown, reply: FastifyReply) {
@@ -216,6 +319,59 @@ export function createController({ forge, k8s }: ControllerDeps) {
       }
     },
 
+    sceneProjectFiles: async (body: SceneRequestBody, reply: FastifyReply) => {
+      try {
+        const { type, config } = requireScene(body);
+        reply.log.info({ type, sceneId: config.meta?.id }, 'Scene project files requested');
+        const files = await generateSceneProjectFiles(forge, type, config);
+        reply.log.info({ fileCount: files.length }, 'Scene project files completed');
+        return { ok: true, files };
+      } catch (err) {
+        return handleKnownError(err, reply);
+      }
+    },
+
+    sceneProjectFilesTarGz: async (body: SceneRequestBody, reply: FastifyReply) => {
+      try {
+        const { type, config } = requireScene(body);
+        reply.log.info({ type, sceneId: config.meta?.id }, 'Scene project tar.gz requested');
+        const files = await generateSceneProjectFiles(forge, type, config);
+        const archive = forge.emitToTarGz(files);
+        reply.header('Content-Type', 'application/gzip');
+        reply.header('Content-Disposition', 'attachment; filename="project.tar.gz"');
+        reply.log.info({ fileCount: files.length, size: archive.byteLength }, 'Scene project tar.gz completed');
+        return reply.send(archive);
+      } catch (err) {
+        return handleKnownError(err, reply);
+      }
+    },
+
+    sceneProjectBuild: async (body: SceneRequestBody, reply: FastifyReply) => {
+      try {
+        const { type, config } = requireScene(body);
+        reply.log.info({ type, sceneId: config.meta?.id }, 'Scene project build requested');
+        const files = await buildSceneProjectFiles(forge, type, config);
+        reply.log.info({ fileCount: files.length }, 'Scene project build completed');
+        return { ok: true, files };
+      } catch (err) {
+        return handleKnownError(err, reply);
+      }
+    },
+
+    sceneProjectBuildTarGz: async (body: SceneRequestBody, reply: FastifyReply) => {
+      try {
+        const { type, config } = requireScene(body);
+        reply.log.info({ type, sceneId: config.meta?.id }, 'Scene project build tar.gz requested');
+        const archive = await buildSceneProjectTarGz(forge, type, config);
+        reply.header('Content-Type', 'application/gzip');
+        reply.header('Content-Disposition', 'attachment; filename="build.tar.gz"');
+        reply.log.info({ size: archive.byteLength }, 'Scene project build tar.gz completed');
+        return reply.send(archive);
+      } catch (err) {
+        return handleKnownError(err, reply);
+      }
+    },
+
     projectJsBundle: async (
       req: FastifyRequest<{ Body: ProjectJsBundleRequestBody }>,
       reply: FastifyReply
@@ -233,69 +389,52 @@ export function createController({ forge, k8s }: ControllerDeps) {
 
         const { name, extensionName, namespace, cluster } = requireJsBundleParams(req.body);
         const manifest = requireManifest(req.body);
+        return createJsBundleFromManifest({
+          forge,
+          k8s,
+          token,
+          manifest,
+          name,
+          extensionName,
+          namespace,
+          cluster,
+          reply,
+        });
+      } catch (err) {
+        return handleKnownError(err, reply);
+      }
+    },
 
-        const files = await forge.buildProject(manifest, { build: true });
-        const row: Record<string, string> = {};
-        for (const f of files) {
-          if (!f || typeof f !== 'object') continue;
-          if (typeof f.path !== 'string' || typeof f.content !== 'string') continue;
-          row[f.path] = Buffer.from(f.content, 'utf8').toString('base64');
-        }
-        if (!row['index.js']) {
-          throw new ForgeError('build output is missing index.js', 500);
-        }
-
-        reply.log.info(
-          {
-            name,
-            extensionName,
-            namespace,
-            cluster,
-            k8sServer: k8s.server,
-            outputFiles: Object.keys(row),
-          },
-          'K8s JSBundle create requested'
-        );
-
-        const manifestJson = JSON.stringify(manifest);
-        if (manifestJson.length > 200_000) {
-          throw new ForgeError('manifest is too large to store in annotations', 400);
+    sceneJsBundle: async (
+      req: FastifyRequest<{ Body: SceneJsBundleRequestBody }>,
+      reply: FastifyReply
+    ) => {
+      try {
+        if (!k8s?.server) {
+          throw new ForgeError('k8s config is required (config.json: k8s.server)', 500);
         }
 
-        const annotations: Record<string, string> = {
-          'frontend-forge.io/manifest': manifestJson,
-        };
-        if (namespace) {
-          annotations['meta.helm.sh/release-namespace'] = namespace;
+        const cookieName = k8s.tokenCookieName || 'token';
+        const token = req.cookies?.[cookieName];
+        if (typeof token !== 'string' || token.trim().length === 0) {
+          throw new ForgeError(`auth token is required (cookie: ${cookieName})`, 401);
         }
 
-        const jsBundle = {
-          apiVersion: 'extensions.kubesphere.io/v1alpha1',
-          kind: 'JSBundle',
-          metadata: {
-            name,
-            labels: {
-              'kubesphere.io/extension-ref': extensionName,
-            },
-            annotations,
-          },
-          spec: { row },
-          status: {
-            state: 'Available',
-          }
-        };
+        const { name, extensionName, namespace, cluster } = requireJsBundleParams(req.body);
+        const { type, config } = requireScene(req.body);
+        const manifest = createExtensionManifest(type, config);
 
-        let path = '/apis/extensions.kubesphere.io/v1alpha1/jsbundles';
-        if (cluster) {
-          path = `/clusters/${cluster}${path}`;
-        }
-        const url = joinUrl(k8s.server, path);
-        const result = await postJson(url, { token: token.trim(), body: jsBundle });
-        reply.log.info(
-          { name, extensionName, namespace, cluster, status: result.status },
-          'K8s JSBundle create completed'
-        );
-        return { ok: true, name, extensionName, namespace, cluster, result: result.body };
+        return createJsBundleFromManifest({
+          forge,
+          k8s,
+          token,
+          manifest,
+          name,
+          extensionName,
+          namespace,
+          cluster,
+          reply,
+        });
       } catch (err) {
         return handleKnownError(err, reply);
       }

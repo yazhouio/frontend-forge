@@ -1,4 +1,6 @@
 import type { ExtensionManifest } from "@frontend-forge/forge-core";
+import type { CrdTableSceneConfig } from "./preview/defineCrdTableScene.js";
+import type { WorkspaceTableSceneConfig } from "./preview/defineWorkspaceTableScene.js";
 import type {
   BuildOutputs,
   CodeExporterRequestBody,
@@ -28,6 +30,19 @@ export type ProjectJsBundleParams = {
 export type ProjectJsBundleRequestBody = ProjectManifestRequestBody & {
   params: ProjectJsBundleParams;
 };
+
+export type SceneType = "crdTable" | "workspaceCrdTable";
+export type SceneConfig = CrdTableSceneConfig | WorkspaceTableSceneConfig;
+
+export type SceneRequestBody = {
+  type: SceneType;
+  config: SceneConfig;
+};
+
+export type SceneJsBundleRequestBody = {
+  params: ProjectJsBundleParams;
+  scene?: SceneRequestBody;
+} & Partial<SceneRequestBody>;
 
 export type CacheValue = {
   outputs: BuildOutputs;

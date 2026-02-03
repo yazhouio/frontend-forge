@@ -20,6 +20,7 @@
     "lru-cache": "^11.0.2",
     "p-queue": "^9.1.0",
     "undici": "^6.21.0",
+    "@frontend-forge/component-generator": "workspace:*",
     "@frontend-forge/forge-core": "workspace:*"
   },
   "devDependencies": {
