@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import type { ReactNode, ChangeEvent } from "react";
 import { Close } from "@kubed/icons";
+import { useRuntimeContext } from "../../runtime";
 
 import mapper from "./mapper";
 
@@ -72,6 +73,8 @@ export function DeleteConfirmContent({
   child,
 }: // ...rest
 DeleteConfirmContentProps) {
+  const runtime = useRuntimeContext();
+  const t = runtime?.capabilities?.t ?? ((d: string) => d);
   // @ts-ignore
   const typeKey = type && mapper[type] ? mapper[type] : type;
   const typeKeyLow = type ? `${typeKey}_LOW` : "";

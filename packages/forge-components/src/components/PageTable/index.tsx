@@ -12,8 +12,7 @@ import { YamlModal } from "./YamlModal";
 import { Pen, Trash } from "@kubed/icons";
 import { DeleteConfirmModal } from "../DeleteConfirm";
 import { Row, RowData, Table } from "@tanstack/react-table";
-
-import "@tanstack/react-table"; //or vue, svelte, solid, qwik, etc.
+import { useRuntimeContext } from "../../runtime";
 import { get } from "es-toolkit/compat";
 
 declare module "@tanstack/react-table" {
@@ -85,6 +84,8 @@ function BasePageTable(props) {
     ...rest
   } = props;
   const { useItemActions, useBatchActions, useTableActions } = pageContext;
+  const runtime = useRuntimeContext();
+  const t = runtime?.capabilities?.t ?? ((d: string) => d);
   const tableRef = React.useRef<Table<Record<string, unknown>>>(null);
   const resolvedParams = params ?? {};
 

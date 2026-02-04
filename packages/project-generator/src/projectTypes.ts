@@ -64,3 +64,10 @@ export type GenerateProjectFilesResult = {
   files: VirtualFile[];
   warnings: string[];
 };
+
+export interface ProjectGeneratorLike {
+  generateProjectFiles(
+    manifest: ExtensionManifest,
+    options: GenerateProjectFilesOptions
+  ): GenerateProjectFilesResult;
+}

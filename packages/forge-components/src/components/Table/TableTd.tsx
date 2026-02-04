@@ -3,7 +3,6 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import { useRuntimeContext } from "../../hooks";
 
-import "@tanstack/react-table"; //or vue, svelte, solid, qwik, etc.
 import { RowData } from "@tanstack/react-table";
 
 declare module "@tanstack/react-table" {

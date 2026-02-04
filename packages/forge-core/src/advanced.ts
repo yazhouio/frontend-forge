@@ -1,5 +1,15 @@
 export {
   ComponentGenerator,
+  CodeGenerator,
+  DataSourceRegistry,
+  Engine,
+  HookPriority,
+  HOOK_PRIORITY_MAP,
+  JSX_TEMPLATE_OPTIONS,
+  NodeRegistry,
+  SchemaValidator,
+  StatementScope,
+  type ComponentGeneratorLike,
   type ComponentGeneratorOptions,
   type CodeFragment,
   type DataSourceDefinition,
@@ -14,6 +24,8 @@ export {
 } from "@frontend-forge/code-export";
 export type {
   BuildOutputs,
+  CodeExporterLike,
+  MaybePromise,
   TailwindOptions,
   VirtualFile,
   CodeExporterBuildOptions,
@@ -26,3 +38,4 @@ export type {
   CodeExporterResult,
   CodeExporterScheduler
 } from "@frontend-forge/code-export";
+export type { ProjectGeneratorLike } from "@frontend-forge/project-generator";

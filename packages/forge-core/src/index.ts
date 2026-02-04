@@ -1,35 +1,20 @@
 import fs from "fs";
 import path from "path";
+import type { ComponentGeneratorLike } from "@frontend-forge/component-generator";
+import type { CodeExporterLike } from "@frontend-forge/code-export";
 import type {
   ExtensionManifest,
-  GenerateProjectFilesResult,
   PageMeta,
   PageRenderer,
+  ProjectGeneratorLike,
   VirtualFile
 } from "@frontend-forge/project-generator";
 import { emitToTar as emitToTarInternal, emitToTarGz as emitToTarGzInternal } from "./tar.js";
 
-export type MaybePromise<T> = T | Promise<T>;
-
-export type ForgeComponentGenerator = {
-  generatePageCode: (schema: unknown) => string;
-};
-
-export type ForgeProjectGenerator = {
-  generateProjectFiles: (
-    manifest: ExtensionManifest,
-    options: { pageRenderer: PageRenderer; onLog?: (message: string) => void; build?: boolean; archive?: boolean }
-  ) => GenerateProjectFilesResult;
-};
-
-export type ForgeCodeExporter = {
-  buildVirtualFiles: (files: VirtualFile[]) => MaybePromise<{ files: VirtualFile[] } | VirtualFile[]>;
-};
-
 export type ForgeCoreOptions = {
-  componentGenerator: ForgeComponentGenerator;
-  projectGenerator: ForgeProjectGenerator;
-  codeExporter?: ForgeCodeExporter | null;
+  componentGenerator: ComponentGeneratorLike;
+  projectGenerator: ProjectGeneratorLike;
+  codeExporter?: CodeExporterLike | null;
 };
 
 export type ForgeProjectFilesOptions = {
@@ -55,7 +40,7 @@ export function isForgeError(err: unknown): err is ForgeError {
   return err instanceof ForgeError;
 }
 
-function defaultPageRenderer(generator: ForgeComponentGenerator): PageRenderer {
+function defaultPageRenderer(generator: ComponentGeneratorLike): PageRenderer {
   return (page: PageMeta) => {
     if (page.componentsTree == null) return "";
     return String(generator.generatePageCode(page.componentsTree));
@@ -84,9 +69,9 @@ function emitFilesToDir(outputDir: string, files: VirtualFile[]): void {
 }
 
 export class ForgeCore {
-  private componentGenerator: ForgeComponentGenerator;
-  private projectGenerator: ForgeProjectGenerator;
-  private codeExporter: ForgeCodeExporter | null;
+  private componentGenerator: ComponentGeneratorLike;
+  private projectGenerator: ProjectGeneratorLike;
+  private codeExporter: CodeExporterLike | null;
 
   constructor(options: ForgeCoreOptions) {
     if (!options?.componentGenerator) {
@@ -101,7 +86,7 @@ export class ForgeCore {
     this.codeExporter = options.codeExporter ?? null;
   }
 
-  getCodeExporter(): ForgeCodeExporter | null {
+  getCodeExporter(): CodeExporterLike | null {
     return this.codeExporter;
   }
 
@@ -169,8 +154,13 @@ export class ForgeCore {
 }
 
 export type {
+  ComponentGeneratorLike,
+  CodeExporterLike,
   ExtensionManifest,
   PageMeta,
   PageRenderer,
+  ProjectGeneratorLike,
   VirtualFile
 };
+
+export type { MaybePromise } from "@frontend-forge/code-export";

@@ -275,7 +275,7 @@ function loadFromCache(pageId: string): Partial<PageState> | null {
   return cached as Partial<PageState>;
 }
 
-type PersistFn = (state: PageState) => void;
+type PersistFn = ((state: PageState) => void) & { cancel?: () => void };
 
 const persistMap = new Map<string, PersistFn>();
 
@@ -453,7 +453,7 @@ function createPageStore(
 
     reset: () => {
       suppressPersist = true;
-      persist.cancel();
+      persist.cancel?.();
       lruCache.delete(getStorageKey(pageId));
       set({
         query: {},

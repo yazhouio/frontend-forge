@@ -8,6 +8,7 @@ import type { ReactNode, ChangeEvent, MouseEvent } from "react";
 import { Modal } from "@kubed/components";
 import type { ModalProps } from "@kubed/components";
 import { Close } from "@kubed/icons";
+import { useRuntimeContext } from "../../runtime";
 
 import {
   Body,
@@ -94,6 +95,8 @@ export function DeleteConfirmModal({
   onOk,
   ...rest
 }: DeleteConfirmModalProps) {
+  const runtime = useRuntimeContext();
+  const t = runtime?.capabilities?.t ?? ((d: string) => d);
   const typeKey = type || "";
   const typeKeyLow = type ? `${type}_LOW` : "";
   const typeKeyPl = type ? `${type}_PL` : "";

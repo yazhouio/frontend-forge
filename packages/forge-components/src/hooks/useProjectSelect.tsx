@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { concat, debounce, get } from "es-toolkit/compat";
 import { Select } from "@kubed/components";
 import { useNamespaceStoreInfinite } from "../stores/namespace";
+import { useRuntimeContext } from "../runtime";
 
 const KUBE_CLUSTER_SELECTED_NAMESPACE = "kube-cluster-selected-namespace";
 const useLocalNamespace = (defaultNamespace = "") => {
@@ -27,6 +28,8 @@ export const useProjectSelect = (
   { cluster }: { cluster: string },
   { enabled = true } = {},
 ) => {
+  const runtime = useRuntimeContext();
+  const t = runtime?.capabilities?.t ?? ((d: string) => d);
   const [search, setSearch] = useState("");
   const { namespace: project, setNamespace: setProject } =
     useLocalNamespace("");

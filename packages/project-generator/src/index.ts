@@ -8,6 +8,7 @@ export type {
   MenuMeta,
   PageMeta,
   PageRenderer,
+  ProjectGeneratorLike,
   ProjectFile,
   RouteMeta,
   VirtualFile
