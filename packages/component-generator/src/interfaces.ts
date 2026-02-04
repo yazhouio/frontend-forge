@@ -17,3 +17,7 @@ export interface RuntimeContextInfo extends PageRuntimeCore {
   features?: Record<string, boolean>;
   meta?: Record<string, any>;
 }
+
+export interface ComponentGeneratorLike {
+  generatePageCode(schema: unknown): string;
+}

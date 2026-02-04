@@ -4,7 +4,7 @@ import {
   Engine,
   NodeRegistry,
   SchemaValidator,
-} from "@frontend-forge/component-generator/engine/index.js";
+} from "@frontend-forge/forge-core/advanced";
 import {
   CrdColumnsDataSource,
   CrdPageStateDataSource,

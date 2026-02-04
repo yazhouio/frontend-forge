@@ -29,8 +29,10 @@ export type {
   CodeExporterCacheHit,
   CodeExporterCacheResult,
   CodeExporterCacheValue,
+  CodeExporterLike,
   CodeExporterOptions,
   CodeExporterRequestBody,
   CodeExporterResult,
+  MaybePromise,
   CodeExporterScheduler
 } from "./CodeExporter.js";

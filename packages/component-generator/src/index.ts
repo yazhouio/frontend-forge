@@ -15,4 +15,5 @@ export type {
 export { CodeGenerator, DataSourceRegistry, Engine, NodeRegistry, SchemaValidator } from "./engine/index.js";
 export type { CodeFragment, DataSourceDefinition, NodeDefinition } from "./engine/interfaces.js";
 export type { PageConfig } from "./engine/JSONSchema.js";
-export type { RuntimeContextInfo } from "./interfaces.js";
+export { HookPriority, HOOK_PRIORITY_MAP, JSX_TEMPLATE_OPTIONS, StatementScope } from "./constants.js";
+export type { ComponentGeneratorLike, RuntimeContextInfo } from "./interfaces.js";

@@ -1,4 +1,4 @@
-import type { PageConfig } from "@frontend-forge/component-generator/engine/JSONSchema.js";
+import type { PageConfig } from "@frontend-forge/forge-core/advanced";
 
 type CrdTableScope = "namespace" | "cluster" | string;
 
@@ -30,6 +30,7 @@ type CrdTableColumn = {
   key: string;
   title: string;
   render: CrdTableColumnRender;
+  [key: string]: unknown;
 };
 
 export type CrdTableSceneConfig = {
@@ -75,7 +76,7 @@ export const defineCrdTableScene = (scene: CrdTableSceneConfig): PageConfig => {
     title: column.title,
     render: buildColumnRender(column.render),
   }));
-  const pageStateArgs = [
+  const pageStateArgs: Record<string, unknown>[] = [
     {
       type: "binding",
       source: "columns",

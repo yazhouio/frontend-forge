@@ -1,5 +1,5 @@
-import { StatementScope } from "@frontend-forge/component-generator/constants.js";
-import type { DataSourceDefinition } from "@frontend-forge/component-generator/engine/interfaces.js";
+import { StatementScope } from "@frontend-forge/forge-core/advanced";
+import type { DataSourceDefinition } from "@frontend-forge/forge-core/advanced";
 
 export const CrdColumnsDataSource: DataSourceDefinition = {
   id: "crd-columns",

@@ -1,4 +1,6 @@
-export const WorkspaceTableScene = {
+import type { WorkspaceTableSceneConfig } from "./defineWorkspaceTableScene.js";
+
+export const WorkspaceTableScene: WorkspaceTableSceneConfig = {
   meta: {
     id: "workspace-crd-table",
     name: "Workspace CRD Table",
@@ -12,6 +14,7 @@ export const WorkspaceTableScene = {
     group: "extensions.kubesphere.io",
     kapi: true,
   },
+  scope: "namespace",
   page: {
     id: "workspace-forge-preview-table",
     title: "Table Preview",

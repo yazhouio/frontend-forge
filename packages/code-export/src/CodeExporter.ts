@@ -5,7 +5,12 @@ import {
   safeJoin
 } from "./utils.js";
 import { buildOnce } from "./builder.js";
-import type { BuildOutputs, TailwindOptions, VirtualFile } from "./types.js";
+import type {
+  BuildOutputs,
+  BuildVirtualFilesResult,
+  TailwindOptions,
+  VirtualFile
+} from "./types.js";
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -79,6 +84,13 @@ export type CodeExporterOptions = {
   defaultExternals?: string[];
   defaultTailwind?: TailwindOptions;
 };
+
+export interface CodeExporterLike {
+  buildVirtualFiles(
+    files: VirtualFile[],
+    options?: CodeExporterBuildOptions
+  ): MaybePromise<CodeExporterResult | BuildVirtualFilesResult | VirtualFile[]>;
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {

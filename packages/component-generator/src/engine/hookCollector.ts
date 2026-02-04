@@ -23,7 +23,7 @@ export class HookCollector {
   prepare(
     fragment: CodeFragment,
     fragments: Map<string, CodeFragment>,
-    prepared: Map<string, PreparedFragment>
+    prepared: Map<string, PreparedFragment>,
   ): PreparedFragment {
     return this.prepareRenderFragment(fragment, fragments, prepared);
   }
@@ -103,7 +103,7 @@ export class HookCollector {
   private prepareRenderFragment(
     fragment: CodeFragment,
     fragments: Map<string, CodeFragment>,
-    prepared: Map<string, PreparedFragment>
+    prepared: Map<string, PreparedFragment>,
   ): PreparedFragment {
     const cached = prepared.get(fragment.meta.id);
     if (cached) {
@@ -128,7 +128,7 @@ export class HookCollector {
           child,
           fragments,
           usedNames,
-          prepared
+          prepared,
         );
         stats = stats.concat(preparedChild.stats);
         return preparedChild.fragment;
@@ -152,7 +152,7 @@ export class HookCollector {
     fragment: CodeFragment,
     fragments: Map<string, CodeFragment>,
     usedNames: Set<string>,
-    prepared: Map<string, PreparedFragment>
+    prepared: Map<string, PreparedFragment>,
   ): PreparedFragment {
     const outputs = this.collectOutputNames(fragment.stats);
     const renameMap = this.buildRenameMap(outputs, usedNames, fragment.meta.id);
@@ -177,7 +177,7 @@ export class HookCollector {
           child,
           fragments,
           usedNames,
-          prepared
+          prepared,
         );
         stats = stats.concat(preparedChild.stats);
         return preparedChild.fragment;
@@ -208,7 +208,7 @@ export class HookCollector {
   private buildRenameMap(
     outputs: string[],
     usedNames: Set<string>,
-    fragmentId: string
+    fragmentId: string,
   ): Map<string, string> {
     const renameMap = new Map<string, string>();
     const suffix = this.toIdentifierSuffix(fragmentId);
@@ -247,7 +247,7 @@ export class HookCollector {
 
   private renameFragmentBindings(
     fragment: CodeFragment,
-    renameMap: Map<string, string>
+    renameMap: Map<string, string>,
   ) {
     const body: t.Statement[] = [];
     fragment.stats.forEach((stat) => {
@@ -282,7 +282,7 @@ export class HookCollector {
         return;
       }
       stat.meta.output = stat.meta.output.map(
-        (name) => renameMap.get(name) ?? name
+        (name) => renameMap.get(name) ?? name,
       );
     });
   }
@@ -328,7 +328,7 @@ export class HookCollector {
   private hoistIifeExpressions(
     fragment: CodeFragment,
     stats: Stat[],
-    usedNames: Set<string>
+    usedNames: Set<string>,
   ) {
     if (!fragment.jsx) {
       return;
@@ -338,18 +338,27 @@ export class HookCollector {
     traverse(t.file(t.program([t.expressionStatement(fragment.jsx)])), {
       JSXExpressionContainer: (path) => {
         const expr = path.node.expression;
-        if (!this.isIifeExpression(expr)) {
+        if (t.isJSXEmptyExpression(expr)) {
+          return;
+        }
+        const exprNode = expr as t.Expression;
+        if (!this.isIifeExpression(exprNode)) {
           return;
         }
         const name = this.buildUniqueLocalName(
           "expr",
           fragment.meta.id,
           usedNames,
-          index
+          index,
         );
         usedNames.add(name);
         hoisted.push(
-          this.buildHoistedExpressionStat(fragment.meta.id, name, expr, index)
+          this.buildHoistedExpressionStat(
+            fragment.meta.id,
+            name,
+            exprNode,
+            index,
+          ),
         );
         path.node.expression = t.identifier(name);
         index += 1;
@@ -377,7 +386,7 @@ export class HookCollector {
     prefix: string,
     fragmentId: string,
     usedNames: Set<string>,
-    index: number
+    index: number,
   ): string {
     const suffix = this.toIdentifierSuffix(fragmentId);
     let candidateBase = `${prefix}_${suffix}_${index + 1}`;
@@ -397,7 +406,7 @@ export class HookCollector {
     fragmentId: string,
     name: string,
     expr: t.Expression,
-    index: number
+    index: number,
   ): Stat {
     const declaration = t.variableDeclaration("const", [
       t.variableDeclarator(t.identifier(name), expr),
@@ -417,12 +426,15 @@ export class HookCollector {
   private injectJsxChildren(
     expr: t.Expression,
     anchorName: string,
-    children: t.JSXElement[]
+    children: t.JSXElement[],
   ) {
     traverse(t.file(t.program([t.expressionStatement(expr)])), {
       JSXElement(path) {
         const opening = path.node.openingElement;
-        if (t.isJSXIdentifier(opening.name) && opening.name.name === anchorName) {
+        if (
+          t.isJSXIdentifier(opening.name) &&
+          opening.name.name === anchorName
+        ) {
           path.replaceWithMultiple(children);
           path.stop();
         }
@@ -471,9 +483,7 @@ export class HookCollector {
     return t.jsxAttribute(t.jsxIdentifier(name), attrValue);
   }
 
-  private toJsxAttributeValue(
-    value: any
-  ): t.JSXAttribute["value"] | null {
+  private toJsxAttributeValue(value: any): t.JSXAttribute["value"] | null {
     if (value === undefined) {
       return null;
     }
@@ -550,9 +560,13 @@ export class HookCollector {
 
   private createComponentElement(
     name: string,
-    attributes: t.JSXAttribute[]
+    attributes: t.JSXAttribute[],
   ): t.JSXElement {
-    const opening = t.jsxOpeningElement(t.jsxIdentifier(name), attributes, true);
+    const opening = t.jsxOpeningElement(
+      t.jsxIdentifier(name),
+      attributes,
+      true,
+    );
     return t.jsxElement(opening, null, [], true);
   }
 }

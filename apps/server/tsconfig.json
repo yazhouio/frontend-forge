@@ -24,8 +24,6 @@
   },
   "include": ["src/**/*"],
   "references": [
-    { "path": "../../packages/forge-core" },
-    { "path": "../../packages/component-generator" },
-    { "path": "../../packages/project-generator" }
+    { "path": "../../packages/forge-core" }
   ]
 }
