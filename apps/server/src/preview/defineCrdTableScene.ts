@@ -89,10 +89,10 @@ export const defineCrdTableScene = (scene: CrdTableSceneConfig): PageConfig => {
 
   return {
     meta: {
-      id: scene.meta.id,
-      name: scene.meta.name,
-      title: scene.meta.title,
-      path: scene.meta.path,
+      id: scene.page.id,
+      name: scene.page.id,
+      title: scene.page.title,
+      path: `/${scene.page.id}`,
     },
     context: {},
     dataSources: [
@@ -117,7 +117,7 @@ export const defineCrdTableScene = (scene: CrdTableSceneConfig): PageConfig => {
       },
     ],
     root: {
-      id: `${scene.meta.id}-root`,
+      id: `${scene.page.id}-root`,
       type: "CrdTable",
       props: {
         TABLE_KEY: scene.page.id,

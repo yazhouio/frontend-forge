@@ -4,6 +4,10 @@ import type { FrontendIntegration, FrontendIntegrationListQuery } from '../types
 import type { K8sConfig } from '../runtimeConfig.js';
 import { joinUrl, requestJson } from '../k8sClient.js';
 import { handleKnownError } from './errors.js';
+import {
+  buildExtensionManifestFromProjectConfig,
+  buildProjectSceneConfigFromCr,
+} from './frontendIntegrationTransform.js';
 import { requireAuthToken, requireK8sConfig } from './k8s.js';
 import {
   normalizeLabelValue,
@@ -36,15 +40,8 @@ type JsBundleList = {
   [key: string]: unknown;
 };
 
-type SceneConfigPayload = {
-  projectName: string;
-  scenes: Array<{
-    type: 'CrdTableScene' | 'WorkspaceTableScene' | 'IframeScene';
-    config: unknown;
-  }>;
-};
-
 const FRONTEND_INTEGRATION_ANNOTATION = 'frontend-forge.io/frontendintegration';
+const FRONTEND_INTEGRATION_MANIFEST_ANNOTATION = 'frontend-forge.io/manifest';
 const SCENE_CONFIG_ANNOTATION = 'scene.frontend-forge.io/config';
 const FRONTEND_INTEGRATION_LABEL_RESOURCE_KEY = 'frontend-forge.io/resource';
 const FRONTEND_INTEGRATION_LABEL_RESOURCE_VALUE = 'frontendintegration';
@@ -67,100 +64,29 @@ function buildFrontendIntegrationLabels(integration: FrontendIntegration): Recor
   };
 }
 
-function buildFrontendIntegrationSceneConfig(
-  integration: FrontendIntegration
-): SceneConfigPayload {
-  const projectName = integration.metadata.name;
-  const displayName =
-    integration.spec.displayName ??
-    integration.spec.menu?.name ??
-    integration.metadata.name;
-  const routingPath = integration.spec.routing?.path ?? '';
-  const normalizedPath = routingPath.startsWith('/') ? routingPath : `/${routingPath}`;
-  const meta = {
-    id: integration.metadata.name,
-    name: displayName,
-    title: displayName,
-    path: normalizedPath,
-  };
-
-  if (integration.spec.integration.type === 'iframe') {
-    const iframe = integration.spec.integration.iframe;
-    const config = {
-      meta,
-      frameUrl: iframe.src,
-    };
-    return {
-      projectName,
-      scenes: [{ type: 'IframeScene', config }],
-    };
-  }
-
-  const crd = integration.spec.integration.crd;
-  const scope = crd.scope === 'Namespaced' ? 'namespace' : 'cluster';
-  const crdConfig = {
-    apiVersion: crd.api.version,
-    kind: crd.resource.kind,
-    plural: crd.resource.plural,
-    group: crd.api.group,
-    kapi: true,
-  };
-  const page = {
-    id: meta.id,
-    title: displayName,
-    authKey: meta.id,
-  };
-  const columns = [
-    {
-      key: 'name',
-      title: 'NAME',
-      render: {
-        type: 'text',
-        path: 'metadata.name',
-      },
-    },
-    {
-      key: 'updatedAt',
-      title: 'UPDATED_AT',
-      render: {
-        type: 'time',
-        path: 'metadata.creationTimestamp',
-        format: 'local-datetime',
-      },
-    },
-  ];
-
-  const config = {
-    meta,
-    crd: crdConfig,
-    scope,
-    page,
-    columns,
-  };
-
-  const placements = integration.spec.menu?.placements ?? [];
-  const normalizedPlacements = placements.map((item) => item.toLowerCase());
-  const sceneType = normalizedPlacements.includes('workspace')
-    ? 'WorkspaceTableScene'
-    : 'CrdTableScene';
-
-  return {
-    projectName,
-    scenes: [{ type: sceneType, config }],
-  };
-}
-
 function buildFrontendIntegrationJsBundle(
   integration: FrontendIntegration,
   existing?: JsBundle
 ): JsBundle {
   const labels = buildFrontendIntegrationLabels(integration);
-  const sceneConfig = buildFrontendIntegrationSceneConfig(integration);
+  const sceneConfig = buildProjectSceneConfigFromCr(integration);
+  const manifest = buildExtensionManifestFromProjectConfig(sceneConfig, {
+    displayName:
+      integration.spec.displayName ??
+      integration.spec.menu?.name ??
+      integration.metadata.name,
+  });
+  const manifestJson = JSON.stringify(manifest);
+  if (manifestJson.length > 200_000) {
+    throw new ForgeError('manifest is too large to store in annotations', 400);
+  }
+
   const rawAnnotations = existing?.metadata?.annotations ?? {};
   const annotations = {
     ...rawAnnotations,
     [FRONTEND_INTEGRATION_ANNOTATION]: JSON.stringify(integration),
     [SCENE_CONFIG_ANNOTATION]: JSON.stringify(sceneConfig),
+    [FRONTEND_INTEGRATION_MANIFEST_ANNOTATION]: manifestJson,
   };
   const mergedLabels = { ...(existing?.metadata?.labels ?? {}), ...labels };
 

@@ -48,6 +48,38 @@ export type SceneJsBundleRequestBody = {
   scene?: SceneRequestBody;
 } & Partial<SceneRequestBody>;
 
+export type RouteMeta = {
+  path: string;
+  pageId: string;
+};
+
+export type MenuMeta = {
+  parent: string;
+  name: string;
+  title: string;
+  icon?: string;
+  order?: number;
+  clusterModule?: string;
+};
+
+export type SceneMeta = {
+  route: RouteMeta;
+  menu?: MenuMeta;
+};
+
+export type ProjectSceneType = "CrdTableScene" | "WorkspaceTableScene" | "IframeScene";
+
+export type SceneDescriptor = {
+  type: ProjectSceneType;
+  meta: SceneMeta;
+  config: SceneConfig;
+};
+
+export type ProjectSceneConfig = {
+  projectName: string;
+  scenes: SceneDescriptor[];
+};
+
 export type FrontendIntegrationMetadata = {
   name: string;
   labels?: Record<string, string>;

@@ -234,6 +234,22 @@ export function requireFrontendIntegration(
       ) {
         throw new ForgeError('spec.menu.placements must be a string array', 400);
       }
+      const invalid = menuObj.placements.find((placement) => {
+        const value = String(placement).trim().toLowerCase();
+        return value !== 'workspace' && value !== 'cluster' && value !== 'global';
+      });
+      if (invalid !== undefined) {
+        throw new ForgeError('spec.menu.placements only supports workspace, cluster, global', 400);
+      }
+    }
+  }
+
+  if (integrationType === 'crd') {
+    const placements = specObj.menu && typeof specObj.menu === 'object'
+      ? (specObj.menu as { placements?: unknown }).placements
+      : undefined;
+    if (!Array.isArray(placements) || placements.length === 0) {
+      throw new ForgeError('spec.menu.placements is required for crd integration', 400);
     }
   }
 

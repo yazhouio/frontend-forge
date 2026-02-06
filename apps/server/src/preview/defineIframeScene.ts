@@ -7,20 +7,27 @@ export type IframeSceneConfig = {
     title?: string;
     path: string;
   };
+  page?: {
+    id: string;
+    title: string;
+  };
   frameUrl: string;
 };
 
 export const defineIframeScene = (scene: IframeSceneConfig): PageConfig => {
+  const pageId = scene.page?.id?.trim() || "iframe";
+  const pageTitle = scene.page?.title?.trim() || "Iframe";
+
   return {
     meta: {
-      id: scene.meta.id,
-      name: scene.meta.name,
-      title: scene.meta.title,
-      path: scene.meta.path,
+      id: pageId,
+      name: pageId,
+      title: pageTitle,
+      path: `/${pageId}`,
     },
     context: {},
     root: {
-      id: `${scene.meta.id}-root`,
+      id: `${pageId}-root`,
       type: "Iframe",
       props: {
         FRAME_URL: scene.frameUrl,
