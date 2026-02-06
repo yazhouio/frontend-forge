@@ -15,6 +15,7 @@ KubeSphere v4 插件构建服务：接收 TS/TSX/CSS 源码，通过 esbuild + S
 - POST `/scene/project/build.tar.gz` 由 Scene 打包构建产物（tar.gz）
 - POST `/k8s/jsbundles` 编译 manifest 并调用 K8s 创建 JSBundle
 - POST `/k8s/jsbundles/scene` 由 Scene 构建并调用 K8s 创建 JSBundle
+- CRUD `/kapis/frontend-forge.io/v1alpha1/frontendintegrations` 前端集成管理（通过 JSBundle 代理）
 - 可选 Tailwind v4 输出 CSS，和 JS 构建解耦
 - 内存 LRU + 磁盘 JSON 缓存，命中即回
 - 并发队列、超时与隔离的临时工作目录，防止资源争用与路径穿越
@@ -220,6 +221,33 @@ curl -X POST http://localhost:3000/build \
 - 可选 `params.namespace`：如果提供，则写入 `metadata.annotations["meta.helm.sh/release-namespace"]`（不写入 `metadata.namespace`）。
 - 可选 `params.cluster`：如果提供，则请求路径会在前面加上 `/clusters/{cluster}`（例如 `.../clusters/{cluster}/apis/extensions.kubesphere.io/v1alpha1/...`）。
 - 会把请求中的 `manifest` 以 JSON 字符串形式写入 `metadata.annotations["frontend-forge.io/manifest"]`。
+
+### `GET /kapis/frontend-forge.io/v1alpha1/frontendintegrations`
+查询参数（可选）：
+- `enabled`: `true|false`
+- `type`: `crd|iframe`
+- `name`: 前端集成名称
+
+说明：
+- 实际数据存放在 `JSBundle`，服务通过 `/kapis/extensions.kubesphere.io/v1alpha1/jsbundles` 读写。
+- 会在 `metadata.labels` 写入筛选字段：
+  - `frontend-forge.io/resource=frontendintegration`
+  - `frontend-forge.io/enabled=true|false`
+  - `frontend-forge.io/type=crd|iframe`
+  - `frontend-forge.io/name=<name>`
+- 真实 CR 内容会写入 `metadata.annotations["frontend-forge.io/frontendintegration"]`。
+
+### `POST /kapis/frontend-forge.io/v1alpha1/frontendintegrations`
+请求体为 `FrontendIntegration` CR（JSON），服务会创建对应 `JSBundle`。
+
+### `GET /kapis/frontend-forge.io/v1alpha1/frontendintegrations/:name`
+读取单个 `FrontendIntegration`。
+
+### `PUT /kapis/frontend-forge.io/v1alpha1/frontendintegrations/:name`
+更新单个 `FrontendIntegration`，要求请求体 `metadata.name` 与路径一致。
+
+### `DELETE /kapis/frontend-forge.io/v1alpha1/frontendintegrations/:name`
+删除单个 `FrontendIntegration`。
 
 ## 环境变量
 - `PORT`：HTTP 端口，默认 3000
