@@ -6,7 +6,7 @@ import type {
   BuildOutputs,
   CodeExporterRequestBody,
   TailwindOptions,
-  VirtualFile
+  VirtualFile,
 } from "@frontend-forge/forge-core/advanced";
 
 export type { BuildOutputs, ExtensionManifest, TailwindOptions, VirtualFile };
@@ -67,7 +67,10 @@ export type SceneMeta = {
   menu?: MenuMeta;
 };
 
-export type ProjectSceneType = "CrdTableScene" | "WorkspaceTableScene" | "IframeScene";
+export type ProjectSceneType =
+  | "CrdTableScene"
+  | "WorkspaceTableScene"
+  | "IframeScene";
 
 export type SceneDescriptor = {
   type: ProjectSceneType;
@@ -77,6 +80,7 @@ export type SceneDescriptor = {
 
 export type ProjectSceneConfig = {
   projectName: string;
+  enabled: boolean;
   scenes: SceneDescriptor[];
 };
 
@@ -90,25 +94,27 @@ export type FrontendIntegrationMetadata = {
 export type FrontendIntegrationSpec = {
   displayName?: string;
   enabled?: boolean;
-  integration: {
-    type: "crd";
-    crd: {
-      resource: {
-        kind: string;
-        plural: string;
+  integration:
+    | {
+        type: "crd";
+        crd: {
+          resource: {
+            kind: string;
+            plural: string;
+          };
+          api: {
+            group: string;
+            version: string;
+          };
+          scope: "Namespaced" | "Cluster";
+        };
+      }
+    | {
+        type: "iframe";
+        iframe: {
+          src: string;
+        };
       };
-      api: {
-        group: string;
-        version: string;
-      };
-      scope: "Namespaced" | "Cluster";
-    };
-  } | {
-    type: "iframe";
-    iframe: {
-      src: string;
-    };
-  };
   routing: {
     path: string;
   };

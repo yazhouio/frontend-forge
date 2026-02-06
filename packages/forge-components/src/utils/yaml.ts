@@ -4,7 +4,7 @@
  */
 
 import yaml from "js-yaml";
-import { isString, mergeWith } from "es-toolkit";
+import { isString, mergeWith } from "es-toolkit/compat";
 import { isObject } from "es-toolkit/compat";
 
 export function getValue(value: unknown): string {

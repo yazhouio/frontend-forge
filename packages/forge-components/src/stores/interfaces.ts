@@ -11,7 +11,7 @@ type ApiVersionCondition = {
 
 export interface Store {
   apiVersion: string | ApiVersionCondition[];
-  kind: string;
+  kind?: string;
   plural: string;
   group: string;
   kapi: boolean;

@@ -139,4 +139,11 @@ export default async function router(
       return controller.frontendIntegrationDelete(req, reply);
     },
   );
+
+  app.put<{ Params: { name: string }; Body: { enabled: boolean } }>(
+    "/kapis/frontend-forge.io/v1alpha1/frontendintegrations/:name/enabled",
+    async (req, reply) => {
+      return controller.frontendIntegrationUpdateEnabled(req, reply);
+    },
+  );
 }
