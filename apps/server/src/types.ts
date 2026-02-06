@@ -1,5 +1,6 @@
 import type { ExtensionManifest } from "@frontend-forge/forge-core";
 import type { CrdTableSceneConfig } from "./preview/defineCrdTableScene.js";
+import type { IframeSceneConfig } from "./preview/defineIframeScene.js";
 import type { WorkspaceTableSceneConfig } from "./preview/defineWorkspaceTableScene.js";
 import type {
   BuildOutputs,
@@ -31,8 +32,11 @@ export type ProjectJsBundleRequestBody = ProjectManifestRequestBody & {
   params: ProjectJsBundleParams;
 };
 
-export type SceneType = "crdTable" | "workspaceCrdTable";
-export type SceneConfig = CrdTableSceneConfig | WorkspaceTableSceneConfig;
+export type SceneType = "crdTable" | "workspaceCrdTable" | "iframe";
+export type SceneConfig =
+  | CrdTableSceneConfig
+  | WorkspaceTableSceneConfig
+  | IframeSceneConfig;
 
 export type SceneRequestBody = {
   type: SceneType;
@@ -43,6 +47,57 @@ export type SceneJsBundleRequestBody = {
   params: ProjectJsBundleParams;
   scene?: SceneRequestBody;
 } & Partial<SceneRequestBody>;
+
+export type FrontendIntegrationMetadata = {
+  name: string;
+  labels?: Record<string, string>;
+  annotations?: Record<string, string>;
+  [key: string]: unknown;
+};
+
+export type FrontendIntegrationSpec = {
+  displayName?: string;
+  enabled?: boolean;
+  integration: {
+    type: "crd";
+    crd: {
+      resource: {
+        kind: string;
+        plural: string;
+      };
+      api: {
+        group: string;
+        version: string;
+      };
+      scope: "Namespaced" | "Cluster";
+    };
+  } | {
+    type: "iframe";
+    iframe: {
+      src: string;
+    };
+  };
+  routing: {
+    path: string;
+  };
+  menu?: {
+    name?: string;
+    placements?: string[];
+  };
+};
+
+export type FrontendIntegration = {
+  apiVersion?: string;
+  kind?: string;
+  metadata: FrontendIntegrationMetadata;
+  spec: FrontendIntegrationSpec;
+};
+
+export type FrontendIntegrationListQuery = {
+  enabled?: string;
+  type?: string;
+  name?: string;
+};
 
 export type CacheValue = {
   outputs: BuildOutputs;

@@ -1,10 +1,14 @@
 import type { ForgeCore, VirtualFile } from "@frontend-forge/forge-core";
 import type { CrdTableSceneConfig } from "./defineCrdTableScene.js";
+import type { IframeSceneConfig } from "./defineIframeScene.js";
 import type { WorkspaceTableSceneConfig } from "./defineWorkspaceTableScene.js";
 import { createExtensionManifest } from "./extensionManifest.js";
 
-export type SceneType = "crdTable" | "workspaceCrdTable";
-export type SceneConfig = CrdTableSceneConfig | WorkspaceTableSceneConfig;
+export type SceneType = "crdTable" | "workspaceCrdTable" | "iframe";
+export type SceneConfig =
+  | CrdTableSceneConfig
+  | WorkspaceTableSceneConfig
+  | IframeSceneConfig;
 
 const manifestFromScene = (type: SceneType, config: SceneConfig) =>
   createExtensionManifest(type, config);

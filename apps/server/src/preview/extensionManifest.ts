@@ -1,11 +1,16 @@
 import type { ExtensionManifest } from "@frontend-forge/forge-core";
 import type { CrdTableSceneConfig } from "./defineCrdTableScene.js";
+import type { IframeSceneConfig } from "./defineIframeScene.js";
 import type { WorkspaceTableSceneConfig } from "./defineWorkspaceTableScene.js";
 import { defineCrdTableScene } from "./defineCrdTableScene.js";
+import { defineIframeScene } from "./defineIframeScene.js";
 import { defineWorkspaceTableScene } from "./defineWorkspaceTableScene.js";
 
-type SceneType = "crdTable" | "workspaceCrdTable";
-type SceneConfig = CrdTableSceneConfig | WorkspaceTableSceneConfig;
+type SceneType = "crdTable" | "workspaceCrdTable" | "iframe";
+type SceneConfig =
+  | CrdTableSceneConfig
+  | WorkspaceTableSceneConfig
+  | IframeSceneConfig;
 
 const resolveDisplayName = (scene: SceneConfig) =>
   scene.meta.title ?? scene.meta.name ?? scene.meta.id;
@@ -17,7 +22,9 @@ export const createExtensionManifest = (
   const componentsTree =
     type === "workspaceCrdTable"
       ? defineWorkspaceTableScene(config as WorkspaceTableSceneConfig)
-      : defineCrdTableScene(config as CrdTableSceneConfig);
+      : type === "iframe"
+        ? defineIframeScene(config as IframeSceneConfig)
+        : defineCrdTableScene(config as CrdTableSceneConfig);
   const pageId = config.meta.id;
   const displayName = resolveDisplayName(config);
 
