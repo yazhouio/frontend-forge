@@ -1,5 +1,8 @@
 import type { ExtensionManifest } from "@frontend-forge/forge-core";
-import type { CrdTableSceneConfig } from "./preview/defineCrdTableScene.js";
+import type {
+  CrdTableColumn,
+  CrdTableSceneConfig,
+} from "./preview/defineCrdTableScene.js";
 import type { IframeSceneConfig } from "./preview/defineIframeScene.js";
 import type { WorkspaceTableSceneConfig } from "./preview/defineWorkspaceTableScene.js";
 import type {
@@ -105,6 +108,8 @@ export type FrontendIntegrationSpec = {
           group: string;
           version: string;
           scope: "Namespaced" | "Cluster";
+          columns?: CrdTableColumn[];
+          authKey?: string;
         };
       }
     | {

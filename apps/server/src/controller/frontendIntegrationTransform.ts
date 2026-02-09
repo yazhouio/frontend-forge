@@ -204,9 +204,9 @@ export function buildProjectSceneConfigFromCr(
       page: {
         id: pageId,
         title: displayName,
-        authKey: crName,
+        authKey: crd.authKey,
       },
-      columns: DEFAULT_COLUMNS,
+      columns: crd.columns ?? DEFAULT_COLUMNS,
     };
     return { type: sceneType, meta, config };
   });

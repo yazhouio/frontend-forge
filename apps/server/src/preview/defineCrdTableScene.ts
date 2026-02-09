@@ -26,7 +26,7 @@ type CrdTableColumnRender = {
   payload?: Record<string, unknown>;
 };
 
-type CrdTableColumn = {
+export type CrdTableColumn = {
   key: string;
   title: string;
   render: CrdTableColumnRender;

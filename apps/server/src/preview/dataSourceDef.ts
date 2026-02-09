@@ -256,6 +256,7 @@ export const WorkspaceCrdPageStateDataSource: DataSourceDefinition = {
     params: { cluster, namespace },
   } = useWorkspaceProjectSelectHook({
     workspace: params.workspace,
+    showAll: false,
   });
 
   const resolvedOptions =
