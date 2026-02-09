@@ -85,11 +85,12 @@ spec:
                           type: object
                           additionalProperties: false
                           required:
-                            - resource
-                            - api
+                            - names
+                            - group
+                            - version
                             - scope
                           properties:
-                            resource:
+                            names:
                               type: object
                               additionalProperties: false
                               required:
@@ -101,17 +102,10 @@ spec:
                                 plural:
                                   type: string
 
-                            api:
-                              type: object
-                              additionalProperties: false
-                              required:
-                                - group
-                                - version
-                              properties:
-                                group:
-                                  type: string
-                                version:
-                                  type: string
+                            group:
+                              type: string
+                            version:
+                              type: string
 
                             scope:
                               type: string
@@ -175,11 +169,12 @@ integration:
           type: object
           additionalProperties: false
           required:
-            - resource
-            - api
+            - names
+            - group
+            - version
             - scope
           properties:
-            resource:
+            names:
               type: object
               additionalProperties: false
               required:
@@ -191,17 +186,10 @@ integration:
                 plural:
                   type: string
 
-            api:
-              type: object
-              additionalProperties: false
-              required:
-                - group
-                - version
-              properties:
-                group:
-                  type: string
-                version:
-                  type: string
+            group:
+              type: string
+            version:
+              type: string
 
             scope:
               type: string
@@ -309,19 +297,18 @@ integration:
 integration:
   type: crd
   crd:
-    resource:
+    names:
       kind: Workspace
       plural: workspaces
-    api:
-      group: tenant.kubesphere.io
-      version: v1alpha2
+    group: tenant.kubesphere.io
+    version: v1alpha2
     scope: Namespaced
 ```
 
 语义：
 
-- `resource`：对应 Kubernetes REST Resource
-- `api`：用于 discovery 与 REST 路径拼装
+- `names`：对应 Kubernetes REST Resource 命名信息
+- `group/version`：用于 discovery 与 REST 路径拼装
 - `scope`：决定 namespace / cluster 行为
 
 ---
@@ -372,12 +359,11 @@ spec:
   integration:
     type: crd
     crd:
-      resource:
+      names:
         kind: Workspace
         plural: workspaces
-      api:
-        group: tenant.kubesphere.io
-        version: v1alpha2
+      group: tenant.kubesphere.io
+      version: v1alpha2
       scope: Namespaced
 
   routing:
