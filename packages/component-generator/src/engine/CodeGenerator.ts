@@ -10,10 +10,10 @@ export class CodeGenerator {
 
   generate(fragments: Map<string, CodeFragment>): string {
     const renderFragments = Array.from(fragments.values()).filter(
-      (fragment) => fragment.meta.renderBoundary
+      (fragment) => fragment.meta.renderBoundary,
     );
     const allImports = renderFragments.flatMap((fragment) =>
-      this.collectImports(fragment, fragments)
+      this.collectImports(fragment, fragments),
     );
     const moduleImports: t.ImportDeclaration[] = [];
     const moduleDecls: t.Statement[] = [];
@@ -30,7 +30,7 @@ export class CodeGenerator {
       const preparedFragment = this.hookCollector.prepare(
         fragment,
         fragments,
-        prepared
+        prepared,
       );
       if (this.fragmentUsesRuntime(fragment)) {
         this.injectRuntimeHook(preparedFragment);
@@ -49,7 +49,7 @@ export class CodeGenerator {
         ...scoped.jsx,
       ];
       functions.push(
-        this.buildFunctionDeclaration(preparedFragment.fragment, functionStats)
+        this.buildFunctionDeclaration(preparedFragment.fragment, functionStats),
       );
     });
 
@@ -65,34 +65,34 @@ export class CodeGenerator {
       ...functions,
     ];
     if (defaultExport) {
-      statements.push(
-        t.exportDefaultDeclaration(t.identifier(defaultExport))
-      );
+      statements.push(t.exportDefaultDeclaration(t.identifier(defaultExport)));
     }
     const ast = t.file(t.program(statements));
-    return generate(ast).code;
+    return generate(ast, { jsescOption: { minimal: true } }).code;
   }
 
-  private resolveDefaultExport(fragments: Map<string, CodeFragment>): string | null {
+  private resolveDefaultExport(
+    fragments: Map<string, CodeFragment>,
+  ): string | null {
     const marked = Array.from(fragments.values()).find(
-      (fragment) => fragment.meta.exportDefault && fragment.meta.title
+      (fragment) => fragment.meta.exportDefault && fragment.meta.title,
     );
     return marked?.meta.title ?? null;
   }
 
   private buildFunctionDeclaration(
     fragment: CodeFragment,
-    stats: Stat[]
+    stats: Stat[],
   ): t.FunctionDeclaration {
     return t.functionDeclaration(
       t.identifier(fragment.meta.title!),
       [t.identifier("props")],
       t.blockStatement([
         ...stats.flatMap((stat) =>
-          Array.isArray(stat.stat) ? stat.stat : [stat.stat]
+          Array.isArray(stat.stat) ? stat.stat : [stat.stat],
         ),
         t.returnStatement(fragment.jsx),
-      ])
+      ]),
     );
   }
 
@@ -153,37 +153,41 @@ export class CodeGenerator {
   }
 
   private buildRuntimeImport(
-    renderFragments: CodeFragment[]
+    renderFragments: CodeFragment[],
   ): t.ImportDeclaration | null {
-    if (!renderFragments.some((fragment) => this.fragmentUsesRuntime(fragment))) {
+    if (
+      !renderFragments.some((fragment) => this.fragmentUsesRuntime(fragment))
+    ) {
       return null;
     }
     return t.importDeclaration(
       [
         t.importSpecifier(
           t.identifier("useRuntimeContext"),
-          t.identifier("useRuntimeContext")
+          t.identifier("useRuntimeContext"),
         ),
       ],
-      t.stringLiteral("@frontend-forge/forge-components")
+      t.stringLiteral("@frontend-forge/forge-components"),
     );
   }
 
   private injectRuntimeHook(prepared: PreparedFragment) {
     const alreadyInjected = prepared.stats.some((stat) =>
-      stat.meta.output.includes("__runtime__")
+      stat.meta.output.includes("__runtime__"),
     );
     if (alreadyInjected) {
       return;
     }
-    prepared.stats.unshift(this.buildRuntimeHookStat(prepared.fragment.meta.id));
+    prepared.stats.unshift(
+      this.buildRuntimeHookStat(prepared.fragment.meta.id),
+    );
   }
 
   private buildRuntimeHookStat(fragmentId: string): Stat {
     const declaration = t.variableDeclaration("const", [
       t.variableDeclarator(
         t.identifier("__runtime__"),
-        t.callExpression(t.identifier("useRuntimeContext"), [])
+        t.callExpression(t.identifier("useRuntimeContext"), []),
       ),
     ]);
     return {
@@ -241,7 +245,7 @@ export class CodeGenerator {
   private collectImports(
     fragment: CodeFragment,
     fragments: Map<string, CodeFragment>,
-    acc: t.ImportDeclaration[] = []
+    acc: t.ImportDeclaration[] = [],
   ) {
     acc.push(...fragment.imports);
     (fragment.children ?? []).forEach((childId) => {
