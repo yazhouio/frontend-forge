@@ -179,7 +179,7 @@ export function buildProjectSceneConfigFromCr(
           id: pageId,
           title: displayName,
         },
-        frameUrl: integration.spec.integration.iframe.src,
+        frameUrl: integration.spec.integration.iframe.url,
       };
       return { type: sceneType, meta, config };
     }
@@ -194,10 +194,10 @@ export function buildProjectSceneConfigFromCr(
         path: `/${pageId}`,
       },
       crd: {
-        apiVersion: crd.api.version,
-        kind: crd.resource.kind,
-        plural: crd.resource.plural,
-        group: crd.api.group,
+        apiVersion: crd.version,
+        kind: crd.names.kind,
+        plural: crd.names.plural,
+        group: crd.group,
         kapi: true,
       },
       scope,

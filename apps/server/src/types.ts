@@ -98,21 +98,19 @@ export type FrontendIntegrationSpec = {
     | {
         type: "crd";
         crd: {
-          resource: {
-            kind: string;
+          names: {
+            kind?: string;
             plural: string;
           };
-          api: {
-            group: string;
-            version: string;
-          };
+          group: string;
+          version: string;
           scope: "Namespaced" | "Cluster";
         };
       }
     | {
         type: "iframe";
         iframe: {
-          src: string;
+          url: string;
         };
       };
   routing: {

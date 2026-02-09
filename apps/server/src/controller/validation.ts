@@ -212,27 +212,22 @@ export function requireFrontendIntegration(
       throw new ForgeError("spec.integration.crd is required", 400);
     }
     const crdObj = crd as Record<string, unknown>;
-    const resource = crdObj.resource;
-    if (!resource || typeof resource !== "object") {
-      throw new ForgeError("spec.integration.crd.resource is required", 400);
+    const names = crdObj.names;
+    if (!names || typeof names !== "object") {
+      throw new ForgeError("spec.integration.crd.names is required", 400);
     }
-    const resourceObj = resource as Record<string, unknown>;
-    requireNonEmptyString(
-      resourceObj.kind,
-      "spec.integration.crd.resource.kind",
-    );
+    const resourceObj = names as Record<string, unknown>;
+    // requireNonEmptyString(
+    //   resourceObj.kind,
+    //   "spec.integration.crd.names.kind",
+    // );
     requireNonEmptyString(
       resourceObj.plural,
-      "spec.integration.crd.resource.plural",
+      "spec.integration.crd.names.plural",
     );
 
-    const api = crdObj.api;
-    if (!api || typeof api !== "object") {
-      throw new ForgeError("spec.integration.crd.api is required", 400);
-    }
-    const apiObj = api as Record<string, unknown>;
-    requireNonEmptyString(apiObj.group, "spec.integration.crd.api.group");
-    requireNonEmptyString(apiObj.version, "spec.integration.crd.api.version");
+    requireNonEmptyString(crdObj.group, "spec.integration.crd.group");
+    requireNonEmptyString(crdObj.version, "spec.integration.crd.version");
 
     const scope = crdObj.scope;
     if (typeof scope !== "string" || scope.trim().length === 0) {
