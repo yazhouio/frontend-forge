@@ -21,6 +21,7 @@ const pageContext = {
           ...buildCreateActionGuard({
             params: config.params,
           }),
+          action: item.action,
         };
       }),
     }),

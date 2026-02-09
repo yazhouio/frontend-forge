@@ -7,19 +7,12 @@ import {
   usePageStore,
   useProjectSelect,
 } from "@frontend-forge/forge-components";
-import {
-  getActions,
-  getLocalTime,
-  useBatchActions,
-  useItemActions,
-  useTableActions,
-} from "@ks-console/shared";
 import * as React from "react";
 import { useMemo } from "react";
 const columnsConfig = [
   {
     key: "name",
-    title: "NAME",
+    title: "名称",
     render: {
       type: "text",
       path: "metadata.name",
@@ -27,17 +20,17 @@ const columnsConfig = [
     },
   },
   {
-    key: "project",
-    title: "Project",
+    key: "namespace",
+    title: "PROJECT_PL",
     render: {
       type: "text",
-      path: 'metadata.annotations["meta.helm.sh/release-namespace"]',
+      path: "metadata.namespace",
       payload: {},
     },
   },
   {
-    key: "updatedAt",
-    title: "UPDATED_AT",
+    key: "created",
+    title: "创建时间",
     render: {
       type: "time",
       path: "metadata.creationTimestamp",
@@ -71,27 +64,20 @@ const useCrdColumns = () => {
   };
 };
 const useStore = getCrdStore({
-  apiVersion: "v1alpha1",
-  kind: "Demo",
-  plural: "jsbundles",
-  group: "extensions.kubesphere.io",
+  apiVersion: "v1",
+  plural: "servicemonitors",
+  group: "monitoring.coreos.com",
   kapi: true,
 });
-const pageContext = {
-  useTableActions: useTableActions,
-  useBatchActions: useBatchActions,
-  useItemActions: useItemActions,
-  getActions: getActions,
-  getLocalTime: getLocalTime,
-};
 const useCrdPageState = (columns, storeOptions = undefined) => {
-  const pageId = "forge-preview-table";
+  const pageId = "servicemonitors1-cluster";
   const page = usePageStore({
     pageId,
     columns,
   });
   const runtime = useRuntimeContext();
-  const params = runtime?.params || {};
+  const params = runtime?.route?.params || {};
+  const pageContext = runtime?.capabilities || {};
   const storeQuery = useMemo(() => buildSearchObject(page, true), [page]);
   const scope = "namespace";
   const {
@@ -150,9 +136,9 @@ function CrdTable(props) {
   } = useCrdPageState(columnsColumns);
   return (
     <PageTable
-      tableKey={"forge-preview-table"}
-      title={"Table Preview"}
-      authKey={"jobs"}
+      tableKey={"servicemonitors1-cluster"}
+      title={"servicemonitors1"}
+      // authKey={"servicemonitors"}
       params={pageStateParams}
       refetch={pageStateRefetch}
       toolbarLeft={pageStateToolbarLeft}

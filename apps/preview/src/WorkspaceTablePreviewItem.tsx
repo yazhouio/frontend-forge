@@ -11,7 +11,7 @@ import { useMemo } from "react";
 const columnsConfig = [
   {
     key: "name",
-    title: "NAME",
+    title: "名称",
     render: {
       type: "text",
       path: "metadata.name",
@@ -19,18 +19,17 @@ const columnsConfig = [
     },
   },
   {
-    key: "project",
-    title: "Project",
+    key: "namespace",
+    title: "PROJECT_PL",
     render: {
       type: "text",
-      path: 'metadata.annotations["meta.helm.sh/release-namespace"]',
+      path: "metadata.namespace",
       payload: {},
     },
-    enableHiding: true,
   },
   {
-    key: "updatedAt",
-    title: "UPDATED_AT",
+    key: "created",
+    title: "创建时间",
     render: {
       type: "time",
       path: "metadata.creationTimestamp",
@@ -38,7 +37,6 @@ const columnsConfig = [
         format: "local-datetime",
       },
     },
-    enableHiding: true,
   },
 ];
 const useCrdColumns = () => {
@@ -65,24 +63,28 @@ const useCrdColumns = () => {
   };
 };
 const useStore = getCrdStore({
-  apiVersion: "v1alpha1",
-  kind: "Demo",
-  plural: "jsbundles",
-  group: "extensions.kubesphere.io",
+  apiVersion: "v1",
+  plural: "servicemonitors",
+  group: "monitoring.coreos.com",
   kapi: true,
 });
 const useCrdPageState = (columns, storeOptions = undefined) => {
-  const pageId = "workspace-forge-preview-table";
+  const pageId = "servicemonitors1-workspace";
   const page = usePageStore({
     pageId,
     columns,
   });
   const runtime = useRuntimeContext();
   const params = runtime?.route?.params || {};
-  const pageContext = runtime?.capabilities;
+  const pageContext = runtime?.capabilities || {};
   const storeQuery = useMemo(() => buildSearchObject(page, true), [page]);
   const useWorkspaceProjectSelectHook = useMemo(
-    () => pageContext?.useWorkspaceProjectSelect || (() => ({})),
+    () =>
+      pageContext?.useWorkspaceProjectSelect ||
+      (() => ({
+        render: null,
+        params: {},
+      })),
     [pageContext],
   );
   const {
@@ -90,6 +92,7 @@ const useCrdPageState = (columns, storeOptions = undefined) => {
     params: { cluster, namespace },
   } = useWorkspaceProjectSelectHook({
     workspace: params.workspace,
+    showAll: false,
   });
   const resolvedOptions =
     storeOptions &&
@@ -139,12 +142,11 @@ function CrdTable(props) {
     del: pageStateDel,
     create: pageStateCreate,
   } = useCrdPageState(columnsColumns);
-  console.log("pageStateParams", pageStateParams);
   return (
     <PageTable
-      tableKey={"workspace-forge-preview-table"}
-      title={"Table Preview"}
-      authKey={"jobs"}
+      tableKey={"servicemonitors1-workspace"}
+      title={"servicemonitors1"}
+      authKey={undefined}
       params={pageStateParams}
       refetch={pageStateRefetch}
       toolbarLeft={pageStateToolbarLeft}

@@ -52,7 +52,7 @@ export function App() {
             Cluster crd table
           </NavLink>
           <NavLink
-            to="/workspaces/xxx/table"
+            to="/workspaces/system-workspace/table"
             className={({ isActive }) =>
               `nav-link${isActive ? " is-active" : ""}`
             }
