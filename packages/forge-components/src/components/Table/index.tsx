@@ -10,7 +10,6 @@ import React, { useCallback, useImperativeHandle } from "react";
 import type { ForwardedRef, ReactElement, RefAttributes } from "react";
 import { usePageStore } from "../../hooks/useTanStackPageStore";
 import { usePageTable } from "../../hooks/useTanStackPageTable";
-import type { PageTableController } from "../../hooks/useTanStackPageTable";
 
 type TablePayload<TData> = {
   data: TData[];
@@ -30,23 +29,23 @@ export type TableProps<TData extends { uid: string }> = {
   data?: TablePayload<TData>;
   isLoading?: boolean;
   tableMeta: TableMetaWithName<TData>;
-  page: PageTableController;
 };
+
+const defaultValue = [];
 
 const Table = <TData extends { uid: string }>(
   props: TableProps<TData>,
   ref: ForwardedRef<BaseTableHandle<TData>>,
 ) => {
-  const { columns, data, isLoading, tableMeta, page } = props;
+  const { columns, data, isLoading, tableMeta } = props;
 
-  // const page = usePageStore<TData>({
-  //   pageId: tableMeta.tableName,
-  //   columns,
-  // });
+  const page = usePageStore<TData>({
+    pageId: tableMeta.tableName,
+    columns,
+  });
 
-  // console.log("page", page);
+  console.log("page", page);
 
-  const defaultValue = [];
   const table = usePageTable<TData>({
     data: data?.data ?? defaultValue,
     columns,

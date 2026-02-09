@@ -1,19 +1,14 @@
+import { Card, Center, Checkbox, notify } from "@kubed/components";
+import { Pen, Trash } from "@kubed/icons";
+import { Row, RowData, Table } from "@tanstack/react-table";
+import { get } from "es-toolkit/compat";
 import * as React from "react";
-import { Card, notify, Checkbox, Center } from "@kubed/components";
+import { useModalAction, wrapperComponentModal } from "../../hooks";
+import { useRuntimeContext } from "../../runtime";
+import { DeleteConfirmModal } from "../DeleteConfirm";
 import { BaseTable } from "../Table";
 import { Container, PageLayout, PageTitle } from "./index.styles";
-import {
-  useModalAction,
-  usePageStoreState,
-  usePageStoreTable,
-  wrapperComponentModal,
-} from "../../hooks";
 import { YamlModal } from "./YamlModal";
-import { Pen, Trash } from "@kubed/icons";
-import { DeleteConfirmModal } from "../DeleteConfirm";
-import { Row, RowData, Table } from "@tanstack/react-table";
-import { useRuntimeContext } from "../../runtime";
-import { get } from "es-toolkit/compat";
 
 declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
@@ -89,7 +84,6 @@ function BasePageTable(props) {
   const tableRef = React.useRef<Table<Record<string, unknown>>>(null);
   const resolvedParams = params ?? {};
 
-  const pageTableController = usePageStoreTable(tableKey);
   const { open: createYaml, close: closeYaml } = useModalAction({
     id: tableKey + "-create",
     modal: YamlModal,
@@ -108,8 +102,6 @@ function BasePageTable(props) {
     id: tableKey + "-del",
     modal: DeleteConfirmModal,
     deps: {
-      onOk: () => {},
-      onCancel: () => {},
       type: title,
     },
   });
@@ -121,7 +113,7 @@ function BasePageTable(props) {
       {
         key: "create",
         text: t("CREATE"),
-        // action: "create",
+        action: authKey ? "create" : undefined,
         props: {
           color: "secondary",
           shadow: true,
@@ -146,7 +138,7 @@ function BasePageTable(props) {
       {
         key: "delete",
         text: t("DELETE"),
-        // action: "delete",
+        action: authKey ? "delete" : undefined,
         onClick: () => {
           const selectedRows = tableRef.current?.getSelectedRowModel().rows;
           if (!selectedRows) {
@@ -181,7 +173,7 @@ function BasePageTable(props) {
         key: "editYaml",
         icon: <Pen />,
         text: t("EDIT_YAML"),
-        // action: "edit",
+        action: authKey ? "edit" : undefined,
         onClick: (_, record) => {
           updateYaml({
             onCancel: closeUpdateYaml,
@@ -201,7 +193,7 @@ function BasePageTable(props) {
         key: "delete",
         icon: <Trash />,
         text: t("DELETE"),
-        // action: "delete",
+        action: authKey ? "delete" : undefined,
         onClick: (_, record) => {
           const name = get(record, "metadata.name");
           delYaml({
@@ -275,7 +267,6 @@ function BasePageTable(props) {
             ref={tableRef}
             tableMeta={tableMeta}
             columns={tableColumns}
-            page={pageTableController}
           />
         </Card>
       </Container>

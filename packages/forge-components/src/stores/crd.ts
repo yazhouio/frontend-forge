@@ -124,6 +124,7 @@ export const getCrdStore = (store: Store) => {
       return res;
     };
     const batchDelete = async (resources: PathParams[]) => {
+      console.log("batchDelete", resources);
       const promises = resources.map((item) => {
         const deleteUrl = getUrlHof(store, k8sVersion)(item);
         return fetchHandler.delete(deleteUrl);

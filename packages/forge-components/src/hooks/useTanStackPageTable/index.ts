@@ -2,28 +2,11 @@ import {
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
-  type ColumnFiltersState,
-  type VisibilityState,
-  type PaginationState,
-  type SortingState,
   type TableMeta,
   type TableOptions,
 } from "@tanstack/react-table";
-
-type Updater<T> = T | ((prev: T) => T);
-
-export type PageTableController = {
-  state: {
-    columnFilters: ColumnFiltersState;
-    sorting: SortingState;
-    columnVisibility: VisibilityState;
-    pagination: PaginationState;
-  };
-  setColumnFilters: (updater: Updater<ColumnFiltersState>) => void;
-  setSorting: (updater: Updater<SortingState>) => void;
-  setColumnVisibility: (updater: Updater<VisibilityState>) => void;
-  setPagination: (updater: Updater<PaginationState>) => void;
-};
+import { PageStore } from "../useTanStackPageStore";
+import React from "react";
 
 export function usePageTable<T>({
   data,
@@ -34,19 +17,23 @@ export function usePageTable<T>({
 }: {
   data: T[];
   columns: ColumnDef<T>[];
-  page: PageTableController;
+  page: PageStore;
   tableMeta: TableMeta<T>;
   tableOptions?: Partial<TableOptions<T>> & { loading?: boolean };
 }) {
+  const state = React.useMemo(() => {
+    return {
+      columnFilters: page.table.columnFilters,
+      sorting: page.table.sorting,
+      columnVisibility: page.table.columnVisibility,
+      pagination: page.pagination,
+    };
+  }, [page.table, page.pagination]);
+
   return useReactTable({
     data,
     columns,
-    state: {
-      columnFilters: page.state.columnFilters,
-      sorting: page.state.sorting,
-      columnVisibility: page.state.columnVisibility,
-      pagination: page.state.pagination,
-    },
+    state,
     onColumnFiltersChange: page.setColumnFilters,
     onSortingChange: page.setSorting,
     onColumnVisibilityChange: page.setColumnVisibility,

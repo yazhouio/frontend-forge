@@ -8,9 +8,9 @@ import {
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { throttle } from "es-toolkit";
+import { throttle } from "es-toolkit/compat";
 import { lruCache } from "../../utils/cache";
-import { PageTableController } from "../useTanStackPageTable";
+// import { PageTableController } from '../useTanStackPageTable';
 
 type Updater<T> = T | ((prev: T) => T);
 
@@ -24,7 +24,7 @@ type PageState = {
   pagination: PaginationState;
 };
 
-type PageStore = PageState & {
+export type PageStore = PageState & {
   setQuery: (
     updater:
       | Record<string, any>
@@ -38,12 +38,84 @@ type PageStore = PageState & {
 };
 
 /* =========================
- * 常量 & 工具
+ * Constants and helpers
  * ========================= */
 
 const STORAGE_PREFIX = "page-store";
 
 const getStorageKey = (pageId: string) => `${STORAGE_PREFIX}:${pageId}`;
+const getColumnVisibilityStorageKey = (pageId: string) =>
+  `${STORAGE_PREFIX}:column-visibility:${pageId}`;
+
+function sanitizeColumnVisibility(
+  raw: unknown,
+  columnIdSet: Set<string>,
+): VisibilityState {
+  if (!raw || typeof raw !== "object") return {};
+
+  const next: VisibilityState = {};
+  Object.entries(raw as Record<string, unknown>).forEach(([key, value]) => {
+    if (!columnIdSet.has(key)) return;
+    if (typeof value !== "boolean") return;
+    next[key] = value;
+  });
+  return next;
+}
+
+function isSameColumnVisibility(
+  a: VisibilityState,
+  b: VisibilityState,
+): boolean {
+  const aEntries = Object.entries(a);
+  const bEntries = Object.entries(b);
+  if (aEntries.length !== bEntries.length) return false;
+
+  for (const [key, value] of aEntries) {
+    if (b[key] !== value) return false;
+  }
+  return true;
+}
+
+function readColumnVisibility(
+  pageId: string,
+  columnIdSet: Set<string>,
+): VisibilityState {
+  if (typeof localStorage === "undefined") return {};
+
+  try {
+    const raw = localStorage.getItem(getColumnVisibilityStorageKey(pageId));
+    if (!raw) return {};
+    return sanitizeColumnVisibility(JSON.parse(raw), columnIdSet);
+  } catch {
+    return {};
+  }
+}
+
+function writeColumnVisibility(
+  pageId: string,
+  visibility: VisibilityState,
+): void {
+  if (typeof localStorage === "undefined") return;
+
+  try {
+    localStorage.setItem(
+      getColumnVisibilityStorageKey(pageId),
+      JSON.stringify(visibility),
+    );
+  } catch {
+    // Best-effort only.
+  }
+}
+
+function clearColumnVisibility(pageId: string): void {
+  if (typeof localStorage === "undefined") return;
+
+  try {
+    localStorage.removeItem(getColumnVisibilityStorageKey(pageId));
+  } catch {
+    // Best-effort only.
+  }
+}
 
 function extractColumnIds<T>(columns: ColumnDef<T>[]): Set<string> {
   const ids = new Set<string>();
@@ -92,6 +164,7 @@ function parseFilterValue(raw: string): unknown {
 
 function shouldUseCache(search: string): boolean {
   const raw = new URLSearchParams(search).get("__cache__");
+  console.log("xxx", ["true", "1", "yes"].includes(String(raw).toLowerCase()));
   if (!raw) return false;
   return ["true", "1", "yes"].includes(String(raw).toLowerCase());
 }
@@ -292,7 +365,7 @@ function getPersist(pageId: string): PersistFn {
 }
 
 /* =========================
- * Store Factory（带缓存）
+ * Store factory (with cache)
  * ========================= */
 
 type PageStoreHook = UseBoundStore<StoreApi<PageStore>>;
@@ -329,14 +402,16 @@ function createPageStore(
   initialQuery?: Record<string, any>,
   cacheEnabled?: boolean,
 ): PageStoreHook {
-  if (storeMap.has(pageId)) {
+  const cached = cacheEnabled ? loadFromCache(pageId) : null;
+
+  if (cached && storeMap.has(pageId)) {
     return storeMap.get(pageId)!;
   }
 
   const persist = getPersist(pageId);
   let suppressPersist = false;
 
-  const cached = cacheEnabled ? loadFromCache(pageId) : null;
+  console.log("xxx cached xxx", cached, initialQuery);
   const initial = mergeInitialQuery(
     parseFromUrl(search, columnIdSet) ??
       (() => {
@@ -363,20 +438,20 @@ function createPageStore(
     initialQuery,
   );
 
-  const initialColumnVisibility = cacheEnabled
-    ? cached?.table &&
-      typeof cached.table === "object" &&
-      (cached.table as any).columnVisibility
-      ? ((cached.table as any).columnVisibility as VisibilityState)
-      : undefined
-    : undefined;
+  const persistedColumnVisibility = readColumnVisibility(pageId, columnIdSet);
+  const initialColumnVisibility =
+    Object.keys(persistedColumnVisibility).length > 0
+      ? persistedColumnVisibility
+      : sanitizeColumnVisibility(
+          (initial.table as any).columnVisibility,
+          columnIdSet,
+        );
 
   const store = create<PageStore>((set) => ({
     ...initial,
     table: {
       ...initial.table,
-      columnVisibility:
-        initialColumnVisibility ?? initial.table.columnVisibility ?? {},
+      columnVisibility: initialColumnVisibility,
     },
 
     setQuery: (updater) =>
@@ -422,7 +497,10 @@ function createPageStore(
       set((s) => {
         const prev = s.table.sorting;
         const next = typeof updater === "function" ? updater(prev) : updater;
+        console.log("setSorting", prev, next, updater);
+
         if (next === prev) return s;
+
         return {
           table: { ...s.table, sorting: next },
         };
@@ -431,8 +509,12 @@ function createPageStore(
     setColumnVisibility: (updater) =>
       set((s) => {
         const prev = s.table.columnVisibility;
-        const next = typeof updater === "function" ? updater(prev) : updater;
-        if (next === prev) return s;
+        const computed =
+          typeof updater === "function" ? updater(prev) : updater;
+        const next = sanitizeColumnVisibility(computed, columnIdSet);
+        if (isSameColumnVisibility(next, prev)) return s;
+
+        writeColumnVisibility(pageId, next);
         return {
           table: { ...s.table, columnVisibility: next },
         };
@@ -455,6 +537,7 @@ function createPageStore(
       suppressPersist = true;
       persist.cancel?.();
       lruCache.delete(getStorageKey(pageId));
+      clearColumnVisibility(pageId);
       set({
         query: {},
         table: { columnFilters: [], sorting: [], columnVisibility: {} },
@@ -536,24 +619,19 @@ export function useInitPageStore<T>({
     };
   }, [pageId]);
 
-  useEffect(() => {
-    if (!isOwnerRef.current) return;
-    if (normalizedSearch === lastSyncedSearchRef.current) return;
+  // useEffect(() => {
+  //   if (!isOwnerRef.current) return;
+  //   if (normalizedSearch === lastSyncedSearchRef.current) return;
 
-    const next = parseFromUrl(searchString, columnIdSet);
-    const currentSearch = normalizeSearch(buildSearch(store.getState()));
-    if (next && currentSearch !== normalizedSearch) {
-      store.setState((s) => ({
-        ...next,
-        table: {
-          ...next.table,
-          columnVisibility: s.table.columnVisibility,
-        },
-      }));
-    }
+  //   const next = parseFromUrl(searchString, columnIdSet);
+  //   const currentSearch = normalizeSearch(buildSearch(store.getState()));
+  //   console.log('next', searchString, next, currentSearch, normalizedSearch, store.getState());
+  //   // if (next && currentSearch !== normalizedSearch) {
+  //   //   store.setState(next);
+  //   // }
 
-    lastSyncedSearchRef.current = normalizedSearch;
-  }, [columnIdSet, normalizedSearch, searchString, store]);
+  //   // lastSyncedSearchRef.current = normalizedSearch;
+  // }, [columnIdSet, normalizedSearch, searchString, store]);
 
   // Store → URL
   useEffect(() => {
@@ -619,25 +697,25 @@ export function usePageStoreActions(pageId: string) {
   }, [store]);
 }
 
-export function usePageStoreTable(pageId: string) {
-  const store = getPageStore(pageId);
-  const state = store((s) => ({
-    columnFilters: s.table.columnFilters,
-    sorting: s.table.sorting,
-    columnVisibility: s.table.columnVisibility,
-    pagination: s.pagination,
-  }));
-  return useMemo<PageTableController>(() => {
-    const s = store.getState();
-    return {
-      state,
-      setColumnFilters: s.setColumnFilters,
-      setSorting: s.setSorting,
-      setColumnVisibility: s.setColumnVisibility,
-      setPagination: s.setPagination,
-    };
-  }, [store, state]);
-}
+// export function usePageStoreTable(pageId: string) {
+//   const store = getPageStore(pageId);
+//   const state = store(s => ({
+//     columnFilters: s.table.columnFilters,
+//     sorting: s.table.sorting,
+//     columnVisibility: s.table.columnVisibility,
+//     pagination: s.pagination,
+//   }));
+//   return useMemo<PageTableController>(() => {
+//     const s = store.getState();
+//     return {
+//       state,
+//       setColumnFilters: s.setColumnFilters,
+//       setSorting: s.setSorting,
+//       setColumnVisibility: s.setColumnVisibility,
+//       setPagination: s.setPagination,
+//     };
+//   }, [store, state]);
+// }
 
 export function usePageStore<T>({
   pageId,
