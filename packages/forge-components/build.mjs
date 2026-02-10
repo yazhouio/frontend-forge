@@ -7,7 +7,12 @@ function runCommand(command, args) {
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`${command} ${args.join(" ")} exited with code ${code ?? "unknown"}`));
+      else
+        reject(
+          new Error(
+            `${command} ${args.join(" ")} exited with code ${code ?? "unknown"}`,
+          ),
+        );
     });
   });
 }
@@ -23,10 +28,15 @@ async function runBuild() {
     external: [
       "react",
       "react-dom",
+      "react-router-dom",
       "react/jsx-runtime",
-      "react/jsx-dev-runtime"
+      "react/jsx-dev-runtime",
+      "@kubed/components",
+      "@kubed/hooks",
+      "@kubed/code-editor",
+      "@kubed/icons",
     ],
-    sourcemap: true
+    sourcemap: true,
   });
 
   await runCommand("tsc", ["-p", "tsconfig.json"]);
