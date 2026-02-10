@@ -1,5 +1,9 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { ForgeError, isForgeError } from "@frontend-forge/forge-core";
+import {
+  ForgeError,
+  isForgeError,
+  type ForgeCore,
+} from "@frontend-forge/forge-core";
 import type {
   FrontendIntegration,
   FrontendIntegrationListQuery,
@@ -32,7 +36,7 @@ type JsBundle = {
     [key: string]: unknown;
   };
   spec?: {
-    row?: Record<string, string>;
+    raw?: string;
     [key: string]: unknown;
   };
   status?: unknown;
@@ -54,12 +58,6 @@ const FRONTEND_INTEGRATION_LABEL_NAME_KEY = "frontend-forge.io/name";
 const FRONTEND_INTEGRATION_LABEL_TYPE_KEY = "frontend-forge.io/type";
 const FRONTEND_INTEGRATION_LABEL_ENABLED_KEY = "frontend-forge.io/enabled";
 
-const EMPTY_BUNDLE_JS =
-  'System.register([], function (_export, _context) { "use strict"; return { execute: function () {} }; });';
-const EMPTY_BUNDLE_BASE64 = Buffer.from(EMPTY_BUNDLE_JS, "utf8").toString(
-  "base64",
-);
-
 function buildFrontendIntegrationLabels(
   integration: FrontendIntegration,
 ): Record<string, string> {
@@ -77,10 +75,11 @@ function buildFrontendIntegrationLabels(
   };
 }
 
-function buildFrontendIntegrationJsBundle(
+async function buildFrontendIntegrationJsBundle(
+  forge: ForgeCore,
   integration: FrontendIntegration,
   existing?: JsBundle,
-): JsBundle {
+): Promise<JsBundle> {
   const labels = buildFrontendIntegrationLabels(integration);
   const sceneConfig = buildProjectSceneConfigFromCr(integration);
   const manifest = buildExtensionManifestFromProjectConfig(sceneConfig, {
@@ -93,6 +92,18 @@ function buildFrontendIntegrationJsBundle(
   if (manifestJson.length > 200_000) {
     throw new ForgeError("manifest is too large to store in annotations", 400);
   }
+  const files = await forge.buildProject(manifest, { build: true });
+  const bundle = files.find(
+    (file) =>
+      file &&
+      typeof file === "object" &&
+      file.path === "index.js" &&
+      typeof file.content === "string",
+  );
+  if (!bundle) {
+    throw new ForgeError("build output is missing index.js", 500);
+  }
+  const rawBundle = Buffer.from(bundle.content, "utf8").toString("base64");
 
   const rawAnnotations = existing?.metadata?.annotations ?? {};
   const annotations = {
@@ -119,12 +130,11 @@ function buildFrontendIntegrationJsBundle(
 
   const spec =
     typeof base.spec === "object" && base.spec ? { ...base.spec } : {};
-  if (!spec.row || typeof spec.row !== "object") {
-    spec.row = { "index.js": EMPTY_BUNDLE_BASE64 };
-  } else if (Object.keys(spec.row).length === 0) {
-    spec.row["index.js"] = EMPTY_BUNDLE_BASE64;
-  }
+  spec.raw = rawBundle;
   base.spec = spec;
+  base.status = {
+    state: "Available",
+  };
   return base;
 }
 
@@ -265,8 +275,11 @@ function withEnabledOverridden(jsBundle: JsBundle, enabled: boolean): JsBundle {
   };
 }
 
-export function createFrontendIntegrationHandlers(deps: { k8s?: K8sConfig }) {
-  const { k8s } = deps;
+export function createFrontendIntegrationHandlers(deps: {
+  forge: ForgeCore;
+  k8s?: K8sConfig;
+}) {
+  const { forge, k8s } = deps;
 
   return {
     frontendIntegrationList: async (
@@ -348,7 +361,10 @@ export function createFrontendIntegrationHandlers(deps: { k8s?: K8sConfig }) {
         const integration = requireFrontendIntegration(req.body);
         const k8sConfig = requireK8sConfig(k8s);
         const token = requireAuthToken(req, k8sConfig);
-        const jsBundle = buildFrontendIntegrationJsBundle(integration);
+        const jsBundle = await buildFrontendIntegrationJsBundle(
+          forge,
+          integration,
+        );
         const url = joinUrl(
           k8sConfig.server,
           "/kapis/extensions.kubesphere.io/v1alpha1/jsbundles",
@@ -382,7 +398,10 @@ export function createFrontendIntegrationHandlers(deps: { k8s?: K8sConfig }) {
           }
         }
 
-        const jsBundle = buildFrontendIntegrationJsBundle(integration);
+        const jsBundle = await buildFrontendIntegrationJsBundle(
+          forge,
+          integration,
+        );
         const createUrl = joinUrl(
           k8sConfig.server,
           "/kapis/extensions.kubesphere.io/v1alpha1/jsbundles",

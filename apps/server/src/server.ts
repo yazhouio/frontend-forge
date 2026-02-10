@@ -1,8 +1,8 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from "path";
+import { fileURLToPath } from "url";
 import Fastify from "fastify";
-import PQueue from 'p-queue';
-import cookie from '@fastify/cookie';
+import PQueue from "p-queue";
+import cookie from "@fastify/cookie";
 import { ForgeCore } from "@frontend-forge/forge-core";
 import {
   CodeExporter,
@@ -18,25 +18,31 @@ import {
   BUILD_TIMEOUT_MS,
   CHILD_MAX_OLD_SPACE_MB,
 } from "./config.js";
-import { getCache, setCache } from './cache.js';
+import { getCache, setCache } from "./cache.js";
 import router from "./router.js";
 import { loadServerConfig } from "./runtimeConfig.js";
 import { registerStaticMounts } from "./staticServer.js";
+import { CrdTableNode, IframeNode } from "./preview/nodeDef.js";
+import {
+  CrdColumnsDataSource,
+  CrdPageStateDataSource,
+  WorkspaceCrdPageStateDataSource,
+} from "./preview/dataSourceDef.js";
 
 function getLoggerOptions() {
   const wantsPretty =
-    process.env.FORGE_PRETTY_LOGS === '1' ||
-    process.env.npm_lifecycle_event === 'dev';
+    process.env.FORGE_PRETTY_LOGS === "1" ||
+    process.env.npm_lifecycle_event === "dev";
 
   if (!wantsPretty || !process.stdout.isTTY) return true;
 
   return {
     transport: {
-      target: 'pino-pretty',
+      target: "pino-pretty",
       options: {
         colorize: true,
-        translateTime: 'SYS:standard',
-        ignore: 'pid,hostname',
+        translateTime: "SYS:standard",
+        ignore: "pid,hostname",
       },
     },
   };
@@ -44,7 +50,7 @@ function getLoggerOptions() {
 
 const queue = new PQueue({ concurrency: CONCURRENCY });
 const here = path.dirname(fileURLToPath(import.meta.url));
-const vendorNodeModules = path.resolve(here, '..', 'vendor', 'node_modules');
+const vendorNodeModules = path.resolve(here, "..", "vendor", "node_modules");
 
 const exporter = new CodeExporter({
   cache: {
@@ -55,11 +61,16 @@ const exporter = new CodeExporter({
   buildTimeoutMs: BUILD_TIMEOUT_MS,
   childMaxOldSpaceMb: CHILD_MAX_OLD_SPACE_MB,
   defaultExternals: DEFAULT_EXTERNALS,
-  defaultEntry: 'src/index.tsx',
+  defaultEntry: "src/index.tsx",
   vendorNodeModules,
 });
 
-const componentGenerator = ComponentGenerator.withDefaults();
+const componentGenerator = new ComponentGenerator();
+componentGenerator.registerNode(IframeNode);
+componentGenerator.registerNode(CrdTableNode);
+componentGenerator.registerDataSource(CrdColumnsDataSource);
+componentGenerator.registerDataSource(CrdPageStateDataSource);
+componentGenerator.registerDataSource(WorkspaceCrdPageStateDataSource);
 
 const forge = new ForgeCore({
   componentGenerator,
@@ -84,4 +95,4 @@ app.setErrorHandler((err: Error, _req, reply) => {
   return { ok: false, error: err.message || String(err) };
 });
 
-await app.listen({ port: PORT, host: '0.0.0.0' });
+await app.listen({ port: PORT, host: "0.0.0.0" });

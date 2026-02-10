@@ -1,5 +1,5 @@
 import { fetch } from 'undici';
-import { ForgeError } from '@frontend-forge/forge-core';
+import { ForgeError, isForgeError } from '@frontend-forge/forge-core';
 
 export type K8sPostJsonResult = {
   status: number;
@@ -85,6 +85,9 @@ export async function requestJson(
 
     return { status: res.status, headers: responseHeaders, body: parsed };
   } catch (err) {
+    if (isForgeError(err)) {
+      throw err;
+    }
     if (err instanceof Error && err.name === 'AbortError') {
       throw new ForgeError(`k8s request timeout after ${timeoutMs}ms`, 504);
     }
