@@ -64,10 +64,15 @@ function toIdentifier(name: string): string {
 }
 
 function toComponentIdentifier(name: string, fallback: string): string {
-  const safe = name.replace(/[^A-Za-z0-9_]/g, '_');
-  if (safe.length === 0) return fallback;
-  if (!/^[A-Za-z_]/.test(safe)) return `${fallback}_${safe}`;
-  return safe;
+  const parts = name.match(/[A-Za-z0-9]+/g) || [];
+  if (parts.length === 0) return fallback;
+
+  const pascal = parts
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
+
+  if (!/^[A-Za-z_]/.test(pascal)) return `${fallback}${pascal}`;
+  return pascal;
 }
 
 function validateManifest(manifest: ExtensionManifest): void {
