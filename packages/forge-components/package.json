@@ -21,7 +21,8 @@
     "styled-components": "5.3.3",
     "@kubed/icons": "0.2.33",
     "@kubed/code-editor": "0.2.33",
-    "@kubed/hooks": "0.2.33"
+    "@kubed/hooks": "0.2.33",
+    "@kubed/components": "^0.2.35"
   },
   "dependencies": {
     "semver": "^7.7.3",
@@ -29,7 +30,6 @@
     "es-toolkit": "^1.43.0",
     "qs": "6.14.1",
     "zustand": "^4.5.2",
-    "@kubed/components": "^0.2.35",
     "js-yaml": "^3.13.1"
   },
   "devDependencies": {
