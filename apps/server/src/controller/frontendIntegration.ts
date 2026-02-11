@@ -36,7 +36,15 @@ type JsBundle = {
     [key: string]: unknown;
   };
   spec?: {
-    raw?: string;
+    rawFrom?: {
+      configMapKeyRef?: {
+        namespace?: string;
+        name?: string;
+        key?: string;
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    };
     [key: string]: unknown;
   };
   status?: unknown;
@@ -49,6 +57,27 @@ type JsBundleList = {
   [key: string]: unknown;
 };
 
+type ConfigMap = {
+  apiVersion?: string;
+  kind?: string;
+  metadata?: {
+    name?: string;
+    namespace?: string;
+    labels?: Record<string, string>;
+    annotations?: Record<string, string>;
+    resourceVersion?: string;
+    [key: string]: unknown;
+  };
+  data?: Record<string, string>;
+  [key: string]: unknown;
+};
+
+type FrontendIntegrationBuildOutput = {
+  sceneConfig: ProjectSceneConfig;
+  manifestJson: string;
+  rawBundle: string;
+};
+
 const FRONTEND_INTEGRATION_ANNOTATION = "frontend-forge.io/frontendintegration";
 const FRONTEND_INTEGRATION_MANIFEST_ANNOTATION = "frontend-forge.io/manifest";
 const SCENE_CONFIG_ANNOTATION = "scene.frontend-forge.io/config";
@@ -57,6 +86,29 @@ const FRONTEND_INTEGRATION_LABEL_RESOURCE_VALUE = "frontendintegration";
 const FRONTEND_INTEGRATION_LABEL_NAME_KEY = "frontend-forge.io/name";
 const FRONTEND_INTEGRATION_LABEL_TYPE_KEY = "frontend-forge.io/type";
 const FRONTEND_INTEGRATION_LABEL_ENABLED_KEY = "frontend-forge.io/enabled";
+const FRONTEND_INTEGRATION_CONFIG_MAP_NAMESPACE =
+  "extension-frontend-forge-config";
+const FRONTEND_INTEGRATION_CONFIG_MAP_KEY = "index.js";
+
+function buildFrontendIntegrationConfigMapName(integrationName: string): string {
+  return `${integrationName}-config`;
+}
+
+function buildFrontendIntegrationConfigMapPath(integrationName: string): string {
+  return `/api/v1/namespaces/${encodeURIComponent(FRONTEND_INTEGRATION_CONFIG_MAP_NAMESPACE)}/configmaps/${encodeURIComponent(buildFrontendIntegrationConfigMapName(integrationName))}`;
+}
+
+function buildFrontendIntegrationConfigMapCollectionPath(): string {
+  return `/api/v1/namespaces/${encodeURIComponent(FRONTEND_INTEGRATION_CONFIG_MAP_NAMESPACE)}/configmaps`;
+}
+
+function buildFrontendIntegrationJsBundlePath(name: string): string {
+  return `/kapis/extensions.kubesphere.io/v1alpha1/jsbundles/${encodeURIComponent(name)}`;
+}
+
+function buildFrontendIntegrationDistLink(name: string): string {
+  return `/dist/${name}/index.js`;
+}
 
 function buildFrontendIntegrationLabels(
   integration: FrontendIntegration,
@@ -75,12 +127,10 @@ function buildFrontendIntegrationLabels(
   };
 }
 
-async function buildFrontendIntegrationJsBundle(
+async function buildFrontendIntegrationBuildOutput(
   forge: ForgeCore,
   integration: FrontendIntegration,
-  existing?: JsBundle,
-): Promise<JsBundle> {
-  const labels = buildFrontendIntegrationLabels(integration);
+): Promise<FrontendIntegrationBuildOutput> {
   const sceneConfig = buildProjectSceneConfigFromCr(integration);
   const manifest = buildExtensionManifestFromProjectConfig(sceneConfig, {
     displayName:
@@ -103,14 +153,49 @@ async function buildFrontendIntegrationJsBundle(
   if (!bundle) {
     throw new ForgeError("build output is missing index.js", 500);
   }
-  const rawBundle = Buffer.from(bundle.content, "utf8").toString("base64");
+  const rawBundle = bundle.content;
 
+  return { sceneConfig, manifestJson, rawBundle };
+}
+
+function buildFrontendIntegrationConfigMap(
+  integration: FrontendIntegration,
+  buildOutput: FrontendIntegrationBuildOutput,
+  existing?: ConfigMap,
+): ConfigMap {
+  const labels = buildFrontendIntegrationLabels(integration);
+  const mergedLabels = { ...(existing?.metadata?.labels ?? {}), ...labels };
+  const metadata = {
+    ...(existing?.metadata ?? {}),
+    name: buildFrontendIntegrationConfigMapName(integration.metadata.name),
+    namespace: FRONTEND_INTEGRATION_CONFIG_MAP_NAMESPACE,
+    labels: mergedLabels,
+  };
+
+  const base: ConfigMap = existing
+    ? { ...existing }
+    : { apiVersion: "v1", kind: "ConfigMap" };
+  if (!base.apiVersion) base.apiVersion = "v1";
+  if (!base.kind) base.kind = "ConfigMap";
+  base.metadata = metadata;
+  base.data = {
+    [FRONTEND_INTEGRATION_CONFIG_MAP_KEY]: buildOutput.rawBundle,
+  };
+  return base;
+}
+
+function buildFrontendIntegrationJsBundle(
+  integration: FrontendIntegration,
+  buildOutput: FrontendIntegrationBuildOutput,
+  existing?: JsBundle,
+): JsBundle {
+  const labels = buildFrontendIntegrationLabels(integration);
   const rawAnnotations = existing?.metadata?.annotations ?? {};
   const annotations = {
     ...rawAnnotations,
     [FRONTEND_INTEGRATION_ANNOTATION]: JSON.stringify(integration),
-    [SCENE_CONFIG_ANNOTATION]: JSON.stringify(sceneConfig),
-    [FRONTEND_INTEGRATION_MANIFEST_ANNOTATION]: manifestJson,
+    [SCENE_CONFIG_ANNOTATION]: JSON.stringify(buildOutput.sceneConfig),
+    [FRONTEND_INTEGRATION_MANIFEST_ANNOTATION]: buildOutput.manifestJson,
   };
   const mergedLabels = { ...(existing?.metadata?.labels ?? {}), ...labels };
 
@@ -129,13 +214,86 @@ async function buildFrontendIntegrationJsBundle(
   base.metadata = metadata;
 
   const spec =
-    typeof base.spec === "object" && base.spec ? { ...base.spec } : {};
-  spec.raw = rawBundle;
-  base.spec = spec;
-  base.status = {
-    state: "Available",
+    typeof base.spec === "object" && base.spec
+      ? { ...(base.spec as Record<string, unknown>) }
+      : {};
+  delete spec.raw;
+  spec.rawFrom = {
+    configMapKeyRef: {
+      namespace: FRONTEND_INTEGRATION_CONFIG_MAP_NAMESPACE,
+      name: buildFrontendIntegrationConfigMapName(integration.metadata.name),
+      key: FRONTEND_INTEGRATION_CONFIG_MAP_KEY,
+    },
   };
+  base.spec = spec;
+  const status =
+    typeof base.status === "object" && base.status
+      ? { ...(base.status as Record<string, unknown>) }
+      : {};
+  status.link = buildFrontendIntegrationDistLink(integration.metadata.name);
+  status.state = "Available";
+  base.status = status;
   return base;
+}
+
+async function deleteResourceIgnoreNotFound(url: string, token: string) {
+  try {
+    await requestJson(url, { token, method: "DELETE" });
+  } catch (err) {
+    if (!isForgeError(err) || err.statusCode !== 404) {
+      throw err;
+    }
+  }
+}
+
+async function upsertFrontendIntegrationConfigMap(args: {
+  k8sConfig: K8sConfig;
+  token: string;
+  integration: FrontendIntegration;
+  buildOutput: FrontendIntegrationBuildOutput;
+}) {
+  const { k8sConfig, token, integration, buildOutput } = args;
+  const createUrl = joinUrl(
+    k8sConfig.server,
+    buildFrontendIntegrationConfigMapCollectionPath(),
+  );
+  const configMap = buildFrontendIntegrationConfigMap(
+    integration,
+    buildOutput,
+  );
+  try {
+    await requestJson(createUrl, { token, method: "POST", body: configMap });
+    return;
+  } catch (err) {
+    if (!isForgeError(err) || err.statusCode !== 409) {
+      throw err;
+    }
+  }
+
+  const itemUrl = joinUrl(
+    k8sConfig.server,
+    buildFrontendIntegrationConfigMapPath(integration.metadata.name),
+  );
+  const existing = await requestJson(itemUrl, { token, method: "GET" });
+  const patched = buildFrontendIntegrationConfigMap(
+    integration,
+    buildOutput,
+    existing.body as ConfigMap,
+  );
+  await requestJson(itemUrl, { token, method: "PUT", body: patched });
+}
+
+async function deleteFrontendIntegrationConfigMapIgnoreNotFound(args: {
+  k8sConfig: K8sConfig;
+  token: string;
+  integrationName: string;
+}) {
+  const { k8sConfig, token, integrationName } = args;
+  const configMapUrl = joinUrl(
+    k8sConfig.server,
+    buildFrontendIntegrationConfigMapPath(integrationName),
+  );
+  await deleteResourceIgnoreNotFound(configMapUrl, token);
 }
 
 function extractFrontendIntegration(
@@ -340,7 +498,7 @@ export function createFrontendIntegrationHandlers(deps: {
         const name = requireNonEmptyString(req.params?.name, "name");
         const k8sConfig = requireK8sConfig(k8s);
         const token = requireAuthToken(req, k8sConfig);
-        const path = `/kapis/extensions.kubesphere.io/v1alpha1/jsbundles/${encodeURIComponent(name)}`;
+        const path = buildFrontendIntegrationJsBundlePath(name);
         const url = joinUrl(k8sConfig.server, path);
         const result = await requestJson(url, { token, method: "GET" });
         const integration = extractFrontendIntegration(result.body as JsBundle);
@@ -361,9 +519,19 @@ export function createFrontendIntegrationHandlers(deps: {
         const integration = requireFrontendIntegration(req.body);
         const k8sConfig = requireK8sConfig(k8s);
         const token = requireAuthToken(req, k8sConfig);
-        const jsBundle = await buildFrontendIntegrationJsBundle(
+        const buildOutput = await buildFrontendIntegrationBuildOutput(
           forge,
           integration,
+        );
+        await upsertFrontendIntegrationConfigMap({
+          k8sConfig,
+          token,
+          integration,
+          buildOutput,
+        });
+        const jsBundle = buildFrontendIntegrationJsBundle(
+          integration,
+          buildOutput,
         );
         const url = joinUrl(
           k8sConfig.server,
@@ -388,19 +556,28 @@ export function createFrontendIntegrationHandlers(deps: {
         }
         const k8sConfig = requireK8sConfig(k8s);
         const token = requireAuthToken(req, k8sConfig);
-        const deletePath = `/kapis/extensions.kubesphere.io/v1alpha1/jsbundles/${encodeURIComponent(name)}`;
+        const deletePath = buildFrontendIntegrationJsBundlePath(name);
         const deleteUrl = joinUrl(k8sConfig.server, deletePath);
-        try {
-          await requestJson(deleteUrl, { token, method: "DELETE" });
-        } catch (err) {
-          if (!isForgeError(err) || err.statusCode !== 404) {
-            throw err;
-          }
-        }
+        await deleteResourceIgnoreNotFound(deleteUrl, token);
+        await deleteFrontendIntegrationConfigMapIgnoreNotFound({
+          k8sConfig,
+          token,
+          integrationName: name,
+        });
 
-        const jsBundle = await buildFrontendIntegrationJsBundle(
+        const buildOutput = await buildFrontendIntegrationBuildOutput(
           forge,
           integration,
+        );
+        await upsertFrontendIntegrationConfigMap({
+          k8sConfig,
+          token,
+          integration,
+          buildOutput,
+        });
+        const jsBundle = buildFrontendIntegrationJsBundle(
+          integration,
+          buildOutput,
         );
         const createUrl = joinUrl(
           k8sConfig.server,
@@ -421,9 +598,14 @@ export function createFrontendIntegrationHandlers(deps: {
         const name = requireNonEmptyString(req.params?.name, "name");
         const k8sConfig = requireK8sConfig(k8s);
         const token = requireAuthToken(req, k8sConfig);
-        const path = `/kapis/extensions.kubesphere.io/v1alpha1/jsbundles/${encodeURIComponent(name)}`;
+        const path = buildFrontendIntegrationJsBundlePath(name);
         const url = joinUrl(k8sConfig.server, path);
         await requestJson(url, { token, method: "DELETE" });
+        await deleteFrontendIntegrationConfigMapIgnoreNotFound({
+          k8sConfig,
+          token,
+          integrationName: name,
+        });
         return { ok: true };
       } catch (err) {
         return handleKnownError(err, reply);
@@ -439,7 +621,7 @@ export function createFrontendIntegrationHandlers(deps: {
         const enabled = requireEnabledFlag(req.body);
         const k8sConfig = requireK8sConfig(k8s);
         const token = requireAuthToken(req, k8sConfig);
-        const path = `/kapis/extensions.kubesphere.io/v1alpha1/jsbundles/${encodeURIComponent(name)}`;
+        const path = buildFrontendIntegrationJsBundlePath(name);
         const url = joinUrl(k8sConfig.server, path);
         const existing = await requestJson(url, { token, method: "GET" });
         const patched = withEnabledOverridden(
