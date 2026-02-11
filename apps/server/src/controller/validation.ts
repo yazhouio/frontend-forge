@@ -245,7 +245,7 @@ export function requireFrontendIntegration(
       throw new ForgeError("spec.integration.iframe is required", 400);
     }
     const iframeObj = iframe as Record<string, unknown>;
-    requireNonEmptyString(iframeObj.src, "spec.integration.iframe.src");
+    requireNonEmptyString(iframeObj.url, "spec.integration.iframe.url");
   }
 
   const routing = specObj.routing;
