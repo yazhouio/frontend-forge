@@ -74,14 +74,15 @@ function normalizePlacements(raw: unknown): Placement[] {
 
 function routePrefix(placement: Placement, crName: string): string {
   if (placement === "workspace")
-    return "/workspaces/:workspace/frontendintegrations";
-  if (placement === "cluster") return "/clusters/:cluster/frontendintegrations";
-  return `/extension/${crName}`;
+    return "/workspaces/:workspace/frontendintegrations/" + crName;
+  if (placement === "cluster")
+    return "/clusters/:cluster/frontendintegrations/" + crName;
+  return `/frontendintegrations/` + crName;
 }
 
-function resolveGeneratedMenuName(routingPath: string): string {
+function resolveGeneratedMenuName(routingPath: string, crName: string): string {
   const suffix = normalizeRoutingPath(routingPath);
-  return `frontendintegrations/${suffix}`;
+  return `frontendintegrations/${crName}/${suffix}`;
 }
 
 function resolveMenuMeta(
@@ -91,7 +92,7 @@ function resolveMenuMeta(
 ): MenuMeta {
   return {
     parent: placement,
-    name: resolveGeneratedMenuName(routingPath),
+    name: resolveGeneratedMenuName(routingPath, integration.metadata.name),
     title:
       integration.spec.menu?.name ??
       integration.spec.displayName ??
