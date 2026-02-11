@@ -10,17 +10,238 @@ import {
   mkWorkDir,
   nowMs,
   rmWorkDir,
-  safeJoin
+  safeJoin,
 } from "./utils.js";
-import type { BuildFile, BuildResult, BuildVirtualFilesResult, TailwindOptions } from "./types.js";
+import type {
+  BuildFile,
+  BuildResult,
+  BuildVirtualFilesResult,
+  TailwindOptions,
+} from "./types.js";
 
 const DEFAULT_BUILD_TIMEOUT_MS = 30_000;
 const DEFAULT_CHILD_MAX_OLD_SPACE_MB = 512;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+const USE_SYNC_EXTERNAL_STORE_VIRTUAL_NS = "frontend-forge-use-sync-external-store";
+
+const USE_SYNC_EXTERNAL_STORE_MODULES: Record<string, string> = {
+  "use-sync-external-store": `
+import shimApi, { useSyncExternalStore } from "use-sync-external-store/shim";
+export { useSyncExternalStore };
+export default shimApi;
+`,
+  "use-sync-external-store/index.js": `
+import shimApi, { useSyncExternalStore } from "use-sync-external-store/shim";
+export { useSyncExternalStore };
+export default shimApi;
+`,
+  "use-sync-external-store/with-selector": `
+import withSelectorApi, { useSyncExternalStoreWithSelector } from "use-sync-external-store/shim/with-selector";
+export { useSyncExternalStoreWithSelector };
+export default withSelectorApi;
+`,
+  "use-sync-external-store/with-selector.js": `
+import withSelectorApi, { useSyncExternalStoreWithSelector } from "use-sync-external-store/shim/with-selector";
+export { useSyncExternalStoreWithSelector };
+export default withSelectorApi;
+`,
+  "use-sync-external-store/shim": `
+import * as React from "react";
+
+function is(x, y) {
+  return (x === y && (x !== 0 || 1 / x === 1 / y)) || (x !== x && y !== y);
+}
+
+function checkIfSnapshotChanged(inst) {
+  const latestGetSnapshot = inst.getSnapshot;
+  const prevValue = inst.value;
+  try {
+    const nextValue = latestGetSnapshot();
+    return !is(prevValue, nextValue);
+  } catch {
+    return true;
+  }
+}
+
+function useSyncExternalStoreClient(subscribe, getSnapshot) {
+  const value = getSnapshot();
+  const tuple = React.useState({
+    inst: { value, getSnapshot },
+  });
+  const inst = tuple[0].inst;
+  const forceUpdate = tuple[1];
+
+  React.useLayoutEffect(() => {
+    inst.value = value;
+    inst.getSnapshot = getSnapshot;
+    if (checkIfSnapshotChanged(inst)) {
+      forceUpdate({ inst });
+    }
+  }, [subscribe, value, getSnapshot]);
+
+  React.useEffect(() => {
+    if (checkIfSnapshotChanged(inst)) {
+      forceUpdate({ inst });
+    }
+    return subscribe(() => {
+      if (checkIfSnapshotChanged(inst)) {
+        forceUpdate({ inst });
+      }
+    });
+  }, [subscribe]);
+
+  React.useDebugValue(value);
+  return value;
+}
+
+function useSyncExternalStoreServer(_subscribe, getSnapshot) {
+  return getSnapshot();
+}
+
+const isServer =
+  typeof window === "undefined" ||
+  typeof window.document === "undefined" ||
+  typeof window.document.createElement === "undefined";
+
+export const useSyncExternalStore =
+  typeof React.useSyncExternalStore === "function"
+    ? React.useSyncExternalStore
+    : isServer
+      ? useSyncExternalStoreServer
+      : useSyncExternalStoreClient;
+
+const shimApi = { useSyncExternalStore };
+export default shimApi;
+`,
+  "use-sync-external-store/shim/index.js": `
+import shimApi, { useSyncExternalStore } from "use-sync-external-store/shim";
+export { useSyncExternalStore };
+export default shimApi;
+`,
+  "use-sync-external-store/shim/with-selector": `
+import * as React from "react";
+import { useSyncExternalStore } from "use-sync-external-store/shim";
+
+function is(x, y) {
+  return (x === y && (x !== 0 || 1 / x === 1 / y)) || (x !== x && y !== y);
+}
+
+export function useSyncExternalStoreWithSelector(
+  subscribe,
+  getSnapshot,
+  getServerSnapshot,
+  selector,
+  isEqual
+) {
+  const instRef = React.useRef(null);
+  if (instRef.current === null) {
+    instRef.current = { hasValue: false, value: null };
+  }
+  const inst = instRef.current;
+
+  const memoized = React.useMemo(() => {
+    let hasMemo = false;
+    let memoizedSnapshot;
+    let memoizedSelection;
+    const maybeGetServerSnapshot =
+      getServerSnapshot === undefined ? null : getServerSnapshot;
+
+    const memoizedSelector = (nextSnapshot) => {
+      if (!hasMemo) {
+        hasMemo = true;
+        memoizedSnapshot = nextSnapshot;
+        const nextSelection = selector(nextSnapshot);
+        if (isEqual !== undefined && inst.hasValue) {
+          const currentSelection = inst.value;
+          if (isEqual(currentSelection, nextSelection)) {
+            memoizedSelection = currentSelection;
+            return currentSelection;
+          }
+        }
+        memoizedSelection = nextSelection;
+        return nextSelection;
+      }
+
+      const currentSelection = memoizedSelection;
+      if (is(memoizedSnapshot, nextSnapshot)) {
+        return currentSelection;
+      }
+
+      const nextSelection = selector(nextSnapshot);
+      if (isEqual !== undefined && isEqual(currentSelection, nextSelection)) {
+        memoizedSnapshot = nextSnapshot;
+        return currentSelection;
+      }
+
+      memoizedSnapshot = nextSnapshot;
+      memoizedSelection = nextSelection;
+      return nextSelection;
+    };
+
+    const getSnapshotWithSelector = () => memoizedSelector(getSnapshot());
+    const getServerSnapshotWithSelector =
+      maybeGetServerSnapshot === null
+        ? undefined
+        : () => memoizedSelector(maybeGetServerSnapshot());
+
+    return [getSnapshotWithSelector, getServerSnapshotWithSelector];
+  }, [getSnapshot, getServerSnapshot, selector, isEqual]);
+
+  const value = useSyncExternalStore(subscribe, memoized[0], memoized[1]);
+  React.useEffect(() => {
+    inst.hasValue = true;
+    inst.value = value;
+  }, [value]);
+
+  React.useDebugValue(value);
+  return value;
+}
+
+const withSelectorApi = { useSyncExternalStoreWithSelector };
+export default withSelectorApi;
+`,
+  "use-sync-external-store/shim/with-selector.js": `
+import withSelectorApi, { useSyncExternalStoreWithSelector } from "use-sync-external-store/shim/with-selector";
+export { useSyncExternalStoreWithSelector };
+export default withSelectorApi;
+`
+};
+
+function useSyncExternalStorePlugin(): esbuild.Plugin {
+  return {
+    name: "frontend-forge-use-sync-external-store-plugin",
+    setup(build) {
+      build.onResolve({ filter: /^use-sync-external-store(\/.*)?$/ }, (args) => {
+        if (!(args.path in USE_SYNC_EXTERNAL_STORE_MODULES)) return null;
+        return {
+          path: args.path,
+          namespace: USE_SYNC_EXTERNAL_STORE_VIRTUAL_NS
+        };
+      });
+
+      build.onLoad({ filter: /.*/, namespace: USE_SYNC_EXTERNAL_STORE_VIRTUAL_NS }, (args) => {
+        const contents = USE_SYNC_EXTERNAL_STORE_MODULES[args.path];
+        if (typeof contents !== "string") return null;
+        return {
+          contents,
+          loader: "js"
+        };
+      });
+    }
+  };
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms);
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timeout after ${ms}ms`)),
+      ms,
+    );
     promise.then(
       (res) => {
         clearTimeout(timer);
@@ -29,7 +250,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
       (err) => {
         clearTimeout(timer);
         reject(err);
-      }
+      },
     );
   });
 }
@@ -42,21 +263,29 @@ async function runCmd(
     timeoutMs,
     childMaxOldSpaceMb,
     vendorNodeModules,
-    rootNodeModules
-  }: { cwd: string; timeoutMs: number; childMaxOldSpaceMb: number; vendorNodeModules: string | null; rootNodeModules: string | null }
+    rootNodeModules,
+  }: {
+    cwd: string;
+    timeoutMs: number;
+    childMaxOldSpaceMb: number;
+    vendorNodeModules: string | null;
+    rootNodeModules: string | null;
+  },
 ): Promise<string> {
   const env = {
     ...process.env,
     NODE_ENV: "production",
     NODE_OPTIONS: `--max-old-space-size=${childMaxOldSpaceMb}`,
-    NODE_PATH: [process.env.NODE_PATH, vendorNodeModules, rootNodeModules].filter(Boolean).join(path.delimiter)
+    NODE_PATH: [process.env.NODE_PATH, vendorNodeModules, rootNodeModules]
+      .filter(Boolean)
+      .join(path.delimiter),
   };
 
   const subprocess = execa(cmd, args, {
     cwd,
     env,
     timeout: timeoutMs,
-    killSignal: "SIGKILL"
+    killSignal: "SIGKILL",
   });
 
   const { stdout } = await subprocess;
@@ -84,7 +313,7 @@ export async function buildOnce({
   childMaxOldSpaceMb = DEFAULT_CHILD_MAX_OLD_SPACE_MB,
   vendorNodeModules,
   rootNodeModules,
-  workDir: providedWorkDir
+  workDir: providedWorkDir,
 }: BuildOnceOptions): Promise<BuildResult> {
   const start = nowMs();
   const workDir = providedWorkDir ?? mkWorkDir();
@@ -95,15 +324,30 @@ export async function buildOnce({
     path.resolve(process.cwd(), "packages", "vendor", "node_modules"),
     path.resolve(process.cwd(), "vendor", "node_modules"),
     path.resolve(process.cwd(), "..", "vendor", "node_modules"),
-    path.resolve(process.cwd(), "..", "..", "packages", "vendor", "node_modules"),
-    path.resolve(__dirname, "..", "..", "..", "packages", "vendor", "node_modules")
+    path.resolve(
+      process.cwd(),
+      "..",
+      "..",
+      "packages",
+      "vendor",
+      "node_modules",
+    ),
+    path.resolve(
+      __dirname,
+      "..",
+      "..",
+      "..",
+      "packages",
+      "vendor",
+      "node_modules",
+    ),
   ].filter(Boolean) as string[];
   const resolvedVendorNodeModules = findFirstExisting(vendorCandidates);
 
   const rootCandidates = [
     rootNodeModules,
     path.resolve(process.cwd(), "node_modules"),
-    path.resolve(process.cwd(), "..", "node_modules")
+    path.resolve(process.cwd(), "..", "node_modules"),
   ].filter(Boolean) as string[];
   const resolvedRootNodeModules = findFirstExisting(rootCandidates);
 
@@ -150,17 +394,19 @@ export async function buildOnce({
         target: ["chrome80", "firefox80", "safari13"],
         splitting: false,
         external: externals,
-        plugins: [],
-        nodePaths: [resolvedVendorNodeModules, resolvedRootNodeModules].filter(Boolean) as string[],
+        plugins: [useSyncExternalStorePlugin()],
+        nodePaths: [resolvedVendorNodeModules, resolvedRootNodeModules].filter(
+          Boolean,
+        ) as string[],
         resolveExtensions: [".ts", ".tsx", ".js", ".jsx", ".css", ".json"],
         logLevel: "silent",
         metafile: false,
         loader: {
-          ".json": "json"
-        }
+          ".json": "json",
+        },
       }),
       buildTimeoutMs,
-      "esbuild build"
+      "esbuild build",
     );
 
     const outJs = path.join(distDir, "index.js");
@@ -171,17 +417,17 @@ export async function buildOnce({
         minify: false,
         jsc: {
           target: "es2020",
-          parser: { syntax: "ecmascript" }
+          parser: { syntax: "ecmascript" },
         },
         // `ignoreDynamic` is accepted by SWC runtime even though the types omit it.
         module: {
           type: "systemjs",
           // @ts-expect-error Missing in @swc/core types
-          ignoreDynamic: true
-        }
+          ignoreDynamic: true,
+        },
       }),
       buildTimeoutMs,
-      "swc transform"
+      "swc transform",
     );
 
     fs.writeFileSync(outJs, swcResult.code, "utf8");
@@ -191,12 +437,13 @@ export async function buildOnce({
     const minified = await esbuild.transform(jsCode, {
       loader: "js",
       minify: true,
-      legalComments: "none"
+      legalComments: "none",
     });
     jsCode = minified.code.replace(/\n+/g, "").trim();
 
     let cssCode: string | null = null;
-    const tailwindOpts: TailwindOptions = tailwind && typeof tailwind === "object" ? tailwind : { enabled: false };
+    const tailwindOpts: TailwindOptions =
+      tailwind && typeof tailwind === "object" ? tailwind : { enabled: false };
     if (tailwindOpts.enabled) {
       const inputCss = tailwindOpts.input ?? "src/index.css";
       const configFile = tailwindOpts.config ?? null;
@@ -218,13 +465,18 @@ export async function buildOnce({
           timeoutMs: buildTimeoutMs,
           childMaxOldSpaceMb,
           vendorNodeModules: resolvedVendorNodeModules,
-          rootNodeModules: resolvedRootNodeModules
+          rootNodeModules: resolvedRootNodeModules,
         });
         cssCode = fs.readFileSync(outCss, "utf8");
       }
     }
 
-    const forbidden: string[] = ["__webpack_require__", "__webpack_exports__", "webpackChunk", "import("];
+    const forbidden: string[] = [
+      "__webpack_require__",
+      "__webpack_exports__",
+      "webpackChunk",
+      "import(",
+    ];
     for (const k of forbidden) {
       if (jsCode.includes(k)) {
         throw new Error(`illegal output: found forbidden token ${k}`);
@@ -238,7 +490,7 @@ export async function buildOnce({
     return {
       js: { path: "index.js", content: jsCode },
       css: cssCode ? { path: "style.css", content: cssCode } : null,
-      meta: { buildMs }
+      meta: { buildMs },
     };
   } finally {
     if (shouldCleanup) {
@@ -248,7 +500,7 @@ export async function buildOnce({
 }
 
 export async function buildVirtualFiles(
-  options: BuildOnceOptions
+  options: BuildOnceOptions,
 ): Promise<BuildVirtualFilesResult> {
   const result = await buildOnce(options);
   const files = [result.js, ...(result.css ? [result.css] : [])];
