@@ -27,7 +27,6 @@ export const useNamespaceStoreInfinite = (
   } = { enabled: true },
 ) => {
   const url = getUrlHof(store)(params);
-  console.log("url", url, params, search);
   return useInfiniteQuery(
     {
       key: ["namespace-infinite", url, search],
@@ -37,7 +36,6 @@ export const useNamespaceStoreInfinite = (
           { ...search, ...query },
           store.kapi,
         );
-        console.log("resp", resp);
         return {
           items: resp.data ?? [],
           total: resp.total,

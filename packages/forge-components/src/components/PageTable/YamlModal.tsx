@@ -20,7 +20,6 @@ export const YamlModal = (props: YamlModalProps) => {
   const bodyHeight = readOnly ? "calc(100vh - 106px)" : "calc(100vh - 170px)";
 
   const yamlValue = yaml.getValue(initialValue) || "";
-  console.log("initialValue", yamlValue);
   const onAsyncOk = async () => {
     if (!onOk) return;
     const newYaml = codeEditorRef.current?.getValue();

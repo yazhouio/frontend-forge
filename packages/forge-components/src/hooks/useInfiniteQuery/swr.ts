@@ -24,7 +24,6 @@ export function useInfiniteQuery<T>(
 
   const { data, size, setSize, isValidating } = useSWRInfinite<PageResult<T>>(
     (index, previousPageData) => {
-      console.log(index, previousPageData, enabled, "index, previousPageData");
       if (!enabled) return null;
 
       if (previousPageData && getItems(previousPageData).length < limit) {

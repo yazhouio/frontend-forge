@@ -164,7 +164,6 @@ function parseFilterValue(raw: string): unknown {
 
 function shouldUseCache(search: string): boolean {
   const raw = new URLSearchParams(search).get("__cache__");
-  console.log("xxx", ["true", "1", "yes"].includes(String(raw).toLowerCase()));
   if (!raw) return false;
   return ["true", "1", "yes"].includes(String(raw).toLowerCase());
 }
@@ -411,7 +410,6 @@ function createPageStore(
   const persist = getPersist(pageId);
   let suppressPersist = false;
 
-  console.log("xxx cached xxx", cached, initialQuery);
   const initial = mergeInitialQuery(
     parseFromUrl(search, columnIdSet) ??
       (() => {
@@ -497,7 +495,6 @@ function createPageStore(
       set((s) => {
         const prev = s.table.sorting;
         const next = typeof updater === "function" ? updater(prev) : updater;
-        console.log("setSorting", prev, next, updater);
 
         if (next === prev) return s;
 

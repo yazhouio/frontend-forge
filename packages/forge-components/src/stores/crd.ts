@@ -58,7 +58,6 @@ export const fetchHandler = {
 
 const parseResponseData = async (resp: Response, kapi?: boolean) => {
   const data = await resp.json();
-  console.log("parseResponseData", data, kapi);
   if (kapi) {
     return {
       data: get(data, "items"),
@@ -115,7 +114,6 @@ export const getCrdStore = (store: Store) => {
     const del = async (params: PathParams, resolve = true) => {
       const deleteUrl = getUrlHof(store, k8sVersion)(params);
       const res = await fetchHandler.delete(deleteUrl);
-      console.log("resolve", resolve);
       if (resolve) {
         swr.mutate();
       } else {
@@ -124,7 +122,6 @@ export const getCrdStore = (store: Store) => {
       return res;
     };
     const batchDelete = async (resources: PathParams[]) => {
-      console.log("batchDelete", resources);
       const promises = resources.map((item) => {
         const deleteUrl = getUrlHof(store, k8sVersion)(item);
         return fetchHandler.delete(deleteUrl);

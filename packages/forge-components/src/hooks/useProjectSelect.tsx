@@ -33,7 +33,6 @@ export const useProjectSelect = (
   const [search, setSearch] = useState("");
   const { namespace: project, setNamespace: setProject } =
     useLocalNamespace("");
-  console.log("search", search);
   const {
     data: projectList,
     loading: projectLoading,
@@ -71,7 +70,6 @@ export const useProjectSelect = (
     }
   };
 
-  console.log("projectList", projectList);
   const onSearch = debounce((val: string) => setSearch(val), 500);
 
   const handleChangeProject = (value: string) => {

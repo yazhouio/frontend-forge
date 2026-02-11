@@ -44,7 +44,6 @@ const Table = <TData extends { uid: string }>(
     columns,
   });
 
-  console.log("page", page);
 
   const table = usePageTable<TData>({
     data: data?.data ?? defaultValue,
