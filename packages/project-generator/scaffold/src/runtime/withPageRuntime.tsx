@@ -22,6 +22,7 @@ const pageContext = {
   getActions: getActions,
   getLocalTime: getLocalTime,
   useWorkspaceProjectSelect,
+  t: window.t ?? ((d) => d),
 };
 export function withPageRuntime<P>(
   Page: React.ComponentType<P>,
