@@ -7,7 +7,7 @@ const extensionConfig = {
   menus,
   routes,
   locales,
-  isCheckLicense: true,
+  isCheckLicense: false,
 };
 
 export default extensionConfig;
