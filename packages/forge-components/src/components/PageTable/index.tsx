@@ -222,9 +222,9 @@ function BasePageTable(props) {
         };
       },
       toolbar: () => ({
-        toolbarLeft: toolbarLeft(),
-        batchActions: batchActions(),
-        toolbarRight: tableActions(),
+        toolbarLeft: toolbarLeft?.(),
+        batchActions: batchActions?.(),
+        toolbarRight: tableActions?.(),
       }),
       filters: () => {
         return {
