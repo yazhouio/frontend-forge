@@ -89,6 +89,7 @@ export type ProjectSceneConfig = {
 
 export type FrontendIntegrationMetadata = {
   name: string;
+  creationTimestamp?: string;
   labels?: Record<string, string>;
   annotations?: Record<string, string>;
   [key: string]: unknown;
@@ -138,6 +139,8 @@ export type FrontendIntegrationListQuery = {
   enabled?: string;
   type?: string;
   name?: string;
+  sortBy?: string;
+  ascending?: string;
 };
 
 export type CacheValue = {

@@ -376,5 +376,8 @@ export function parseFrontendIntegrationListQuery(
     throw new ForgeError("name must be a non-empty string", 400);
   }
 
-  return { enabled, type, name };
+  const sortBy = parseQueryValue(query.sortBy);
+  const ascending = parseQueryValue(query.ascending);
+
+  return { enabled, type, name, sortBy, ascending };
 }

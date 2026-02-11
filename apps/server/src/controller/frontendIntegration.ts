@@ -30,6 +30,7 @@ type JsBundle = {
   kind?: string;
   metadata?: {
     name?: string;
+    creationTimestamp?: string;
     labels?: Record<string, string>;
     annotations?: Record<string, string>;
     resourceVersion?: string;
@@ -90,11 +91,15 @@ const FRONTEND_INTEGRATION_CONFIG_MAP_NAMESPACE =
   "extension-frontend-forge-config";
 const FRONTEND_INTEGRATION_CONFIG_MAP_KEY = "index.js";
 
-function buildFrontendIntegrationConfigMapName(integrationName: string): string {
+function buildFrontendIntegrationConfigMapName(
+  integrationName: string,
+): string {
   return `${integrationName}-config`;
 }
 
-function buildFrontendIntegrationConfigMapPath(integrationName: string): string {
+function buildFrontendIntegrationConfigMapPath(
+  integrationName: string,
+): string {
   return `/api/v1/namespaces/${encodeURIComponent(FRONTEND_INTEGRATION_CONFIG_MAP_NAMESPACE)}/configmaps/${encodeURIComponent(buildFrontendIntegrationConfigMapName(integrationName))}`;
 }
 
@@ -257,10 +262,7 @@ async function upsertFrontendIntegrationConfigMap(args: {
     k8sConfig.server,
     buildFrontendIntegrationConfigMapCollectionPath(),
   );
-  const configMap = buildFrontendIntegrationConfigMap(
-    integration,
-    buildOutput,
-  );
+  const configMap = buildFrontendIntegrationConfigMap(integration, buildOutput);
   try {
     await requestJson(createUrl, { token, method: "POST", body: configMap });
     return;
@@ -270,6 +272,26 @@ async function upsertFrontendIntegrationConfigMap(args: {
     }
   }
 
+  const itemUrl = joinUrl(
+    k8sConfig.server,
+    buildFrontendIntegrationConfigMapPath(integration.metadata.name),
+  );
+  const existing = await requestJson(itemUrl, { token, method: "GET" });
+  const patched = buildFrontendIntegrationConfigMap(
+    integration,
+    buildOutput,
+    existing.body as ConfigMap,
+  );
+  await requestJson(itemUrl, { token, method: "PUT", body: patched });
+}
+
+async function updateFrontendIntegrationConfigMap(args: {
+  k8sConfig: K8sConfig;
+  token: string;
+  integration: FrontendIntegration;
+  buildOutput: FrontendIntegrationBuildOutput;
+}) {
+  const { k8sConfig, token, integration, buildOutput } = args;
   const itemUrl = joinUrl(
     k8sConfig.server,
     buildFrontendIntegrationConfigMapPath(integration.metadata.name),
@@ -327,6 +349,16 @@ function extractFrontendIntegration(
       ? metaObj.name
       : jsBundle.metadata?.name;
   if (!name) return null;
+  const creationTimestamp =
+    typeof jsBundle.metadata?.creationTimestamp === "string" &&
+    jsBundle.metadata.creationTimestamp.trim().length > 0
+      ? jsBundle.metadata.creationTimestamp
+      : undefined;
+  const metadata = {
+    ...metaObj,
+    name,
+    ...(creationTimestamp ? { creationTimestamp } : {}),
+  };
 
   return {
     apiVersion:
@@ -337,7 +369,7 @@ function extractFrontendIntegration(
       typeof obj.kind === "string" && obj.kind.trim().length > 0
         ? obj.kind.trim()
         : "FrontendIntegration",
-    metadata: { ...metaObj, name },
+    metadata,
     spec: obj.spec as FrontendIntegration["spec"],
   };
 }
@@ -422,6 +454,11 @@ function withEnabledOverridden(jsBundle: JsBundle, enabled: boolean): JsBundle {
       enabled,
     },
   });
+  const status =
+    typeof jsBundle.status === "object" && jsBundle.status
+      ? { ...(jsBundle.status as Record<string, unknown>) }
+      : {};
+  status.state = enabled ? "Available" : "Disable";
 
   return {
     ...jsBundle,
@@ -430,6 +467,7 @@ function withEnabledOverridden(jsBundle: JsBundle, enabled: boolean): JsBundle {
       labels,
       annotations,
     },
+    status,
   };
 }
 
@@ -447,9 +485,8 @@ export function createFrontendIntegrationHandlers(deps: {
       try {
         const k8sConfig = requireK8sConfig(k8s);
         const token = requireAuthToken(req, k8sConfig);
-        const { enabled, type, name } = parseFrontendIntegrationListQuery(
-          req.query ?? {},
-        );
+        const { enabled, type, name, sortBy, ascending } =
+          parseFrontendIntegrationListQuery(req.query ?? {});
         const selectors = [
           `${FRONTEND_INTEGRATION_LABEL_RESOURCE_KEY}=${FRONTEND_INTEGRATION_LABEL_RESOURCE_VALUE}`,
         ];
@@ -470,6 +507,12 @@ export function createFrontendIntegrationHandlers(deps: {
         const params = new URLSearchParams();
         if (selectors.length > 0) {
           params.set("labelSelector", selectors.join(","));
+        }
+        if (sortBy !== undefined) {
+          params.set("sortBy", sortBy);
+        }
+        if (ascending !== undefined) {
+          params.set("ascending", ascending);
         }
         const suffix = params.toString();
         const path = `/kapis/extensions.kubesphere.io/v1alpha1/jsbundles${suffix ? `?${suffix}` : ""}`;
@@ -556,34 +599,25 @@ export function createFrontendIntegrationHandlers(deps: {
         }
         const k8sConfig = requireK8sConfig(k8s);
         const token = requireAuthToken(req, k8sConfig);
-        const deletePath = buildFrontendIntegrationJsBundlePath(name);
-        const deleteUrl = joinUrl(k8sConfig.server, deletePath);
-        await deleteResourceIgnoreNotFound(deleteUrl, token);
-        await deleteFrontendIntegrationConfigMapIgnoreNotFound({
-          k8sConfig,
-          token,
-          integrationName: name,
-        });
-
+        const path = buildFrontendIntegrationJsBundlePath(name);
+        const url = joinUrl(k8sConfig.server, path);
+        const existing = await requestJson(url, { token, method: "GET" });
         const buildOutput = await buildFrontendIntegrationBuildOutput(
           forge,
           integration,
         );
-        await upsertFrontendIntegrationConfigMap({
+        await updateFrontendIntegrationConfigMap({
           k8sConfig,
           token,
           integration,
           buildOutput,
         });
-        const jsBundle = buildFrontendIntegrationJsBundle(
+        const patched = buildFrontendIntegrationJsBundle(
           integration,
           buildOutput,
+          existing.body as JsBundle,
         );
-        const createUrl = joinUrl(
-          k8sConfig.server,
-          "/kapis/extensions.kubesphere.io/v1alpha1/jsbundles",
-        );
-        await requestJson(createUrl, { token, method: "POST", body: jsBundle });
+        await requestJson(url, { token, method: "PUT", body: patched });
         return { ok: true, item: integration };
       } catch (err) {
         return handleKnownError(err, reply);

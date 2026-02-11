@@ -105,7 +105,15 @@ export default async function router(
     },
   );
 
-  app.get<{ Querystring: { enabled?: string; type?: string; name?: string } }>(
+  app.get<{
+    Querystring: {
+      enabled?: string;
+      type?: string;
+      name?: string;
+      sortBy?: string;
+      ascending?: string;
+    };
+  }>(
     "/kapis/frontend-forge.io/v1alpha1/frontendintegrations",
     async (req, reply) => {
       return controller.frontendIntegrationList(req, reply);
