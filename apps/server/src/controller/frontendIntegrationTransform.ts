@@ -79,13 +79,19 @@ function routePrefix(placement: Placement, crName: string): string {
   return `/extension/${crName}`;
 }
 
+function resolveGeneratedMenuName(routingPath: string): string {
+  const suffix = normalizeRoutingPath(routingPath);
+  return `frontendintegrations/${suffix}`;
+}
+
 function resolveMenuMeta(
   integration: FrontendIntegration,
   placement: Placement,
+  routingPath: string,
 ): MenuMeta {
   return {
     parent: placement,
-    name: integration.metadata.name,
+    name: resolveGeneratedMenuName(routingPath),
     title:
       integration.spec.menu?.name ??
       integration.spec.displayName ??
@@ -158,7 +164,9 @@ export function buildProjectSceneConfigFromCr(
       integration.spec.integration.type,
       placement,
     );
-    const menu = explicit ? resolveMenuMeta(integration, placement) : undefined;
+    const menu = explicit
+      ? resolveMenuMeta(integration, placement, routingPath)
+      : undefined;
     const meta = {
       route: {
         path: buildRoutePath(placement, crName, routingPath),

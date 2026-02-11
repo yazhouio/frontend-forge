@@ -205,6 +205,23 @@ function normalizeRelPath(relPath: string): string {
   return normalized;
 }
 
+function resolveParentRoute(routePath: string): string | undefined {
+  const normalized = routePath.replace(/\/+$/g, '');
+  if (
+    normalized === '/clusters/:cluster' ||
+    normalized.startsWith('/clusters/:cluster/')
+  ) {
+    return '/clusters/:cluster';
+  }
+  if (
+    normalized === '/workspaces/:workspace' ||
+    normalized.startsWith('/workspaces/:workspace/')
+  ) {
+    return '/workspaces/:workspace';
+  }
+  return undefined;
+}
+
 function collectScaffoldFiles(root: string): VirtualFile[] {
   const out: VirtualFile[] = [];
   const queue: string[] = [root];
@@ -331,7 +348,11 @@ export function generateProjectFiles(
       .map((r) => {
         const component = nameByPageId.get(r.pageId) || 'Page';
         const pathLiteral = JSON.stringify(r.path);
-        return `  {\n    path: ${pathLiteral},\n    element: <${component} />,\n  },`;
+        const parentRoute = resolveParentRoute(r.path);
+        const parentRouteLine = parentRoute
+          ? `    parentRoute: ${JSON.stringify(parentRoute)},\n`
+          : '';
+        return `  {\n${parentRouteLine}    path: ${pathLiteral},\n    element: <${component} />,\n  },`;
       })
       .join('\n');
 
@@ -343,10 +364,19 @@ export function generateProjectFiles(
       }),
     });
   } else {
-    const routes = normalized.routes.map((r) => ({
-      path: r.path,
-      component: `./pages/${r.pageId}`,
-    }));
+    const routes = normalized.routes.map((r) => {
+      const parentRoute = resolveParentRoute(r.path);
+      return parentRoute
+        ? {
+            parentRoute,
+            path: r.path,
+            component: `./pages/${r.pageId}`,
+          }
+        : {
+            path: r.path,
+            component: `./pages/${r.pageId}`,
+          };
+    });
     out.push({
       path: 'src/routes.ts',
       content: renderTemplate(routesTpl, {
