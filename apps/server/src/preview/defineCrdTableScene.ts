@@ -30,6 +30,8 @@ export type CrdTableColumn = {
   key: string;
   title: string;
   render: CrdTableColumnRender;
+  enableHiding?: boolean;
+  enableSorting?: boolean;
   [key: string]: unknown;
 };
 
@@ -71,11 +73,15 @@ const buildColumnRender = (render: CrdTableColumnRender) => {
 };
 
 export const defineCrdTableScene = (scene: CrdTableSceneConfig): PageConfig => {
-  const columnsConfig = scene.columns.map((column) => ({
-    key: column.key,
-    title: column.title,
-    render: buildColumnRender(column.render),
-  }));
+  const columnsConfig = scene.columns.map((column) => {
+    const { key, title, render, ...rest } = column;
+    return {
+      key,
+      title,
+      render: buildColumnRender(render),
+      ...rest,
+    };
+  });
   const pageStateArgs: Record<string, unknown>[] = [
     {
       type: "binding",

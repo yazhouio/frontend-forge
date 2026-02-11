@@ -30,6 +30,8 @@ type CrdTableColumn = {
   key: string;
   title: string;
   render: CrdTableColumnRender;
+  enableHiding?: boolean;
+  enableSorting?: boolean;
   [key: string]: unknown;
 };
 
