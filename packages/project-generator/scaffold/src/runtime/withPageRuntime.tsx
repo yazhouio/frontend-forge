@@ -10,6 +10,7 @@ import {
   useBatchActions,
   useItemActions,
   useTableActions,
+  useWorkspaceProjectSelect,
 } from "@ks-console/shared";
 import { RuntimePageInfo } from "./types";
 import { usePageRuntimeRouter } from "./routerHook";
@@ -20,6 +21,7 @@ const pageContext = {
   useItemActions: useItemActions,
   getActions: getActions,
   getLocalTime: getLocalTime,
+  useWorkspaceProjectSelect,
 };
 export function withPageRuntime<P>(
   Page: React.ComponentType<P>,
