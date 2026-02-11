@@ -68,14 +68,14 @@ const manifest: ExtensionManifest = {
   menus: [
     {
       parent: "cluster",
-      name: "servicemonitors1",
+      name: "frontendintegrations/asdfas",
       title: "servicemonitors1",
       icon: "GridDuotone",
       order: 999,
     },
     {
       parent: "workspace",
-      name: "servicemonitors1",
+      name: "frontendintegrations/asdfas",
       title: "servicemonitors1",
       icon: "GridDuotone",
       order: 999,
@@ -102,12 +102,8 @@ const manifest: ExtensionManifest = {
               COLUMNS_CONFIG: [
                 {
                   key: "name",
-                  title: "名称",
-                  render: {
-                    type: "text",
-                    path: "metadata.name",
-                    payload: {},
-                  },
+                  title: "名称xxx",
+                  render: { type: "text", path: "metadata.name", payload: {} },
                 },
                 {
                   key: "namespace",
@@ -155,11 +151,7 @@ const manifest: ExtensionManifest = {
             TABLE_KEY: "servicemonitors1-cluster",
             TITLE: "servicemonitors1",
             PARAMS: { type: "binding", source: "pageState", bind: "params" },
-            REFETCH: {
-              type: "binding",
-              source: "pageState",
-              bind: "refetch",
-            },
+            REFETCH: { type: "binding", source: "pageState", bind: "refetch" },
             TOOLBAR_LEFT: {
               type: "binding",
               source: "pageState",
@@ -205,12 +197,9 @@ const manifest: ExtensionManifest = {
               COLUMNS_CONFIG: [
                 {
                   key: "name",
-                  title: "名称",
-                  render: {
-                    type: "text",
-                    path: "metadata.name",
-                    payload: {},
-                  },
+                  title: "名称xxx",
+                  render: { type: "text", path: "metadata.name", payload: {} },
+                  enableSorting: true,
                 },
                 {
                   key: "namespace",
@@ -220,6 +209,7 @@ const manifest: ExtensionManifest = {
                     path: "metadata.namespace",
                     payload: {},
                   },
+                  enableHiding: true,
                 },
                 {
                   key: "created",
@@ -229,6 +219,8 @@ const manifest: ExtensionManifest = {
                     path: "metadata.creationTimestamp",
                     payload: { format: "local-datetime" },
                   },
+                  enableSorting: true,
+                  enableHiding: true,
                 },
               ],
               HOOK_NAME: "useCrdColumns",
@@ -257,11 +249,7 @@ const manifest: ExtensionManifest = {
             TABLE_KEY: "servicemonitors1-workspace",
             TITLE: "servicemonitors1",
             PARAMS: { type: "binding", source: "pageState", bind: "params" },
-            REFETCH: {
-              type: "binding",
-              source: "pageState",
-              bind: "refetch",
-            },
+            REFETCH: { type: "binding", source: "pageState", bind: "refetch" },
             TOOLBAR_LEFT: {
               type: "binding",
               source: "pageState",
@@ -295,7 +283,6 @@ const manifest: ExtensionManifest = {
     systemjs: true,
   },
 };
-
 const result2 = await forge.buildProject(manifest);
 const demoDir = path.resolve(process.cwd(), "demo");
 forge.emitToFileSystem(result2, demoDir);
