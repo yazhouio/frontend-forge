@@ -7,10 +7,12 @@ import type { BuildFile, BuildKeyInput } from "./types.js";
 export const ALLOWED_FILE_RE = /\.(ts|tsx|js|jsx|css|json)$/;
 
 export function safeJoin(root: string, relPath: string): string {
-  if (typeof relPath !== "string" || relPath.length === 0) throw new Error("invalid file path");
+  if (typeof relPath !== "string" || relPath.length === 0)
+    throw new Error("invalid file path");
   if (path.isAbsolute(relPath)) throw new Error("absolute path is not allowed");
   const normalized = path.posix.normalize(relPath.replace(/\\/g, "/"));
-  if (normalized.startsWith("..") || normalized.includes("/../")) throw new Error("path traversal is not allowed");
+  if (normalized.startsWith("..") || normalized.includes("/../"))
+    throw new Error("path traversal is not allowed");
   return path.join(root, normalized);
 }
 
@@ -18,9 +20,17 @@ export function sha256(obj: string): string {
   return crypto.createHash("sha256").update(obj).digest("hex");
 }
 
-export function computeBuildKey({ files, entry, externals, tailwind }: BuildKeyInput): string {
+export function computeBuildKey({
+  files,
+  entry,
+  externals,
+  tailwind,
+}: BuildKeyInput): string {
   const stableFiles = [...files]
-    .map((f: BuildFile) => ({ path: String(f.path), content: String(f.content ?? "") }))
+    .map((f: BuildFile) => ({
+      path: String(f.path),
+      content: String(f.content ?? ""),
+    }))
     .sort((a, b) => a.path.localeCompare(b.path));
 
   const payload = {
@@ -28,7 +38,7 @@ export function computeBuildKey({ files, entry, externals, tailwind }: BuildKeyI
     entry,
     externals,
     tailwind,
-    files: stableFiles
+    files: stableFiles,
   };
 
   return sha256(JSON.stringify(payload));

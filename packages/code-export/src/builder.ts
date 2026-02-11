@@ -433,13 +433,13 @@ export async function buildOnce({
     fs.writeFileSync(outJs, swcResult.code, "utf8");
     let jsCode = swcResult.code;
 
-    // Final minify to a single line
+    // Final minify; avoid stripping literal newlines from string/template contents.
     const minified = await esbuild.transform(jsCode, {
       loader: "js",
       minify: true,
       legalComments: "none",
     });
-    jsCode = minified.code.replace(/\n+/g, "").trim();
+    jsCode = minified.code.trim();
 
     let cssCode: string | null = null;
     const tailwindOpts: TailwindOptions =
