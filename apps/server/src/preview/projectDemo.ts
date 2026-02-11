@@ -20,7 +20,6 @@ import {
   WorkspaceCrdPageStateDataSource,
 } from "./dataSourceDef.js";
 import { CrdTableNode, IframeNode } from "./nodeDef.js";
-import fs from "fs";
 
 const queue = new PQueue({ concurrency: CONCURRENCY });
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -297,9 +296,7 @@ const manifest: ExtensionManifest = {
   },
 };
 
-// const result2 = await forge.buildProject(manifest);
-// console.log("result", result2);
-// console.log("-----------------------\n");
-const result = await forge.buildProject(manifest, { build: true });
-// result to out js file
-fs.writeFileSync("result.js", result[0].content);
+const result2 = await forge.buildProject(manifest);
+const demoDir = path.resolve(process.cwd(), "demo");
+forge.emitToFileSystem(result2, demoDir);
+console.log(`Emitted ${result2.length} files to ${demoDir}`);
