@@ -8,10 +8,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "development": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./advanced": {
       "types": "./dist/advanced.d.ts",
+      "development": "./src/advanced.ts",
       "default": "./dist/advanced.js"
     }
   },

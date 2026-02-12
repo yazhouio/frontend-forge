@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "prestart": "pnpm run build",
     "start": "node dist/server.js",
-    "dev": "tsx watch src/server.ts",
+    "dev": "NODE_OPTIONS=--conditions=development tsx watch src/server.ts",
     "project:debug": "node --import ./node_modules/tsx/dist/esm/index.mjs src/projectCli.ts"
   },
   "packageManager": "pnpm@9.0.0",
