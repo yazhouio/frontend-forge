@@ -1,6 +1,6 @@
 {
   "k8s": {
-    "server": "http://139.198.121.90:40881",
+    "server": "http://ks-apiserver.kubesphere-system.svc",
     "tokenCookieName": "kubesphere-token"
   },
   "static": [
@@ -10,4 +10,3 @@
     }
   ]
 }
-
