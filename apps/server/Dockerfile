@@ -5,15 +5,16 @@ WORKDIR /app
 
 RUN corepack enable
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/server/package.json apps/server/pnpm-lock.yaml apps/server/
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/server/package.json apps/server/
 COPY packages/vendor/package.json packages/vendor/
 COPY packages/code-export/package.json packages/code-export/
-COPY packages/component-generator/package.json packages/component-generator/pnpm-lock.yaml packages/component-generator/
+COPY packages/component-generator/package.json packages/component-generator/
+COPY packages/forge-components/package.json packages/forge-components/
 COPY packages/forge-core/package.json packages/forge-core/
 COPY packages/project-generator/package.json packages/project-generator/
 
-RUN pnpm i
+RUN pnpm i --frozen-lockfile --filter @frontend-forge/server... --filter @frontend-forge/vendor...
 
 FROM node:22-alpine AS build
 WORKDIR /app
@@ -25,10 +26,11 @@ COPY . .
 COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=deps /app/packages/code-export/node_modules ./packages/code-export/node_modules
 COPY --from=deps /app/packages/component-generator/node_modules ./packages/component-generator/node_modules
+COPY --from=deps /app/packages/forge-components/node_modules ./packages/forge-components/node_modules
 COPY --from=deps /app/packages/forge-core/node_modules ./packages/forge-core/node_modules
 COPY --from=deps /app/packages/project-generator/node_modules ./packages/project-generator/node_modules
 
-RUN pnpm -r run build
+RUN pnpm -r --filter @frontend-forge/server... run build
 RUN pnpm --filter @frontend-forge/server deploy --prod /app/server
 RUN pnpm --filter @frontend-forge/vendor deploy --prod /app/server/vendor
 
@@ -41,7 +43,14 @@ RUN addgroup -S app && adduser -S app -G app
 COPY --from=build /app/server ./
 
 ENV CACHE_DIR=/data/cache
-RUN mkdir -p /data/cache && chown -R app:app /data
+RUN find /app/server -path '*/node_modules/*' -type d \( \
+    -name test -o -name tests -o -name __tests__ -o -name docs -o -name doc -o -name examples -o -name example -o -name benchmark -o -name benchmarks \
+  \) -prune -exec rm -rf '{}' + \
+  && find /app/server -path '*/node_modules/*' -type f \( \
+    -name '*.md' -o -name '*.markdown' -o -name '*.map' \
+  \) -delete \
+  && mkdir -p /data/cache \
+  && chown -R app:app /data
 
 USER app
 EXPOSE 3000
