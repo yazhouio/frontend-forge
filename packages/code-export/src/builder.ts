@@ -382,6 +382,11 @@ export async function buildOnce({
     }
 
     const esbuildOut = path.join(tmpDir, "bundle.mjs");
+    const plugins = [useSyncExternalStorePlugin()];
+
+    const esbuildConditions =
+      process.env.NODE_ENV === "production" ? undefined : ["development"];
+
     await withTimeout(
       esbuild.build({
         absWorkingDir: workDir,
@@ -394,7 +399,8 @@ export async function buildOnce({
         target: ["chrome80", "firefox80", "safari13"],
         splitting: false,
         external: externals,
-        plugins: [useSyncExternalStorePlugin()],
+        conditions: esbuildConditions,
+        plugins,
         nodePaths: [resolvedVendorNodeModules, resolvedRootNodeModules].filter(
           Boolean,
         ) as string[],
