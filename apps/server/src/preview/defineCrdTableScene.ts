@@ -49,6 +49,19 @@ export type CrdTableSceneConfig = {
   storeOptions?: Record<string, unknown>;
 };
 
+const buildCreateInitialValue = (crd: CrdConfig) => {
+  const apiVersion =
+    typeof crd.apiVersion === "string" && crd.apiVersion.includes("/")
+      ? crd.apiVersion
+      : crd.group
+        ? `${crd.group}/${crd.apiVersion}`
+        : crd.apiVersion;
+  return {
+    apiVersion,
+    kind: crd.kind,
+  };
+};
+
 const buildColumnRender = (render: CrdTableColumnRender) => {
   const payload = { ...(render.payload ?? {}) };
 
@@ -180,6 +193,7 @@ export const defineCrdTableScene = (scene: CrdTableSceneConfig): PageConfig => {
           source: "pageState",
           bind: "create",
         },
+        CREATE_INITIAL_VALUE: buildCreateInitialValue(scene.crd),
       },
       meta: {
         title: "CrdTable",
