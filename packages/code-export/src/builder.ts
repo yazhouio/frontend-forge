@@ -23,7 +23,8 @@ const DEFAULT_BUILD_TIMEOUT_MS = 30_000;
 const DEFAULT_CHILD_MAX_OLD_SPACE_MB = 512;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const USE_SYNC_EXTERNAL_STORE_VIRTUAL_NS = "frontend-forge-use-sync-external-store";
+const USE_SYNC_EXTERNAL_STORE_VIRTUAL_NS =
+  "frontend-forge-use-sync-external-store";
 
 const USE_SYNC_EXTERNAL_STORE_MODULES: Record<string, string> = {
   "use-sync-external-store": `
@@ -205,30 +206,36 @@ export default withSelectorApi;
 import withSelectorApi, { useSyncExternalStoreWithSelector } from "use-sync-external-store/shim/with-selector";
 export { useSyncExternalStoreWithSelector };
 export default withSelectorApi;
-`
+`,
 };
 
 function useSyncExternalStorePlugin(): esbuild.Plugin {
   return {
     name: "frontend-forge-use-sync-external-store-plugin",
     setup(build) {
-      build.onResolve({ filter: /^use-sync-external-store(\/.*)?$/ }, (args) => {
-        if (!(args.path in USE_SYNC_EXTERNAL_STORE_MODULES)) return null;
-        return {
-          path: args.path,
-          namespace: USE_SYNC_EXTERNAL_STORE_VIRTUAL_NS
-        };
-      });
+      build.onResolve(
+        { filter: /^use-sync-external-store(\/.*)?$/ },
+        (args) => {
+          if (!(args.path in USE_SYNC_EXTERNAL_STORE_MODULES)) return null;
+          return {
+            path: args.path,
+            namespace: USE_SYNC_EXTERNAL_STORE_VIRTUAL_NS,
+          };
+        },
+      );
 
-      build.onLoad({ filter: /.*/, namespace: USE_SYNC_EXTERNAL_STORE_VIRTUAL_NS }, (args) => {
-        const contents = USE_SYNC_EXTERNAL_STORE_MODULES[args.path];
-        if (typeof contents !== "string") return null;
-        return {
-          contents,
-          loader: "js"
-        };
-      });
-    }
+      build.onLoad(
+        { filter: /.*/, namespace: USE_SYNC_EXTERNAL_STORE_VIRTUAL_NS },
+        (args) => {
+          const contents = USE_SYNC_EXTERNAL_STORE_MODULES[args.path];
+          if (typeof contents !== "string") return null;
+          return {
+            contents,
+            loader: "js",
+          };
+        },
+      );
+    },
   };
 }
 
