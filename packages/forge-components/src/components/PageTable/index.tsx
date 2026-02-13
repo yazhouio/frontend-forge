@@ -76,6 +76,7 @@ function BasePageTable(props) {
     pageContext,
     columns,
     toolbarLeft,
+    createInitialValue,
     ...rest
   } = props;
   const { useItemActions, useBatchActions, useTableActions } = pageContext;
@@ -88,8 +89,8 @@ function BasePageTable(props) {
     id: tableKey + "-create",
     modal: YamlModal,
     deps: {
-      title: title,
-      initialValue: "",
+      title: t("CREATE_NAME", { name: t(title) }),
+      initialValue: createInitialValue ?? "",
     },
   });
 

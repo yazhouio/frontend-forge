@@ -59,6 +59,10 @@ export const CrdTableNode: NodeDefinition = {
         type: "object",
         description: "Create handler",
       },
+      CREATE_INITIAL_VALUE: {
+        type: "object",
+        description: "Create initial value",
+      },
     },
   },
   generateCode: {
@@ -72,6 +76,7 @@ export const CrdTableNode: NodeDefinition = {
   title={%%TITLE%%}
   authKey={%%AUTH_KEY%%}
   params={%%PARAMS%%}
+  createInitialValue={%%CREATE_INITIAL_VALUE%%}
   refetch={%%REFETCH%%}
   toolbarLeft={%%TOOLBAR_LEFT%%}
   pageContext={%%PAGE_CONTEXT%%}
@@ -98,6 +103,7 @@ export const CrdTableNode: NodeDefinition = {
           "UPDATE",
           "DEL",
           "CREATE",
+          "CREATE_INITIAL_VALUE",
         ],
       },
     },
