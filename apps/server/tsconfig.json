@@ -32,11 +32,6 @@
       ]
     }
   },
-  "include": [
-    "src/**/*",
-    "examples/crdTableScene.ts",
-    "examples/workspaceTablePageConfig.ts",
-    "examples/crdTablePageConfig.ts"
-  ],
+  "include": ["src/**/*"],
   "references": [{ "path": "../../packages/forge-core" }]
 }
