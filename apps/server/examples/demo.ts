@@ -9,10 +9,10 @@ import {
   CrdColumnsDataSource,
   CrdPageStateDataSource,
   WorkspaceCrdPageStateDataSource,
-} from "../dataSourceDef.js";
-import { CrdTableNode } from "../nodeDef.js";
-import { crdTablePageConfig } from "../crdTablePageConfig.js";
-import { workspaceTablePageConfig } from "../workspaceTablePageConfig.js";
+} from "../src/dataSourceDef.js";
+import { CrdTableNode } from "../src/nodeDef.js";
+import { crdTablePageConfig } from "./crdTablePageConfig.js";
+import { workspaceTablePageConfig } from "./workspaceTablePageConfig.js";
 
 const nodeRegistry = new NodeRegistry();
 nodeRegistry.registerNode(CrdTableNode);

@@ -1,4 +1,4 @@
-import { defineWorkspaceTableScene } from "./defineWorkspaceTableScene.js";
+import { defineWorkspaceTableScene } from "../src/preview/defineWorkspaceTableScene.js";
 import { WorkspaceTableScene } from "./workspaceTableScene.js";
 
 // export const workspaceTablePageConfig =

@@ -1,5 +1,3 @@
-export { crdTablePageConfig } from "./crdTablePageConfig.js";
-export { workspaceTablePageConfig } from "./workspaceTablePageConfig.js";
 export {
   CrdColumnsDataSource,
   CrdPageStateDataSource,

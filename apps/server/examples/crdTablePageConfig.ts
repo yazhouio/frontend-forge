@@ -1,6 +1,3 @@
-import { defineCrdTableScene } from "./defineCrdTableScene.js";
-import { CrdTableScene } from "./crdTableScene.js";
-
 const manifest = {
   version: "1.0",
   name: "servicemonitors1",
