@@ -6,7 +6,16 @@
 ```ts
 import { ComponentGenerator } from '@frontend-forge/component-generator';
 
-const generator = ComponentGenerator.withDefaults();
+const generator = new ComponentGenerator();
+generator.registerNode({
+  id: 'Layout',
+  schema: { templateInputs: {} },
+  generateCode: {
+    imports: [],
+    stats: [],
+    jsx: '<div><__ENGINE_CHILDREN__ /></div>',
+  },
+});
 const code = generator.generatePageCode({
   meta: { id: 'page-1', name: 'Sample', path: '/sample' },
   root: { id: 'root', type: 'Layout', props: {}, children: [] },
@@ -22,7 +31,7 @@ console.log(code);
 ```ts
 import { ComponentGenerator } from '@frontend-forge/component-generator';
 
-const generator = ComponentGenerator.withDefaults({
+const generator = new ComponentGenerator({
   cache: { maxEntries: 50 },
 });
 ```
@@ -64,14 +73,14 @@ generator.registerNode({
 ```
 
 ## 默认节点与数据源
-`ComponentGenerator.withDefaults()` 会加载 `src/nodes` 与 `src/datasources` 下的默认定义。
-如果你需要完全自定义，请使用 `new ComponentGenerator()` 并手动注册。
+`ComponentGenerator` 不再内置默认节点与数据源，请按需手动注册。
+仓库中的 `src/examples/` 提供了可复用的示例定义。
 
 ## 目录说明
 - `src/engine/`：解析、校验、依赖图与代码拼装逻辑
-- `src/nodes/`：默认节点定义
-- `src/datasources/`：默认数据源定义
-- `src/engine/demo.ts`：示例与调试入口
+- `src/examples/nodes.ts`：内置示例节点定义（`src/nodes/index.ts` 兼容导出）
+- `src/examples/datasources.ts`：内置示例数据源定义（`src/datasources/index.ts` 兼容导出）
+- `src/examples/demo.ts`：示例与调试入口
 
 ## 进度与计划
 - [x] import 合并

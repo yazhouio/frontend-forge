@@ -7,23 +7,23 @@ import {
 import PQueue from "p-queue";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getCache, setCache } from "../cache.js";
+import { getCache, setCache } from "../../cache.js";
 import {
   BUILD_TIMEOUT_MS,
   CHILD_MAX_OLD_SPACE_MB,
   CONCURRENCY,
   DEFAULT_EXTERNALS,
-} from "../config.js";
+} from "../../config.js";
 import {
   CrdColumnsDataSource,
   CrdPageStateDataSource,
   WorkspaceCrdPageStateDataSource,
-} from "./dataSourceDef.js";
-import { CrdTableNode, IframeNode } from "./nodeDef.js";
+} from "../dataSourceDef.js";
+import { CrdTableNode, IframeNode } from "../nodeDef.js";
 
 const queue = new PQueue({ concurrency: CONCURRENCY });
 const here = path.dirname(fileURLToPath(import.meta.url));
-const vendorNodeModules = path.resolve(here, "..", "vendor", "node_modules");
+const vendorNodeModules = path.resolve(here, "..", "..", "vendor", "node_modules");
 
 const exporter = new CodeExporter({
   cache: {
@@ -57,25 +57,25 @@ const manifest: ExtensionManifest = {
   displayName: "servicemonitors1",
   routes: [
     {
-      path: "/clusters/:cluster/frontendintegrations/asdfas",
+      path: "/clusters/:cluster/frontendintegrations/servicemonitors1/asdfas",
       pageId: "servicemonitors1-cluster",
     },
     {
-      path: "/workspaces/:workspace/frontendintegrations/asdfas",
+      path: "/workspaces/:workspace/frontendintegrations/servicemonitors1/asdfas",
       pageId: "servicemonitors1-workspace",
     },
   ],
   menus: [
     {
       parent: "cluster",
-      name: "frontendintegrations/asdfas",
+      name: "frontendintegrations/servicemonitors1/asdfas",
       title: "servicemonitors1",
       icon: "GridDuotone",
       order: 999,
     },
     {
       parent: "workspace",
-      name: "frontendintegrations/asdfas",
+      name: "frontendintegrations/servicemonitors1/asdfas",
       title: "servicemonitors1",
       icon: "GridDuotone",
       order: 999,
@@ -102,8 +102,9 @@ const manifest: ExtensionManifest = {
               COLUMNS_CONFIG: [
                 {
                   key: "name",
-                  title: "名称xxx",
+                  title: "Title",
                   render: { type: "text", path: "metadata.name", payload: {} },
+                  enableSorting: true,
                 },
                 {
                   key: "namespace",
@@ -113,15 +114,18 @@ const manifest: ExtensionManifest = {
                     path: "metadata.namespace",
                     payload: {},
                   },
+                  enableHiding: true,
                 },
                 {
                   key: "created",
-                  title: "创建时间",
+                  title: "CREATION_TIME",
                   render: {
                     type: "time",
                     path: "metadata.creationTimestamp",
                     payload: { format: "local-datetime" },
                   },
+                  enableSorting: true,
+                  enableHiding: true,
                 },
               ],
               HOOK_NAME: "useCrdColumns",
@@ -197,7 +201,7 @@ const manifest: ExtensionManifest = {
               COLUMNS_CONFIG: [
                 {
                   key: "name",
-                  title: "名称xxx",
+                  title: "Title",
                   render: { type: "text", path: "metadata.name", payload: {} },
                   enableSorting: true,
                 },
@@ -213,7 +217,7 @@ const manifest: ExtensionManifest = {
                 },
                 {
                   key: "created",
-                  title: "创建时间",
+                  title: "CREATION_TIME",
                   render: {
                     type: "time",
                     path: "metadata.creationTimestamp",

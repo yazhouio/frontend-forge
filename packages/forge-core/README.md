@@ -24,7 +24,16 @@ import {
   CodeExporter,
 } from '@frontend-forge/forge-core/advanced';
 
-const component = ComponentGenerator.withDefaults();
+const component = new ComponentGenerator();
+component.registerNode({
+  id: 'Layout',
+  schema: { templateInputs: {} },
+  generateCode: {
+    imports: [],
+    stats: [],
+    jsx: '<div><__ENGINE_CHILDREN__ /></div>',
+  },
+});
 const project = new ProjectGenerator();
 const exporter = new CodeExporter();
 

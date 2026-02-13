@@ -5,8 +5,6 @@ import {
   NodeRegistry,
   SchemaValidator
 } from "./engine/index.js";
-import * as defaultDataSources from "./datasources/index.js";
-import * as defaultNodes from "./nodes/index.js";
 import {
   type ComponentGeneratorCache,
   type ComponentGeneratorCacheOptions,
@@ -23,10 +21,6 @@ export type ComponentGeneratorOptions = {
   cache?: boolean | ComponentGeneratorCacheOptions | ComponentGeneratorCache;
   cacheKey?: (schema: unknown) => string | null;
 };
-
-function isDefinition(value: unknown): value is { id: string } {
-  return Boolean(value && typeof value === "object" && "id" in value);
-}
 
 function isCache(value: unknown): value is ComponentGeneratorCache {
   if (!value || typeof value !== "object") return false;
@@ -60,12 +54,6 @@ export class ComponentGenerator {
     }
   }
 
-  static withDefaults(options: ComponentGeneratorOptions = {}): ComponentGenerator {
-    const generator = new ComponentGenerator(options);
-    generator.loadDefaults();
-    return generator;
-  }
-
   registerNode(definition: NodeDefinition): void {
     this.nodeRegistry.registerNode(definition);
     this.invalidateCache();
@@ -79,16 +67,6 @@ export class ComponentGenerator {
   clear(): void {
     this.nodeRegistry.clear();
     this.dataSourceRegistry.clear();
-    this.invalidateCache();
-  }
-
-  loadDefaults(): void {
-    for (const def of Object.values(defaultNodes)) {
-      if (isDefinition(def)) this.nodeRegistry.registerNode(def as NodeDefinition);
-    }
-    for (const def of Object.values(defaultDataSources)) {
-      if (isDefinition(def)) this.dataSourceRegistry.registerDataSource(def as DataSourceDefinition);
-    }
     this.invalidateCache();
   }
 
