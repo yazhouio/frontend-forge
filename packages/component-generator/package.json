@@ -16,7 +16,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -b tsconfig.json --force",
+    "build": "pnpm run clean && tsc -b tsconfig.json --force",
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {

@@ -4,7 +4,6 @@
   "private": true,
   "main": "dist/index.js",
   "scripts": {
-    "build": "kse-build"
   },
   "dependencies": {
     "es-toolkit": "^1.43.0",
