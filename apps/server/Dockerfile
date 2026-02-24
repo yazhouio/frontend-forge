@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22-alpine AS deps
+FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 
 RUN corepack enable
@@ -16,7 +16,7 @@ COPY packages/project-generator/package.json packages/project-generator/
 
 RUN pnpm i --frozen-lockfile --filter @frontend-forge/server... --filter @frontend-forge/vendor...
 
-FROM node:22-alpine AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
 RUN corepack enable
@@ -33,16 +33,6 @@ COPY --from=deps /app/packages/project-generator/node_modules ./packages/project
 RUN pnpm -r --filter @frontend-forge/server... run build
 RUN pnpm --filter @frontend-forge/server deploy --prod /app/server
 RUN pnpm --filter @frontend-forge/vendor deploy --prod /app/server/vendor
-
-FROM node:22-alpine AS runner
-WORKDIR /app/server
-ENV NODE_ENV=production
-
-RUN addgroup -S app && adduser -S app -G app
-
-COPY --from=build /app/server ./
-
-ENV CACHE_DIR=/data/cache
 RUN find /app/server -path '*/node_modules/*' -type d \( \
     -name test -o -name tests -o -name __tests__ -o -name docs -o -name doc -o -name examples -o -name example -o -name benchmark -o -name benchmarks \
   \) -prune -exec rm -rf '{}' + \
@@ -50,9 +40,20 @@ RUN find /app/server -path '*/node_modules/*' -type d \( \
     -name '*.md' -o -name '*.markdown' -o -name '*.map' \
   \) -delete \
   && mkdir -p /data/cache \
-  && chown -R app:app /data
+  && chown -R 65532:65532 /data
+  
+RUN rm -rf /app/server/node_modules/.pnpm/*musl* \
+ && rm -rf /app/server/vendor/node_modules/.pnpm/*musl*
 
-USER app
+FROM gcr.io/distroless/nodejs22-debian12 AS runner
+WORKDIR /app/server
+ENV NODE_ENV=production
+
+COPY --from=build /app/server ./
+COPY --from=build /data /data
+
+ENV CACHE_DIR=/data/cache
+USER 65532:65532
 EXPOSE 3000
 
-CMD ["node", "dist/server.js"]
+CMD ["dist/server.js"]
