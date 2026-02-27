@@ -130,7 +130,8 @@ export const IframeNode: NodeDefinition = {
       {
         id: "loadingState",
         scope: StatementScope.FunctionBody,
-        code: "const [loading, setLoading] = useState(true);",
+        code: `const isSameOrigin = new URL(%%FRAME_URL%%, window.location.href).origin === window.location.origin;
+const [loading, setLoading] = useState(isSameOrigin);`,
         output: ["loading", "setLoading"],
         depends: [],
       },
