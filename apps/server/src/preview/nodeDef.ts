@@ -171,6 +171,7 @@ const [loading, setLoading] = useState(isSameOrigin);`,
     meta: {
       inputPaths: {
         $jsx: ["FRAME_URL"],
+        loadingState: ["FRAME_URL"],
       },
     },
   },
